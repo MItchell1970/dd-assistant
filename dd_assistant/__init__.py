@@ -5,7 +5,8 @@ Camadas (sempre separadas):
     2. metrics       -> calcula as métricas (determinístico)
     3. rules         -> compara cada métrica com um limite e gera os alertas
     4. report        -> escreve a tabela de red flags (Excel e CSV)
-A camada de IA (memo e perguntas finais) vem depois e nunca faz contas.
+    5. ai_memo       -> a Claude API escreve o memo e a request list (nunca faz contas nem cria alertas)
+A app (app.py, Streamlit) só junta estas camadas.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

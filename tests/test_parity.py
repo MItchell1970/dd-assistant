@@ -1,7 +1,8 @@
 """Teste de paridade: o Python tem de dar exatamente o mesmo resultado que a planilha.
 
 Lê os valores já calculados pelo Excel (folhas Métricas, Regras e Red Flags) e compara
-com o que o código calcula a partir da folha Input.
+com o que o código calcula a partir da folha Input. Corre nas duas empresas de exemplo:
+a Duriva (com problemas plantados) e a Velmora (empresa "limpa").
 
 Correr:  python -m unittest -v
 Nota: o template tem de ter sido gravado por um programa que calcula fórmulas
@@ -19,7 +20,7 @@ from dd_assistant.input_loader import load_input
 from dd_assistant.metrics import LABELS, compute_metrics
 from dd_assistant.rules import RULES, alerts, evaluate
 
-TEMPLATE = Path(__file__).resolve().parents[1] / "data" / "DD_template_modulo1.xlsx"
+DATA = Path(__file__).resolve().parents[1] / "data"
 YEAR_COLS = {"B": 2022, "C": 2023, "D": 2024, "E": 2025}
 
 
@@ -38,13 +39,16 @@ def norm(text: str) -> str:
     return str(text).replace(",", ".")
 
 
-class ParityTest(unittest.TestCase):
+class Parity:
+    """Os testes de paridade; cada subclasse indica o template (não é um TestCase sozinha)."""
+    TEMPLATE: Path
+
     @classmethod
     def setUpClass(cls):
-        cls.data = load_input(TEMPLATE)
+        cls.data = load_input(cls.TEMPLATE)
         cls.metrics = compute_metrics(cls.data)
         cls.results = evaluate(cls.data, cls.metrics)
-        cls.wb = load_workbook(TEMPLATE, data_only=True)
+        cls.wb = load_workbook(cls.TEMPLATE, data_only=True)
         if cls.wb["Métricas"]["C6"].value is None:
             raise unittest.SkipTest("O template não tem valores calculados: abra-o no Excel e grave.")
 
@@ -85,6 +89,14 @@ class ParityTest(unittest.TestCase):
         ws = self.wb["Red Flags"]
         sheet_ids = [ws[f"B{r}"].value for r in range(6, ws.max_row + 1) if ws[f"B{r}"].value]
         self.assertEqual(sheet_ids, [r.rule.id for r in alerts(self.results)])
+
+
+class DurivaParityTest(Parity, unittest.TestCase):
+    TEMPLATE = DATA / "DD_template_modulo1.xlsx"
+
+
+class VelmoraParityTest(Parity, unittest.TestCase):
+    TEMPLATE = DATA / "DD_template_velmora.xlsx"
 
 
 if __name__ == "__main__":
