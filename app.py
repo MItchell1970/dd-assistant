@@ -3,21 +3,24 @@
 Correr (com o ambiente virtual ativo):
     streamlit run app.py
 
-A app só junta as camadas que já existem (input_loader → metrics → rules → report).
+A app só junta as camadas que já existem (input_loader → metrics → rules → report → ai_memo).
 Não faz contas nem cria alertas: o revisor marca cada alerta como Aceite, Descartado ou Pendente.
 """
 from __future__ import annotations
 
 import hashlib
 import io
+import os
 from pathlib import Path
 
+import anthropic
 import pandas as pd
 import streamlit as st
 
+from dd_assistant.ai_memo import EFFORT, MODEL, MemoError, build_material, load_env, write_memo
 from dd_assistant.input_loader import load_input
 from dd_assistant.metrics import LABELS, compute_metrics
-from dd_assistant.report import REVIEW_STATES, csv_bytes, write_excel
+from dd_assistant.report import REVIEW_STATES, csv_bytes, fmt_value, write_excel
 from dd_assistant.rules import alerts, evaluate
 
 DATA = Path(__file__).parent / "data"
@@ -32,15 +35,6 @@ def analyse(content: bytes):
     return data, metrics, evaluate(data, metrics)
 
 
-def fmt(v) -> str:
-    """Mostra uma métrica como na evidência: None = 'n.d.', até 4 casas decimais."""
-    if v is None:
-        return "n.d."
-    if isinstance(v, float):
-        return f"{v:.4f}".rstrip("0").rstrip(".")
-    return str(v)
-
-
 st.set_page_config(page_title="Due Diligence Assistant", layout="wide")
 
 # ---------------------------------------------------------------- escolher o ficheiro
@@ -51,7 +45,8 @@ with st.sidebar:
     examples = sorted(DATA.glob("DD_template_*.xlsx"))
     example = st.selectbox("…ou usar um exemplo", examples, format_func=lambda p: p.name,
                            disabled=uploaded is not None)
-    st.caption("A análise corre neste computador. O ficheiro não é enviado para lado nenhum.")
+    st.caption("Os red flags e as métricas são calculados neste computador. Só o separador Memo (IA) envia "
+               "dados (para a Claude API), e só quando carrega no botão.")
 
 if uploaded is not None:
     name, content = uploaded.name, uploaded.getvalue()
@@ -74,7 +69,7 @@ st.title("Due Diligence Assistant")
 st.caption(f"{name} · exercícios {data.pl_years[0]}–{data.pl_years[-1]} · € milhares · "
            "pontos a investigar, não conclusões")
 
-tab_rf, tab_m = st.tabs(["Red flags", "Métricas"])
+tab_rf, tab_m, tab_ai = st.tabs(["Red flags", "Métricas", "Memo (IA)"])
 
 # ---------------------------------------------------------------- red flags e revisão
 with tab_rf:
@@ -135,8 +130,67 @@ with tab_rf:
 
 # ---------------------------------------------------------------- métricas
 with tab_m:
-    rows = [[label] + [fmt(metrics[key].get(y)) for y in data.years] for key, label in LABELS.items()]
+    rows = [[label] + [fmt_value(metrics[key].get(y)) for y in data.years] for key, label in LABELS.items()]
     st.dataframe(pd.DataFrame(rows, columns=["Métrica"] + [str(y) for y in data.years]),
                  hide_index=True, width="stretch", height=35 * (len(rows) + 1) + 3)
     st.caption("Percentagens em decimal (0.238 = 23,8%); variações de margem em pontos percentuais. "
                "'n.d.' = não disponível (falta o ano anterior ou o dado).")
+
+# ---------------------------------------------------------------- memo com a Claude API
+with tab_ai:
+    st.markdown("A IA lê os alertas (com o seu estado de revisão), as métricas e o data room, e escreve o memo de "
+                "duas páginas, a information request list e notas para melhorar o template. "
+                "**Não faz contas nem cria alertas.**")
+    rooms = sorted(DATA.glob("*_data_room.xlsx"))
+    match = next((i for i, p in enumerate(rooms) if p.name.split("_")[0].lower() in name.lower()), 0)
+    room_up = st.file_uploader("Data room da empresa (Excel)", type="xlsx", key="data_room")
+    room = st.selectbox("…ou um data room de exemplo", rooms, index=match if rooms else None,
+                        format_func=lambda p: p.name, disabled=room_up is not None)
+    room_src = io.BytesIO(room_up.getvalue()) if room_up is not None else room
+
+    load_env()
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        st.warning("Não encontrei a chave da Claude API. Copie o ficheiro .env.example para .env, cole lá a chave "
+                   "e reinicie a app.")
+    st.caption(f"Modelo {MODEL}, esforço {EFFORT}. Cada memo custa cerca de 0,2 a 0,5 USD "
+               "(estimativa; o custo real aparece no fim).")
+
+    memo_key = f"memo-{file_key}"
+    if st.button("Escrever o memo", type="primary", disabled=room_src is None):
+        material = build_material(data, metrics, results, room_src, reviews, name)
+        box, parts = st.empty(), []
+
+        def show(text: str) -> None:
+            parts.append(text)
+            box.markdown("".join(parts))
+
+        with st.spinner("A escrever o memo. Primeiro o modelo pensa; pode demorar alguns minutos…"):
+            try:
+                st.session_state[memo_key] = (write_memo(material, on_text=show), material)
+            except anthropic.AuthenticationError:
+                st.error("A chave da Claude API é inválida. Confirme ANTHROPIC_API_KEY no ficheiro .env.")
+            except anthropic.RateLimitError:
+                st.error("Limite de pedidos atingido. Espere um minuto e tente outra vez.")
+            except anthropic.APIStatusError as e:
+                st.error(f"Erro da Claude API ({e.status_code}): {e.message}")
+            except anthropic.APIConnectionError:
+                st.error("Sem ligação à Claude API. Verifique a internet.")
+            except MemoError as e:
+                st.error(str(e))
+            except anthropic.AnthropicError as e:   # por exemplo, nenhuma chave configurada
+                st.error(f"Não foi possível chamar a Claude API: {e}")
+        box.empty()
+
+    if memo_key in st.session_state:
+        memo, material = st.session_state[memo_key]
+        st.caption(f"{memo.model} · {memo.input_tokens:,} tokens de entrada, {memo.output_tokens:,} de saída "
+                   f"· custo estimado ≈ {memo.cost_usd:.2f} USD")
+        if memo.truncated:
+            st.warning("A resposta parou no limite de tokens e pode estar incompleta.")
+        m1, m2, _ = st.columns([1, 1, 3])
+        stem = Path(name).stem
+        m1.download_button("Descarregar memo (.md)", memo.text.encode("utf-8"), f"{stem}_memo.md", mime="text/markdown")
+        m2.download_button("Material enviado à IA", material.encode("utf-8"), f"{stem}_material_ia.md",
+                           mime="text/markdown")
+        st.divider()
+        st.markdown(memo.text)

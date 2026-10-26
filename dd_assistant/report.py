@@ -22,6 +22,15 @@ REVIEW_STATES = ["Pendente", "Aceite", "Descartado"]
 Reviews = dict[str, tuple[str, str]]
 
 
+def fmt_value(v) -> str:
+    """Mostra um valor como na evidência: None = 'n.d.', números com até 4 casas decimais."""
+    if v is None:
+        return "n.d."
+    if isinstance(v, float):
+        return f"{v:.4f}".rstrip("0").rstrip(".")
+    return str(v)
+
+
 def red_flag_rows(results: list[RuleResult], reviews: Reviews | None = None) -> list[list[str]]:
     reviews = reviews or {}
     rows = []
