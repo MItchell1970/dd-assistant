@@ -44,7 +44,7 @@ Se o PowerShell bloquear o `Activate.ps1`: `Set-ExecutionPolicy -Scope CurrentUs
 - `data/DD_template_velmora.xlsx` e `data/Velmora_data_room.xlsx`: a Velmora, empresa fictícia "limpa" (0 alertas), gerada por `scripts/empresa_limpa.py`. Foi desenhada por quem conhece as regras: é um teste de sanidade.
 
 ## Roadmap
-1. ~~**Git**~~ feito (repositório local, ramo `main`). **GitHub:** por fazer; o Bernardo decide antes de publicar (o email dos commits fica público).
+1. ~~**Git e GitHub**~~ feito: repositório público em https://github.com/MItchell1970/dd-assistant (ramo `main`). Os commits usam o email privado do GitHub (`133356273+MItchell1970@users.noreply.github.com`), nunca o Gmail. Para enviar alterações: `git push`.
 2. ~~**App em Streamlit**~~ feito: carregar o template → rever (Aceite / Descartado / Pendente) → descarregar Excel/CSV.
 3. ~~**Camada de IA com a Claude API**~~ feita e testada sem chamadas reais. Falta a primeira corrida real com a chave do Bernardo e rever a qualidade do memo.
 4. ~~**Segunda empresa fictícia "limpa"**~~ feita: Velmora, 0 alertas. Próximo nível: testar com contas reais de empresas saudáveis.
