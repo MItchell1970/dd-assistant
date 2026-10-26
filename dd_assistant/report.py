@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import csv
+import io
 from pathlib import Path
+from typing import BinaryIO
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -14,15 +16,21 @@ from .rules import RuleResult, alerts
 COLUMNS = ["Nº", "Regra", "Área", "Anos", "Evidência (com fonte)", "Cálculo e regra disparada",
            "Ponto a investigar", "Relevância", "Pergunta para a empresa", "Documento a pedir",
            "Estado do revisor", "Comentário do revisor"]
+REVIEW_STATES = ["Pendente", "Aceite", "Descartado"]
+
+# Revisão de cada alerta: ID da regra -> (estado, comentário). Sem revisão = ("Pendente", "").
+Reviews = dict[str, tuple[str, str]]
 
 
-def red_flag_rows(results: list[RuleResult]) -> list[list[str]]:
+def red_flag_rows(results: list[RuleResult], reviews: Reviews | None = None) -> list[list[str]]:
+    reviews = reviews or {}
     rows = []
     for i, r in enumerate(alerts(results), 1):
         rule = r.rule
+        state, comment = reviews.get(rule.id, ("Pendente", ""))
         rows.append([i, rule.id, rule.area, r.years_text, r.evidence,
                      f"{rule.calc}\nRegra: {rule.rule_text()}", rule.ponto, rule.relevance,
-                     rule.pergunta, rule.documento, "Pendente", ""])
+                     rule.pergunta, rule.documento, state, comment])
     return rows
 
 
@@ -35,14 +43,21 @@ def summary(results: list[RuleResult]) -> str:
     return "\n".join(lines)
 
 
-def write_csv(results: list[RuleResult], path: Path) -> None:
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:   # utf-8-sig: o Excel abre com acentos
-        w = csv.writer(f, delimiter=";")
-        w.writerow(COLUMNS)
-        w.writerows(red_flag_rows(results))
+def csv_bytes(results: list[RuleResult], reviews: Reviews | None = None) -> bytes:
+    f = io.StringIO(newline="")
+    w = csv.writer(f, delimiter=";")
+    w.writerow(COLUMNS)
+    w.writerows(red_flag_rows(results, reviews))
+    return f.getvalue().encode("utf-8-sig")   # utf-8-sig: o Excel abre com acentos
 
 
-def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int], path: Path) -> None:
+def write_csv(results: list[RuleResult], path: Path, reviews: Reviews | None = None) -> None:
+    Path(path).write_bytes(csv_bytes(results, reviews))
+
+
+def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int],
+                path: Path | BinaryIO, reviews: Reviews | None = None) -> None:
+    """Grava num ficheiro ou num buffer em memória (a app usa o buffer para o download)."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Red Flags"
@@ -52,13 +67,13 @@ def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int], p
         cell = ws.cell(row=1, column=c, value=h)
         cell.font, cell.fill = head, fill
         cell.alignment = Alignment(wrap_text=True, vertical="center")
-    for r, row in enumerate(red_flag_rows(results), 2):
+    for r, row in enumerate(red_flag_rows(results, reviews), 2):
         for c, v in enumerate(row, 1):
             cell = ws.cell(row=r, column=c, value=v)
             cell.font = Font(name="Arial", size=10)
             cell.alignment = Alignment(wrap_text=True, vertical="top")
     last = ws.max_row
-    dv = DataValidation(type="list", formula1='"Aceite,Descartado,Pendente"')
+    dv = DataValidation(type="list", formula1='"' + ",".join(REVIEW_STATES) + '"')
     ws.add_data_validation(dv)
     dv.add(f"K2:K{max(last, 2)}")
     for col, w in zip("ABCDEFGHIJKL", [5, 8, 16, 10, 60, 34, 34, 10, 44, 32, 14, 28]):

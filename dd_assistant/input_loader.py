@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import BinaryIO
 
 from openpyxl import load_workbook
 
@@ -104,8 +105,8 @@ def _num(x):
     return float(x) if isinstance(x, (int, float)) else None
 
 
-def load_input(path: str | Path) -> CompanyData:
-    """Lê a folha Input do template e devolve os dados da empresa."""
+def load_input(path: str | Path | BinaryIO) -> CompanyData:
+    """Lê a folha Input do template (ficheiro ou buffer em memória) e devolve os dados da empresa."""
     wb = load_workbook(path, data_only=True)
     ws = wb["Input"]
     years = [int(ws[f"{c}{HEADER_ROW}"].value) for c in YEAR_COLS]

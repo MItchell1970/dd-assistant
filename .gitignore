@@ -6,3 +6,4 @@ output/*
 .env
 *gabarito*
 ~$*.xlsx
+.claude/launch.json

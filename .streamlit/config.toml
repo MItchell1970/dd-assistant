@@ -1,0 +1,7 @@
+[browser]
+# não enviar estatísticas de utilização para o Streamlit
+gatherUsageStats = false
+
+[server]
+# só este computador abre a app (por defeito, qualquer pessoa na mesma rede conseguia)
+address = "localhost"
