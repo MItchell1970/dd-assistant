@@ -15,6 +15,7 @@ Em due diligence, boa parte do trabalho inicial é mecânica: cruzar demonstraç
 | Regras | `rules.py` | 20 regras com limites editáveis; cada alerta traz evidência e pergunta-modelo |
 | Relatório | `report.py` | Red flags em Excel e CSV, com o estado e o comentário do revisor |
 | IA | `ai_memo.py` + `docs/camada_ia_prompt.md` | Junta os alertas em temas e escreve o memo e a request list com a Claude API; não faz contas nem cria alertas |
+| Verificação | `memo_check.py` | Confirma, sem IA, que cada número do memo existe no material, que todos os alertas aparecem, que cada pergunta tem um pedido e que não há recomendação de investimento |
 | App | `app.py` | Carregar o template → rever os alertas (Aceite / Descartado / Pendente) → descarregar → memo com IA |
 
 As contas são determinísticas e verificáveis: `tests/test_parity.py` confirma que o Python dá exatamente o mesmo resultado que as fórmulas da planilha, nas duas empresas.
@@ -38,8 +39,11 @@ streamlit run app.py
 
 # memo e request list com a Claude API (precisa da chave no ficheiro .env; ver .env.example)
 python -m dd_assistant data\DD_template_modulo1.xlsx --memo --data-room data\Duriva_data_room.xlsx
+
+# verificar um memo escrito fora do programa (por exemplo, no claude.ai com o mesmo prompt)
+python -m dd_assistant data\DD_template_modulo1.xlsx --check-memo memo.md --data-room data\Duriva_data_room.xlsx
 ```
-O memo usa o Claude Opus 5.5 e custa cerca de 0,2 a 0,5 USD por empresa (o valor real aparece no fim). O texto exato enviado à IA fica gravado em `output\*_material_ia.md`, para auditoria.
+O memo usa o Claude Opus 5.5 e custa cerca de 0,2 a 0,5 USD por empresa (o valor real aparece no fim). O texto exato enviado à IA fica gravado em `output\*_material_ia.md`, para auditoria. Depois de cada memo, o verificador corre sozinho e grava o resultado em `output\*_verificacao.md`; na app aparece a verde ou a vermelho. Limitação: um número pequeno inventado (por exemplo, 37%) pode coincidir por acaso com outro do material; os números grandes são verificados com segurança.
 
 ## Resultados
 **Duriva:** 15 alertas (10 de relevância alta), entre eles: venda pontual apresentada como crescimento orgânico, concentração no maior cliente (23,8%), queda de 3,5 p.p. na margem bruta, ganho na venda de ativos dentro do EBITDA, conversão de caixa de 20,5%, 55% da dívida a vencer em 12 meses e uma DFC que não bate com o balanço.

@@ -10,7 +10,7 @@ Sou o Bernardo, finalista de Economia na FEP (Porto), com estágio em Transactio
 2. **Métricas:** `dd_assistant/metrics.py` faz todas as contas, de forma determinística. `None` = "n.d.".
 3. **Regras:** `dd_assistant/rules.py` tem o catálogo R01–R20 (limite, relevância, evidência, pergunta, documento a pedir) e gera os alertas.
 4. **Relatório:** `dd_assistant/report.py` grava os red flags em Excel e CSV, com o estado e o comentário do revisor.
-5. **IA:** `dd_assistant/ai_memo.py` envia à Claude API (`claude-opus-5-5`) os alertas, as regras, as métricas, o Input e o data room integral, com `docs/camada_ia_prompt.md` como system prompt, e recebe o memo e a request list. **A IA nunca faz contas nem cria alertas.**
+5. **IA:** `dd_assistant/ai_memo.py` envia à Claude API (`claude-opus-5-5`) os alertas, as regras, as métricas, o Input e o data room integral, com `docs/camada_ia_prompt.md` como system prompt, e recebe o memo e a request list. **A IA nunca faz contas nem cria alertas.** Depois, `dd_assistant/memo_check.py` verifica o memo sem IA: números com fonte no material, todos os alertas, perguntas com pedido, nenhuma recomendação de investimento.
 6. **App:** `app.py` (Streamlit) só junta as camadas: carregar o template → rever os alertas → descarregar → memo com IA.
 
 ## Comandos (Windows, PowerShell, na pasta do projeto)
@@ -22,6 +22,7 @@ python -m unittest -v                 # corre os testes
 python -m dd_assistant data\DD_template_modulo1.xlsx   # gera os red flags em output\
 streamlit run app.py                  # abre a app no browser (só neste computador)
 python -m dd_assistant data\DD_template_modulo1.xlsx --memo --data-room data\Duriva_data_room.xlsx   # memo com IA (custa dinheiro)
+python -m dd_assistant data\DD_template_modulo1.xlsx --check-memo memo.md --data-room data\Duriva_data_room.xlsx   # verifica um memo já escrito (grátis)
 python scripts\empresa_limpa.py       # volta a gerar a Velmora (precisa do Excel)
 ```
 Se o PowerShell bloquear o `Activate.ps1`: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.

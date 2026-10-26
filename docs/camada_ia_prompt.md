@@ -65,3 +65,5 @@ Lista curta de números que precisaste e o template não calcula, e de regras qu
 - [ ] Nenhuma recomendação de compra ou de preço.
 - [ ] As contradições com o relatório de gestão estão assinaladas com o §.
 - [ ] Cada pergunta tem um documento correspondente na request list.
+
+Depois da resposta, `dd_assistant/memo_check.py` confirma automaticamente os números, os alertas, a request list e a ausência de recomendações de investimento.

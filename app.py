@@ -17,8 +17,9 @@ import anthropic
 import pandas as pd
 import streamlit as st
 
-from dd_assistant.ai_memo import EFFORT, MODEL, MemoError, build_material, load_env, write_memo
+from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.input_loader import load_input
+from dd_assistant.memo_check import MemoCheck, check_memo, report
 from dd_assistant.metrics import LABELS, compute_metrics
 from dd_assistant.report import REVIEW_STATES, csv_bytes, fmt_value, write_excel
 from dd_assistant.rules import alerts, evaluate
@@ -33,6 +34,15 @@ def analyse(content: bytes):
     data = load_input(io.BytesIO(content))
     metrics = compute_metrics(data)
     return data, metrics, evaluate(data, metrics)
+
+
+def show_check(check: MemoCheck) -> None:
+    """Resultado do verificador do memo: verde se não houver erros, vermelho com o detalhe se houver."""
+    first, _, details = report(check).partition("\n")
+    (st.success if check.ok else st.error)(first)
+    if details:
+        with st.expander("Detalhe da verificação", expanded=not check.ok):
+            st.markdown(details)
 
 
 st.set_page_config(page_title="Due Diligence Assistant", layout="wide")
@@ -146,7 +156,8 @@ with tab_ai:
     room_up = st.file_uploader("Data room da empresa (Excel)", type="xlsx", key="data_room")
     room = st.selectbox("…ou um data room de exemplo", rooms, index=match if rooms else None,
                         format_func=lambda p: p.name, disabled=room_up is not None)
-    room_src = io.BytesIO(room_up.getvalue()) if room_up is not None else room
+    room_source = lambda: io.BytesIO(room_up.getvalue()) if room_up is not None else room   # novo a cada leitura
+    alert_ids = [r.rule.id for r in al]
 
     load_env()
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -156,8 +167,8 @@ with tab_ai:
                "(estimativa; o custo real aparece no fim).")
 
     memo_key = f"memo-{file_key}"
-    if st.button("Escrever o memo", type="primary", disabled=room_src is None):
-        material = build_material(data, metrics, results, room_src, reviews, name)
+    if st.button("Escrever o memo", type="primary", disabled=room_source() is None):
+        material = build_material(data, metrics, results, room_source(), reviews, name)
         box, parts = st.empty(), []
 
         def show(text: str) -> None:
@@ -166,7 +177,8 @@ with tab_ai:
 
         with st.spinner("A escrever o memo. Primeiro o modelo pensa; pode demorar alguns minutos…"):
             try:
-                st.session_state[memo_key] = (write_memo(material, on_text=show), material)
+                memo = write_memo(material, on_text=show)
+                st.session_state[memo_key] = (memo, material, check_memo(memo.text, material, alert_ids))
             except anthropic.AuthenticationError:
                 st.error("A chave da Claude API é inválida. Confirme ANTHROPIC_API_KEY no ficheiro .env.")
             except anthropic.RateLimitError:
@@ -181,16 +193,33 @@ with tab_ai:
                 st.error(f"Não foi possível chamar a Claude API: {e}")
         box.empty()
 
+    stem = Path(name).stem
     if memo_key in st.session_state:
-        memo, material = st.session_state[memo_key]
+        memo, material, check = st.session_state[memo_key]
         st.caption(f"{memo.model} · {memo.input_tokens:,} tokens de entrada, {memo.output_tokens:,} de saída "
                    f"· custo estimado ≈ {memo.cost_usd:.2f} USD")
         if memo.truncated:
             st.warning("A resposta parou no limite de tokens e pode estar incompleta.")
+        show_check(check)
         m1, m2, _ = st.columns([1, 1, 3])
-        stem = Path(name).stem
         m1.download_button("Descarregar memo (.md)", memo.text.encode("utf-8"), f"{stem}_memo.md", mime="text/markdown")
         m2.download_button("Material enviado à IA", material.encode("utf-8"), f"{stem}_material_ia.md",
                            mime="text/markdown")
         st.divider()
         st.markdown(memo.text)
+
+    # sem chave: o memo pode ser escrito noutro sítio (ex.: claude.ai) e verificado aqui
+    with st.expander("Sem chave da API? Escreva o memo noutro sítio e verifique-o aqui"):
+        st.markdown("1. Descarregue o material e o prompt.  \n"
+                    "2. Numa conversa nova no claude.ai, cole o prompt e depois o material.  \n"
+                    "3. Grave a resposta num ficheiro `.md` e carregue-o abaixo: a app confirma os números, "
+                    "os alertas e a request list.")
+        if room_source() is not None:
+            material = build_material(data, metrics, results, room_source(), reviews, name)
+            e1, e2, _ = st.columns([1, 1, 3])
+            e1.download_button("Material (.md)", material.encode("utf-8"), f"{stem}_material_ia.md",
+                               mime="text/markdown")
+            e2.download_button("Prompt (.md)", PROMPT_FILE.read_bytes(), "camada_ia_prompt.md", mime="text/markdown")
+            outside = st.file_uploader("Memo escrito fora da app (.md)", type=["md", "txt"], key="memo_upload")
+            if outside is not None:
+                show_check(check_memo(outside.getvalue().decode("utf-8"), material, alert_ids))
