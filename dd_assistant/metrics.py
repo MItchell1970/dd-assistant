@@ -45,7 +45,7 @@ LABELS = {
     "dpo": "DPO",
     "dpo_var": "DPO change",
     "cgo": "Cash generated from operations",
-    "conv": "Cash conversion (CGO / EBITDA)",
+    "conv": "Cash conversion (operating cash / EBITDA)",
     "fco": "Operating cash flow",
     "fcf": "Free cash flow",
     "capex_pct": "Capex (% of revenue)",
@@ -201,7 +201,9 @@ def compute_metrics(d: CompanyData) -> Metrics:
 
     # ---------------- Cash generation
     put("cgo", P, lambda y: v("cgo", y))
-    put("conv", P, lambda y: None if m["ebitda"][y] <= 0 or m["cgo"][y] is None else m["cgo"][y] / m["ebitda"][y])
+    # cash generated from operations; when the statements do not present it (direct method), operating cash flow
+    cash = lambda y: m["cgo"][y] if m["cgo"][y] is not None else v("fco", y)
+    put("conv", P, lambda y: None if m["ebitda"][y] <= 0 or cash(y) is None else cash(y) / m["ebitda"][y])
     put("fco", P, lambda y: v("fco", y))
     put("fcf", P, lambda y: N(v("fco", y)) + N(v("capex", y)) + N(v("alien", y)))
     put("capex_pct", P, lambda y: div(-N(v("capex", y)), v("vendas", y)))
@@ -239,8 +241,10 @@ def compute_metrics(d: CompanyData) -> Metrics:
 
     put("wc_diff", Pb, wc)
     def ni(y):
+        # the P&L may show net income in total and attributable to the group; the balance sheet often shows the latter
+        pl = [x for x in (v("rl_dre", y), v("rl_grupo", y)) if x is not None]
         others = [x for x in (v("rl_bs", y), v("rl_dfc", y)) if x is not None]
-        return None if v("rl_dre", y) is None or not others else max(abs(v("rl_dre", y) - x) for x in others)
+        return None if not pl or not others else min(max(abs(p - x) for x in others) for p in pl)
 
     put("ni_diff", P, ni)
     if d.clients:

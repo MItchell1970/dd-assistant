@@ -47,6 +47,7 @@ Se o PowerShell bloquear o `Activate.ps1`: `Set-ExecutionPolicy -Scope CurrentUs
 - `data/DD_template_modulo1.xlsx`: template preenchido com a Duriva (empresa fictícia). É o input de exemplo e a referência da paridade.
 - `data/Duriva_data_room.xlsx`: o data room da Duriva (DRE, balanço, DFC, clientes, EBITDA ajustado, dívida, relatório de gestão).
 - `data/DD_template_velmora.xlsx` e `data/Velmora_data_room.xlsx`: a Velmora, empresa fictícia "limpa" (0 alertas), gerada por `scripts/empresa_limpa.py`. Foi desenhada por quem conhece as regras: é um teste de sanidade.
+- `data/Toyota_Caetano_2024_published.xlsx` e `data/Corticeira_Amorim_2024_published.xlsx`: contas consolidadas **reais** de 2024, copiadas tal como publicadas (fonte e páginas na folha "Source"; gerados por `scripts/real_*.py`). `tests/test_real_companies.py` exige que o agente reconstrua o EBITDA publicado ao euro, feche o balanço e dê os alertas esperados.
 
 ## Roadmap
 1. ~~**Git e GitHub**~~ feito: repositório público em https://github.com/MItchell1970/dd-assistant (ramo `main`). Os commits usam o email privado do GitHub (`133356273+MItchell1970@users.noreply.github.com`), nunca o Gmail. Para enviar alterações: `git push`.

@@ -9,6 +9,14 @@ to the standard model:
   - PDF: Claude reads the statements (vision) and returns each figure exactly as printed,
     with its page. The code, not the AI, converts units and signs; the consistency rules
     (R12–R17) and the review table then check what was read.
+
+Published accounts differ from a model template, so the reader also:
+  - converts the unit stated in the file (euros, thousands, millions) to EUR thousands;
+  - adds lines the model keeps together (sales + services rendered; capex on tangible +
+    intangible assets; inventory write-downs and provisions within EBITDA, as in SNC);
+  - reads a label together with its section ('Clientes' under current vs non-current assets);
+  - derives the 'other' balance sheet lines from the published totals, so the balance sheet
+    check (R12) tests the company's own totals.
 """
 from __future__ import annotations
 
@@ -17,6 +25,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
+from pathlib import Path
 from typing import BinaryIO, Literal
 
 import anthropic
@@ -40,135 +49,182 @@ def _norm(text) -> str:
 @dataclass(frozen=True)
 class Field:
     key: str
-    label: str              # English name in the review table
-    statement: str          # pl, bs or cf
-    synonyms: tuple[str, ...]
-    sign: int = 0           # -1: negative in the model (costs and payments), whatever the file shows
+    label: str                    # English name in the review table
+    statement: str                # pl, bs or cf
+    synonyms: tuple[str, ...]     # the main line
+    sign: int = 0                 # -1: negative in the model (costs and payments), whatever the file shows
+    adds: tuple[str, ...] = ()    # further lines added to it (e.g. services rendered added to sales)
+    section: str = ""             # "current" or "noncurrent": rows of the other section are skipped
+    optional: bool = False        # not reported as missing (totals, splits, lines often absent)
     zero_if_missing: bool = False
 
 
-def _f(key, label, statement, synonyms, sign=0, zero=False) -> Field:
-    return Field(key, label, statement, tuple(_norm(s) for s in synonyms), sign, zero)
+def _f(key, label, statement, synonyms, sign=0, adds=(), section="", optional=False, zero=False) -> Field:
+    return Field(key, label, statement, tuple(_norm(s) for s in synonyms), sign,
+                 tuple(_norm(s) for s in adds), section, optional or zero, zero)
 
 
 FIELDS = [
-    # income statement
-    _f("vendas", "Revenue", "pl", ["vendas e servicos prestados", "volume de negocios", "vendas", "reditos", "redito",
-                                   "revenue",
-                                   "turnover", "net sales", "sales"]),
-    _f("cmv", "Cost of goods sold", "pl", ["custo das mercadorias vendidas e das materias consumidas",
-                                           "custo das mercadorias vendidas", "custo das vendas", "cmvmc", "cmv", "cost of goods sold",
-                                           "cost of sales", "cogs"], -1),
-    _f("fse", "External supplies and services", "pl", ["fornecimentos e servicos externos", "fse",
-                                                        "external supplies and services", "external services"], -1),
-    _f("pess", "Staff costs", "pl", ["gastos com o pessoal", "gastos com pessoal", "custos com o pessoal",
-                                     "custos com pessoal", "staff costs", "personnel costs", "employee costs",
-                                     "employee benefits expense"], -1),
-    _f("imp", "Impairment of receivables", "pl", ["imparidade de dividas a receber", "imparidades de dividas a receber",
-                                                  "imparidade de clientes", "impairment of trade receivables",
-                                                  "impairment of receivables", "expected credit losses",
-                                                  "bad debt expense"], -1),
-    _f("orend", "Other income", "pl", ["outros rendimentos e ganhos", "outros rendimentos", "other operating income",
-                                       "other income"]),
-    _f("ogast", "Other expenses", "pl", ["outros gastos e perdas", "outros gastos", "other operating expenses",
-                                         "other expenses"], -1),
-    _f("da", "Depreciation and amortisation", "pl", ["gastos de depreciacao e de amortizacao",
-                                                     "gastos reversoes de depreciacao e de amortizacao",
-                                                     "depreciacoes e amortizacoes", "depreciacao e amortizacao",
-                                                     "amortizacoes e depreciacoes",
-                                                     "depreciation and amortisation", "depreciation and amortization",
-                                                     "depreciation"], -1),
-    _f("juros", "Interest expense", "pl", ["juros e gastos similares suportados", "juros e gastos similares",
-                                           "juros suportados", "gastos financeiros", "custos financeiros",
-                                           "encargos financeiros", "interest expense", "finance costs",
-                                           "financial expenses"], -1),
-    _f("irc", "Income tax", "pl", ["imposto sobre o rendimento do periodo", "imposto sobre o rendimento", "irc",
-                                   "income tax expense", "income tax", "tax expense"], -1),
-    _f("rl_dre", "Net income", "pl", ["resultado liquido do periodo", "resultado liquido do exercicio",
-                                      "resultado liquido", "net income", "net profit", "profit for the year",
-                                      "profit for the period"]),
-    # balance sheet
-    _f("aft", "Property, plant and equipment", "bs", ["ativos fixos tangiveis", "activos fixos tangiveis",
-                                                      "property plant and equipment", "tangible fixed assets",
-                                                      "fixed assets"]),
-    _f("oanc", "Other non-current assets", "bs", ["outros ativos nao correntes", "other non current assets"], zero=True),
-    _f("inv", "Inventories", "bs", ["inventarios", "existencias", "inventories", "inventory", "stocks"]),
-    _f("cli", "Trade receivables", "bs", ["clientes", "contas a receber de clientes", "trade receivables",
-                                          "accounts receivable", "trade debtors"]),
-    _f("oac", "Other current assets", "bs", ["outros ativos correntes", "outras contas a receber",
-                                             "other current assets", "other receivables"]),
-    _f("caixa", "Cash and cash equivalents", "bs", ["caixa e depositos bancarios", "caixa e equivalentes de caixa",
-                                                    "cash and cash equivalents", "cash at bank", "cash"]),
-    _f("cp", "Total equity", "bs", ["total do capital proprio", "capital proprio", "total equity",
-                                    "shareholders equity", "equity"]),
-    _f("rl_bs", "Net income (balance sheet)", "bs", ["resultado liquido do periodo", "resultado liquido do exercicio",
-                                                     "resultado liquido", "net income", "profit for the year"]),
-    _f("fin_lp", "Non-current borrowings", "bs", ["financiamentos obtidos nao corrente",
-                                                  "financiamentos obtidos nao correntes", "non current borrowings",
-                                                  "long term borrowings", "long term debt",
-                                                  # same label in both sections: read with the section header
-                                                  "passivo nao corrente financiamentos obtidos",
-                                                  "passivo nao corrente emprestimos obtidos",
-                                                  "non current liabilities borrowings",
-                                                  "non current liabilities bank loans"]),
-    _f("opnc", "Other non-current liabilities", "bs", ["outros passivos nao correntes",
-                                                       "other non current liabilities"], zero=True),
-    _f("forn", "Trade payables", "bs", ["fornecedores", "trade payables", "accounts payable", "trade creditors"]),
-    _f("fin_cp", "Current borrowings", "bs", ["financiamentos obtidos corrente", "financiamentos obtidos correntes",
-                                              "current borrowings", "short term borrowings", "short term debt",
-                                              "passivo corrente financiamentos obtidos",
-                                              "passivo corrente emprestimos obtidos", "current liabilities borrowings",
-                                              "current liabilities bank loans"]),
-    _f("opc", "Other current liabilities", "bs", ["outros passivos correntes", "outras contas a pagar",
-                                                  "other current liabilities", "other payables"]),
-    # cash flow statement
-    _f("rl_dfc", "Net income (cash flow)", "cf", ["resultado liquido do periodo", "resultado liquido", "net income",
-                                                  "profit for the year"]),
-    _f("ganho_alien", "(Gains)/losses on disposals", "cf", ["ganhos perdas na alienacao", "perdas ganhos na alienacao",
-                                                            "ganhos na alienacao", "gain loss on disposal",
-                                                            "loss gain on disposal", "gain on disposal",
-                                                            "profit on disposal"]),
-    _f("d_cli", "Change in trade receivables", "cf", ["variacao de clientes", "variacao das contas a receber",
-                                                      "change in trade receivables", "change in receivables",
-                                                      "increase decrease in trade receivables",
-                                                      "decrease increase in trade receivables"]),
-    _f("d_inv", "Change in inventories", "cf", ["variacao de inventarios", "variacao de existencias",
-                                                "change in inventories", "increase decrease in inventories",
-                                                "decrease increase in inventories"]),
-    _f("d_forn", "Change in trade payables", "cf", ["variacao de fornecedores", "change in trade payables",
-                                                    "change in payables", "increase decrease in trade payables"]),
-    _f("d_oac", "Change in other current assets", "cf", ["variacao de outros ativos correntes",
-                                                         "change in other current assets"]),
-    _f("d_opc", "Change in other current liabilities", "cf", ["variacao de outros passivos correntes",
-                                                              "change in other current liabilities"]),
-    _f("cgo", "Cash generated from operations", "cf", ["caixa gerada pelas operacoes", "cash generated from operations"]),
-    _f("fco", "Net cash from operating activities", "cf", ["fluxo de caixa das atividades operacionais",
-                                                           "fluxos de caixa das atividades operacionais",
-                                                           "net cash from operating activities",
-                                                           "net cash generated from operating activities",
-                                                           "cash flow from operating activities", "operating cash flow"]),
-    _f("capex", "Capital expenditure", "cf", ["pagamentos de ativos fixos tangiveis",
-                                              "pagamentos respeitantes a ativos fixos tangiveis",
-                                              "pagamentos de ativos fixos", "capital expenditure",
-                                              "purchase of property plant and equipment",
-                                              "purchases of property plant and equipment", "capex"], -1),
-    _f("alien", "Proceeds from asset disposals", "cf", ["recebimentos da alienacao de ativos fixos",
-                                                        "recebimentos de ativos fixos",
-                                                        "recebimentos provenientes de ativos fixos tangiveis",
-                                                        "proceeds from disposal",
-                                                        "proceeds from sale of property plant and equipment"]),
-    _f("cx_ini", "Cash at beginning of period", "cf", ["caixa no inicio do periodo",
-                                                       "caixa e seus equivalentes no inicio do periodo",
-                                                       "caixa e equivalentes no inicio do periodo",
-                                                       "cash and cash equivalents at beginning of", "cash at beginning of",
-                                                       "opening cash"]),
-    _f("cx_fim", "Cash at end of period", "cf", ["caixa no fim do periodo", "caixa e equivalentes no fim do periodo",
-                                                 "caixa e seus equivalentes no fim do periodo",
-                                                 "cash and cash equivalents at end of", "cash at end of",
-                                                 "closing cash"]),
+    # ---- income statement
+    _f("vendas", "Revenue", "pl",
+       ["vendas e servicos prestados", "vendas e prestacoes de servicos", "volume de negocios", "vendas", "reditos",
+        "redito", "revenue", "turnover", "net sales", "sales"],
+       adds=["prestacoes de servicos", "prestacao de servicos", "servicos prestados", "rendering of services",
+             "services rendered"]),
+    _f("cmv", "Cost of goods sold", "pl",
+       ["custo das mercadorias vendidas e das materias consumidas", "custo das mercadorias vendidas",
+        "custo das vendas", "cmvmc", "cmv", "costs of goods sold and materials consumed", "costs of goods sold",
+        "cost of goods sold", "cost of materials consumed", "cost of sales", "cogs"], -1,
+       adds=["variacao da producao", "variacao nos inventarios da producao", "variacao de inventarios da producao",
+             "change in manufactured inventories", "changes in inventories of finished goods and work in progress"]),
+    _f("fse", "External supplies and services", "pl",
+       ["fornecimentos e servicos externos", "fse", "external supplies and services", "external services",
+        "third party supplies and services", "supplies and services"], -1),
+    _f("pess", "Staff costs", "pl",
+       ["gastos com o pessoal", "gastos com pessoal", "custos com o pessoal", "custos com pessoal", "staff costs",
+        "personnel costs", "employee costs", "employee benefits expense"], -1),
+    _f("imp", "Impairment of receivables", "pl",
+       ["imparidade de dividas a receber", "imparidades de dividas a receber", "imparidade de clientes",
+        "impairment of trade receivables", "impairment of receivables", "expected credit losses", "bad debt expense"],
+       -1, optional=True),   # often presented within a wider impairment line
+    _f("orend", "Other income", "pl",
+       ["outros rendimentos e ganhos", "outros rendimentos", "other operating income", "other income"],
+       adds=["subsidios a exploracao", "operating grants"]),
+    _f("ogast", "Other expenses (incl. write-downs and provisions)", "pl",
+       ["outros gastos e perdas", "outros gastos", "other operating expenses", "other expenses",
+        "other costs and losses", "other costs"], -1,
+       adds=["imparidade de inventarios", "imparidades de inventarios", "perdas por imparidade em inventarios",
+             "provisoes", "inventory write downs", "provisions", "impairments of assets", "impairment of assets",
+             "impairment losses"]),
+    _f("da", "Depreciation and amortisation", "pl",
+       ["gastos de depreciacao e de amortizacao", "gastos reversoes de depreciacao e de amortizacao",
+        "depreciacoes e amortizacoes", "depreciacao e amortizacao", "amortizacoes e depreciacoes",
+        "depreciation and amortisation", "depreciation and amortization", "depreciation"], -1),
+    _f("juros", "Interest expense", "pl",
+       ["juros e gastos similares suportados", "juros e gastos similares", "juros suportados",
+        "gastos e perdas financeiros", "gastos e perdas de financiamento", "gastos de financiamento",
+        "gastos financeiros", "custos financeiros", "encargos financeiros", "interest expense", "finance costs",
+        "financial costs", "financial expenses"], -1),
+    _f("irc", "Income tax", "pl",
+       ["imposto sobre o rendimento do periodo", "imposto sobre o rendimento", "impostos sobre o rendimento", "irc",
+        "income tax expense", "income tax", "tax expense"], -1),
+    _f("rl_dre", "Net income", "pl",
+       ["resultado liquido do periodo", "resultado liquido do exercicio", "resultado liquido consolidado",
+        "resultado consolidado liquido", "resultado liquido", "profit after tax", "net income", "net profit",
+        "profit for the year", "profit for the period"]),
+    _f("rl_grupo", "Net income attributable to the group", "pl",
+       ["resultado liquido consolidado atribuivel ao grupo", "ao grupo", "atribuivel ao grupo",
+        "acionistas da empresa mae", "detentores de capital da empresa mae", "owners of the parent",
+        "attributable to owners of the parent", "equity holders of the parent",
+        "net income attributable to the equity holders", "net income attributable to equity holders",
+        "profit attributable to owners"], optional=True),
+    # ---- balance sheet
+    _f("aft", "Property, plant and equipment", "bs",
+       ["ativos fixos tangiveis", "activos fixos tangiveis", "property plant and equipment", "tangible fixed assets",
+        "tangible assets", "fixed assets"], section="noncurrent"),
+    _f("oanc", "Other non-current assets", "bs", ["outros ativos nao correntes", "other non current assets"],
+       section="noncurrent", zero=True),
+    _f("inv", "Inventories", "bs", ["inventarios", "existencias", "inventories", "inventory", "stocks"],
+       section="current"),
+    _f("cli", "Trade receivables", "bs",
+       ["clientes", "contas a receber de clientes", "trade receivables", "accounts receivable", "trade debtors"],
+       section="current"),
+    _f("oac", "Other current assets", "bs",
+       ["outros ativos correntes", "outras contas a receber", "other current assets", "other receivables"],
+       section="current"),
+    _f("caixa", "Cash and cash equivalents", "bs",
+       ["caixa e depositos bancarios", "caixa e equivalentes de caixa", "caixa e equivalentes a caixa",
+        "caixa e seus equivalentes", "caixa e equivalentes", "cash and cash equivalents", "cash at bank", "cash"],
+       section="current"),
+    _f("cp", "Total equity", "bs",
+       ["total do capital proprio", "capital proprio", "total equity", "shareholders equity", "equity"]),
+    _f("rl_bs", "Net income (balance sheet)", "bs",
+       ["resultado liquido do periodo", "resultado liquido do exercicio", "resultado consolidado liquido",
+        "resultado liquido consolidado", "resultado liquido", "net income", "profit for the year"]),
+    _f("fin_lp", "Non-current borrowings", "bs",
+       ["financiamentos obtidos nao corrente", "financiamentos obtidos nao correntes", "non current borrowings",
+        "long term borrowings", "long term debt", "financiamentos obtidos", "emprestimos obtidos",
+        "emprestimos bancarios", "interest bearing loans", "borrowings", "bank loans"], section="noncurrent"),
+    _f("opnc", "Other non-current liabilities", "bs", ["outros passivos nao correntes", "other non current liabilities"],
+       section="noncurrent", zero=True),
+    _f("forn", "Trade payables", "bs", ["fornecedores", "trade payables", "accounts payable", "trade creditors"],
+       section="current"),
+    _f("fin_cp", "Current borrowings", "bs",
+       ["financiamentos obtidos corrente", "financiamentos obtidos correntes", "current borrowings",
+        "short term borrowings", "short term debt", "financiamentos obtidos", "emprestimos obtidos",
+        "emprestimos bancarios", "interest bearing loans", "borrowings", "bank loans", "bank overdrafts"],
+       section="current"),
+    _f("opc", "Other current liabilities", "bs",
+       ["outros passivos correntes", "outras contas a pagar", "other current liabilities", "other payables"],
+       section="current"),
+    _f("tot_anc", "Total non-current assets", "bs",
+       ["total do ativo nao corrente", "total de ativos nao correntes", "total dos ativos nao correntes",
+        "total non current assets", "non current assets"], optional=True),
+    _f("tot_ac", "Total current assets", "bs",
+       ["total do ativo corrente", "total de ativos correntes", "total dos ativos correntes", "total current assets",
+        "current assets"], optional=True),
+    _f("tot_pnc", "Total non-current liabilities", "bs",
+       ["total do passivo nao corrente", "total de passivos nao correntes", "total dos passivos nao correntes",
+        "total non current liabilities", "non current liabilities"], optional=True),
+    _f("tot_pc", "Total current liabilities", "bs",
+       ["total do passivo corrente", "total de passivos correntes", "total dos passivos correntes",
+        "total current liabilities", "current liabilities"], optional=True),
+    # ---- cash flow statement
+    _f("rl_dfc", "Net income (cash flow)", "cf",
+       ["resultado liquido do periodo", "resultado liquido", "net income", "profit for the year"], optional=True),
+    _f("ganho_alien", "(Gains)/losses on disposals", "cf",
+       ["ganhos perdas na alienacao", "perdas ganhos na alienacao", "ganhos na alienacao", "gain loss on disposal",
+        "loss gain on disposal", "gain on disposal", "profit on disposal"], optional=True),
+    _f("d_cli", "Change in trade receivables", "cf",
+       ["variacao de clientes", "variacao das contas a receber", "change in trade receivables", "change in receivables",
+        "increase decrease in trade receivables", "decrease increase in trade receivables"], optional=True),
+    _f("d_inv", "Change in inventories", "cf",
+       ["variacao de inventarios", "variacao de existencias", "change in inventories",
+        "increase decrease in inventories", "decrease increase in inventories"], optional=True),
+    _f("d_forn", "Change in trade payables", "cf",
+       ["variacao de fornecedores", "change in trade payables", "change in payables",
+        "increase decrease in trade payables"], optional=True),
+    _f("d_oac", "Change in other current assets", "cf",
+       ["variacao de outros ativos correntes", "change in other current assets"], optional=True),
+    _f("d_opc", "Change in other current liabilities", "cf",
+       ["variacao de outros passivos correntes", "change in other current liabilities"], optional=True),
+    # Cash generated from operations, as defined in the indirect method. Direct-method subtotals such as
+    # 'Fluxo gerado pelas operações' come before other operating payments and are deliberately not mapped:
+    # cash conversion then falls back to the operating cash flow.
+    _f("cgo", "Cash generated from operations", "cf",
+       ["caixa gerada pelas operacoes", "cash generated from operations"], optional=True),
+    _f("fco", "Net cash from operating activities", "cf",
+       ["fluxo de caixa das atividades operacionais", "fluxos de caixa das atividades operacionais",
+        "fluxo das atividades operacionais", "fluxos das atividades operacionais", "net cash from operating activities",
+        "net cash generated from operating activities", "cash flow from operating activities",
+        "operating cash flow"]),
+    _f("capex", "Capital expenditure", "cf",
+       ["pagamentos de ativos fixos tangiveis", "pagamentos respeitantes a ativos fixos tangiveis",
+        "pagamentos de ativos fixos", "capital expenditure", "purchase of property plant and equipment",
+        "purchases of property plant and equipment", "payments due to tangible assets",
+        "payments relating to tangible assets", "capex"], -1,
+       adds=["pagamentos respeitantes a ativos intangiveis", "pagamentos de ativos intangiveis",
+             "purchase of intangible assets", "purchases of intangible assets", "payments due to intangible assets",
+             "payments relating to intangible assets"]),
+    _f("alien", "Proceeds from asset disposals", "cf",
+       ["recebimentos da alienacao de ativos fixos", "recebimentos de ativos fixos",
+        "recebimentos provenientes de ativos fixos tangiveis", "collections due to tangible assets",
+        "proceeds from disposal",
+        "proceeds from sale of property plant and equipment"], optional=True),
+    _f("cx_ini", "Cash at beginning of period", "cf",
+       ["caixa no inicio do periodo", "caixa e seus equivalentes no inicio do periodo",
+        "caixa e equivalentes no inicio do periodo", "cash and cash equivalents at beginning of",
+        "cash at beginning of", "opening cash"]),
+    _f("cx_fim", "Cash at end of period", "cf",
+       ["caixa no fim do periodo", "caixa e equivalentes no fim do periodo", "caixa e seus equivalentes no fim do periodo",
+        "cash and cash equivalents at end of", "cash at end of", "closing cash"]),
 ]
 FIELD_BY_KEY = {f.key: f for f in FIELDS}
 STATEMENTS = {"pl": "Income statement", "bs": "Balance sheet", "cf": "Cash flow statement"}
+
+# 'Other' balance sheet lines derived from the published totals: total less the lines identified.
+RESIDUALS = {"oanc": ("tot_anc", ["aft"]), "oac": ("tot_ac", ["inv", "cli", "caixa"]),
+             "opnc": ("tot_pnc", ["fin_lp"]), "opc": ("tot_pc", ["forn", "fin_cp"])}
 
 # Sheet type from its name (or title), checked in this order.
 SHEET_TYPES = [
@@ -177,7 +233,8 @@ SHEET_TYPES = [
     ("debt", ["divida", "debt", "financiamentos", "borrowings", "facilities", "loans"]),
     ("cf", ["dfc", "fluxos de caixa", "fluxo de caixa", "cash flow"]),
     ("bs", ["balanco", "balance sheet", "posicao financeira", "financial position"]),
-    ("pl", ["dre", "demonstracao de resultados", "income statement", "profit and loss", "p&l", "p l"]),
+    ("pl", ["dre", "demonstracao de resultados", "demonstracao dos resultados", "demonstracao consolidada dos resultados",
+            "income statement", "profit and loss", "p&l", "p l"]),
 ]
 NOT_ADJUSTMENTS = ("vendas", "revenue", "sales", "volume de negocios", "ebitda", "total", "margem", "margin")
 OTHER_CUSTOMERS = ("outros", "other", "others", "remaining", "restantes", "demais")
@@ -208,6 +265,9 @@ def _as_year(value) -> int | None:
     if m:
         y = int(m.group(1))
         return y if 1990 <= y <= 2100 else None
+    m = re.fullmatch(r"(?:\d{1,2}\s+)?(?:de\s+)?[a-z\u00e7\u00e3]+\.?\s+(?:de\s+)?((?:19|20)\d{2})", t)
+    if m:
+        return int(m.group(1))
     m = re.fullmatch(r"fy\s*'?(\d{2})", t)
     return 2000 + int(m.group(1)) if m else None
 
@@ -235,6 +295,23 @@ def _num(value) -> float | None:
     return None
 
 
+def _subtotal_kind(norm: str) -> str:
+    """'noncurrent' / 'current' for a subtotal row such as 'Non-current assets' or 'Total do passivo corrente'."""
+    t = re.sub(r"^total (?:do |dos |de |da |das )?", "", norm)
+    if re.fullmatch(r"(?:non current|ativos? nao correntes?|passivos? nao correntes?) ?(?:assets|liabilities)?", t):
+        return "noncurrent"
+    if re.fullmatch(r"(?:current|ativos? correntes?|passivos? correntes?) ?(?:assets|liabilities)?", t):
+        return "current"
+    return ""
+
+
+def _section_kind(section: str) -> str:
+    """'noncurrent', 'current' or '' from a section header such as 'Ativos não correntes:'."""
+    if re.search(r"nao corrente|non current", section):
+        return "noncurrent"
+    return "current" if re.search(r"corrente|current", section) else ""
+
+
 @dataclass
 class _Row:
     sheet: str
@@ -243,7 +320,8 @@ class _Row:
     norm: str
     values: dict[int, float | None]
     source: str
-    context: str = ""    # section header + label, e.g. 'passivo corrente financiamentos obtidos'
+    context: str = ""    # section header + label, e.g. 'pagamentos respeitantes a ativos fixos tangiveis'
+    kind: str = ""       # current / noncurrent, from the section header
 
 
 def _rows(ws, header: int, cols: dict[int, int]) -> list[_Row]:
@@ -265,7 +343,15 @@ def _rows(ws, header: int, cols: dict[int, int]) -> list[_Row]:
         r = cells[0].row
         source = f"{ws.title}!{get_column_letter(first)}{r}:{get_column_letter(last)}{r}"
         norm = _norm(label)
-        out.append(_Row(ws.title, r, label.strip(), norm, values, source, f"{section} {norm}".strip()))
+        out.append(_Row(ws.title, r, label.strip(), norm, values, source, f"{section} {norm}".strip(),
+                        _section_kind(section)))
+    # no section headers? a subtotal ('Current assets 811,818') gives its kind to the rows above it
+    start = 0
+    for i, row in enumerate(out):
+        if kind := _subtotal_kind(row.norm):
+            for prior in out[start:i + 1]:
+                prior.kind = prior.kind or kind
+            start = i + 1
     return out
 
 
@@ -278,32 +364,86 @@ def _sheet_type(ws) -> str | None:
     return None
 
 
-def _match(rows: list[_Row], f: Field, used: set) -> _Row | None:
-    """First an exact match, then a label that starts with a synonym; each tried on the label
-    alone and on section header + label."""
+def _find(rows: list[_Row], synonyms, used: set, section: str = "") -> list[_Row]:
+    """Rows matching the synonyms, best first: exact matches, then labels starting with a synonym;
+    each tried on the label alone and on section header + label."""
+    found = []
     for exact in (True, False):
-        for syn in f.synonyms:
+        for syn in synonyms:
             for r in rows:
-                if (r.sheet, r.row) in used:
+                if (r.sheet, r.row) in used or r in found or (section and r.kind and r.kind != section):
                     continue
-                for text in (r.norm, r.context):
-                    if text == syn if exact else text.startswith(syn + " "):
-                        return r
-    return None
+                if any(text == syn if exact else text.startswith(syn + " ") for text in (r.norm, r.context)):
+                    found.append(r)
+    return found
 
 
-def _signed(values: dict[int, float | None], sign: int) -> dict[int, float | None]:
-    """Costs and payments are negative in the model, whether the file shows them as negative or not."""
-    if sign < 0 and sum(v for v in values.values() if v) > 0:
-        return {y: (None if v is None else -v) for y, v in values.items()}
-    return dict(values)
+def _apply_signs(raw: dict[str, dict[int, float | None]]) -> dict[str, dict[int, float | None]]:
+    """Costs and payments are negative in the model.
+
+    The sign convention is decided for the whole income statement: if its main costs (COGS, external
+    services, staff) are shown as positive numbers, every cost line is flipped; otherwise each line keeps
+    its published sign, so a net reversal (e.g. of a receivables impairment) stays a gain. A cash flow
+    line is flipped only when all its values are positive.
+    """
+    main_costs = [v for k in ("cmv", "fse", "pess") for v in raw.get(k, {}).values() if v]
+    costs_positive = bool(main_costs) and sum(main_costs) > 0
+    out = {}
+    for key, values in raw.items():
+        f = FIELD_BY_KEY.get(key)
+        nonzero = [v for v in values.values() if v]
+        flip = bool(f and f.sign < 0 and (costs_positive if f.statement == "pl"
+                                          else bool(nonzero) and all(v > 0 for v in nonzero)))
+        out[key] = {y: None if v is None else -v for y, v in values.items()} if flip else dict(values)
+    return out
 
 
-def _company(wb, fallback: str) -> str:
+def _add(a: dict[int, float | None], b: dict[int, float | None]) -> dict[int, float | None]:
+    years = set(a) | set(b)
+    return {y: None if a.get(y) is None and b.get(y) is None else (a.get(y) or 0.0) + (b.get(y) or 0.0)
+            for y in years}
+
+
+def _derive_residuals(lines: dict, sources: dict, found_as: dict) -> None:
+    """Other assets and liabilities = published total less the lines identified (R12 then tests real totals)."""
+    for key, (total, parts) in RESIDUALS.items():
+        if total not in lines:
+            continue
+        lines[key] = {y: None if t is None else t - sum(lines.get(p, {}).get(y) or 0.0 for p in parts)
+                      for y, t in lines[total].items()}
+        sources[key] = f"{sources[total]} less the lines identified"
+        found_as[key] = f"Derived: {FIELD_BY_KEY[total].label.lower()} less identified lines"
+
+
+def _unit(wb) -> tuple[float, str]:
+    """Scale to EUR thousands from the unit written in the file ('Montantes expressos em Euros', '€ milhares').
+
+    First any short text in the first rows of a sheet, then a unit note anywhere ('Values in thousand euros.').
+    """
+    note = re.compile(r"values|amounts|montantes|valores|expressos|unidade|unit\b|in thousand|em milhares")
+    top = [c for ws in wb.worksheets for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 8)) for c in row]
+    anywhere = [c for ws in wb.worksheets for row in ws.iter_rows() for c in row
+                if isinstance(c.value, str) and note.search(_norm(c.value))]
+    for c in top + anywhere:
+        if not isinstance(c.value, str) or len(c.value) > 80:
+            continue
+        raw, t = c.value.lower(), _norm(c.value)
+        if re.search(r"milhares|thousand|\beur ?k\b|\bk ?eur\b|'000", t) or re.search(r"€ ?k\b|k€", raw):
+            return 1.0, "EUR thousands"
+        if re.search(r"milhoes|million|\beur ?m\b|\bm ?eur\b", t) or re.search(r"€ ?m\b|m€", raw):
+            return 1000.0, "EUR millions, converted to EUR thousands"
+        if re.search(r"\beuros?\b|\beur\b", t) or "€" in raw:
+            return 0.001, "euros, converted to EUR thousands"
+    return 1.0, "EUR thousands (no unit stated in the file)"
+
+
+def _company(wb, name: str) -> str:
+    """Company name from the first sheet's title, or from the file name when the title is a statement."""
     title = wb.worksheets[0]["A1"].value
-    if isinstance(title, str) and title.strip():
+    if isinstance(title, str) and title.strip() and not _sheet_type(wb.worksheets[0]) and \
+            not re.search(r"^(?:consolidated |individual )?(?:demonstra|balan|statement|balance)", title.lower()):
         return re.split(r"\s+[—–-]\s+|:", title.strip())[0].strip()
-    return fallback
+    return re.sub(r"[_-]+", " ", Path(name).stem).strip() if name else "Company"
 
 
 def _covenant(wb, debt_sheet) -> tuple[float | None, str]:
@@ -373,29 +513,42 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
         elif cols:
             sheets.setdefault("other", []).append((ws, header, cols))
 
-    lines, sources, found_as, used = {}, {}, {}, set()
+    raw, sources, found_as, used = {}, {}, {}, set()
     for st in STATEMENTS:
         candidates = [s for s in sheets.get(st, []) if s[2]] or sheets.get("other", [])
         rows = [r for ws, header, cols in candidates for r in _rows(ws, header, cols)]
         for f in (f for f in FIELDS if f.statement == st):
-            r = _match(rows, f, used)
-            if r:
+            main = _find(rows, f.synonyms, used, f.section)[:1]
+            if not main:
+                continue
+            parts = main + _find(rows, f.adds, used | {(main[0].sheet, main[0].row)}, f.section)
+            values: dict[int, float | None] = {}
+            for r in parts:
                 used.add((r.sheet, r.row))
-                lines[f.key], sources[f.key], found_as[f.key] = _signed(r.values, f.sign), r.source, r.label
-    if "vendas" not in lines:
+                values = _add(values, r.values)
+            raw[f.key] = values
+            sources[f.key] = " + ".join(r.source for r in parts)
+            found_as[f.key] = " + ".join(r.label for r in parts)
+    if "vendas" not in raw:
         raise ExtractionError("No revenue line found. Is this a financial statements file (P&L, balance sheet, "
                               "cash flow)?")
+    lines = _apply_signs(raw)
 
+    scale, unit = _unit(wb)
+    if scale != 1.0:
+        lines = {k: {y: None if v is None else v * scale for y, v in vals.items()} for k, vals in lines.items()}
     pl_years = sorted(y for y, v in lines["vendas"].items() if v is not None)
     bs_years = sorted({y for k in ("cli", "cp", "caixa") for y, v in lines.get(k, {}).items() if v is not None})
     years = sorted(set(pl_years) | set(bs_years))
     latest = pl_years[-1]
+    _derive_residuals(lines, sources, found_as)
     for f in FIELDS:
         if f.key not in lines and f.zero_if_missing:
             lines[f.key] = {y: 0.0 for y in bs_years}
             sources[f.key], found_as[f.key] = "Not in data room (0)", "—"
 
     data = CompanyData(years=years, lines=lines, sources=sources)
+    scaled = lambda vals: {y: None if v is None else v * scale for y, v in vals.items()}
 
     for ws, header, cols in sheets.get("customers", []):
         if not cols:
@@ -404,9 +557,9 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             if r.norm.startswith("total"):
                 continue
             if r.norm.startswith(OTHER_CUSTOMERS):
-                data.other_clients = r.values
+                data.other_clients = scaled(r.values)
             else:
-                data.clients.append(Named(r.label, r.values))
+                data.clients.append(Named(r.label, scaled(r.values)))
                 data.clients_source = data.clients_source or r.source
         break
     for ws, header, cols in sheets.get("adjustments", []):
@@ -414,7 +567,7 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             continue
         for r in _rows(ws, header, cols):
             if not r.norm.startswith(NOT_ADJUSTMENTS):
-                data.adjustments.append(Named(r.label, r.values))
+                data.adjustments.append(Named(r.label, scaled(r.values)))
                 data.adjustments_source = data.adjustments_source or r.source
         break
 
@@ -422,8 +575,9 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
     if debt_ws is not None:
         tot, cur, s_tot, s_cur = _debt_schedule(debt_ws)
         if tot is not None:
-            lines["map_tot"], sources["map_tot"], found_as["map_tot"] = {latest: tot}, s_tot, "Total"
-            lines["map_cur"], sources["map_cur"], found_as["map_cur"] = {latest: cur}, s_cur, "Total, current"
+            lines["map_tot"], sources["map_tot"], found_as["map_tot"] = {latest: tot * scale}, s_tot, "Total"
+            lines["map_cur"], sources["map_cur"], found_as["map_cur"] = \
+                {latest: None if cur is None else cur * scale}, s_cur, "Total, current"
     cov, s_cov = _covenant(wb, debt_ws)
     if cov is not None:
         lines["cov_lim"], sources["cov_lim"], found_as["cov_lim"] = {latest: cov}, s_cov, f"{cov:g}x"
@@ -442,7 +596,7 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
 
     if hasattr(file, "seek"):
         file.seek(0)
-    ext = Extraction(data, _company(wb, name), "Excel — dictionary mapping, figures read from the cells",
+    ext = Extraction(data, _company(wb, name), f"Excel — dictionary mapping, figures read from the cells ({unit})",
                      source_text=data_room_text(file))
     _fill_review(ext, found_as)
     return ext
@@ -454,14 +608,14 @@ def _fill_review(ext: Extraction, found_as: dict[str, str]) -> None:
     extra = [("map_tot", "Debt schedule — total outstanding", "Debt"),
              ("map_cur", "Debt schedule — due within 12 months", "Debt"),
              ("cov_lim", "Covenant — maximum net debt / EBITDA", "Debt")]
-    rows = [(f.key, f.label, STATEMENTS[f.statement]) for f in FIELDS] + extra
-    for key, label, statement in rows:
+    rows = [(f.key, f.label, STATEMENTS[f.statement], f.optional) for f in FIELDS] + [r + (False,) for r in extra]
+    for key, label, statement, optional in rows:
         values = d.lines.get(key)
         item = {"key": key, "Statement": statement, "Line item": label, "Found as": found_as.get(key, "—"),
                 "Source": d.sources.get(key, "—")}
         item.update({f"FY{str(y)[2:]}": (values or {}).get(y) for y in d.years})
         ext.items.append(item)
-        if values is None:
+        if values is None and not optional:
             ext.missing.append(label)
 
 
@@ -519,7 +673,10 @@ _PDF_PROMPT = """You are reading a company's financial statements for a buy-side
 
 Return, for every line item below that the document presents, the figures EXACTLY as printed: no calculations,
 no rounding, no sign changes, no unit conversion. Give the page where you read each item and the label used in
-the document. Omit items the document does not present. Use one entry per fiscal year shown.
+the document. Omit items the document does not present. Use one entry per fiscal year shown. When the document
+splits an item across several lines (e.g. sales and services rendered; capex on tangible and intangible assets),
+return each line separately with the same key: the code adds them up. Use the consolidated statements when both
+consolidated and individual accounts are presented.
 
 Line items (key: meaning):
 {fields}
@@ -566,17 +723,18 @@ def extract_pdf(pdf: bytes, name: str = "", client: anthropic.Anthropic | None =
 def _from_pdf(p: _PdfStatements, name: str) -> Extraction:
     scale = {"units": 0.001, "thousands": 1.0, "millions": 1000.0}[p.unit]   # the model works in EUR thousands
     vals = lambda yv: {v.year: v.value * scale for v in yv}
-    lines, sources, found_as = {}, {}, {}
-    for line in p.line_items:
-        f = FIELD_BY_KEY[line.key]
-        if f.key not in lines:
-            lines[f.key] = _signed(vals(line.values), f.sign)
-            sources[f.key], found_as[f.key] = f"{name} p.{line.page}", line.label_in_document
+    raw, sources, found_as = {}, {}, {}
+    for line in p.line_items:   # lines with the same key are added up (sales + services, ...)
+        raw[line.key] = _add(raw.get(line.key, {}), vals(line.values))
+        sources[line.key] = " + ".join(filter(None, [sources.get(line.key), f"{name} p.{line.page}"]))
+        found_as[line.key] = " + ".join(filter(None, [found_as.get(line.key), line.label_in_document]))
+    lines = _apply_signs(raw)
     if "vendas" not in lines:
         raise ExtractionError("No revenue line found in the PDF.")
     pl_years = sorted(lines["vendas"])
     bs_years = sorted({y for k in ("cli", "cp", "caixa") for y in lines.get(k, {})})
     latest = pl_years[-1]
+    _derive_residuals(lines, sources, found_as)
     for f in FIELDS:
         if f.key not in lines and f.zero_if_missing:
             lines[f.key], sources[f.key], found_as[f.key] = {y: 0.0 for y in bs_years}, "Not in document (0)", "—"

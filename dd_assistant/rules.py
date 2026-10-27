@@ -201,7 +201,8 @@ RULES: list[Rule] = [
        ev=lambda c: f"Inventory +{pct(c.g('g_inv', c.L))} vs. COGS +{pct(c.g('g_cmv', c.L))} in {fy(c.L)} "
                     f"(gap of {d1(c.g('inv_gap', c.L))} pp). DIO: {d1(c.g('dio', c.P))} → {d1(c.g('dio', c.L))} "
                     f"days. Source: {c.src('inv')}; {c.src('cmv')}"),
-    _r("R10", "Cash generation", "Weak EBITDA-to-cash conversion", "Cash generated from operations / EBITDA",
+    _r("R10", "Cash generation", "Weak EBITDA-to-cash conversion",
+       "Cash generated from operations (operating cash flow if not presented) / EBITDA",
        "<", 0.70, "pct", "conv", "High",
        "EBITDA that is not converting into cash.",
        "Why did EBITDA not convert into cash? Which working capital items explain the gap?",
@@ -225,10 +226,12 @@ RULES: list[Rule] = [
        ev=lambda c: f"Balance sheet difference — {c.yrs('bs_diff', eur)}. Source: balance sheet"),
     _r("R13", "Consistency", "Cash flow statement does not reconcile to balance sheet cash",
        "CFS closing cash − balance sheet cash", "abs>", 1, "eur", "cash_diff", "Medium",
-       "Error in the cash flow statement or in the balance sheet.",
-       "Which figure is correct? Is the cash flow statement the audited version? Are there other errors?",
-       "Corrected cash flow statement; audit report",
-       "A basic error casts doubt on the quality of all the financial information.",
+       "An error in the statements, or cash in the cash flow statement presented net of bank overdrafts (IFRS).",
+       "Please reconcile cash in the cash flow statement to the balance sheet: is it net of bank overdrafts? "
+       "If not, which figure is correct, and is the cash flow statement the audited version?",
+       "Cash reconciliation (cash flow statement to balance sheet); bank overdraft facilities; audit report",
+       "Overdrafts are debt and belong in net debt; an unexplained difference casts doubt on all the financial "
+       "information.",
        ev=lambda c: f"CFS closing cash − balance sheet cash — {c.yrs('cash_diff', eur)}. "
                     f"Source: {c.src('cx_fim')}; {c.src('caixa')}"),
     _r("R14", "Consistency", "CFS working capital movements do not reconcile to the balance sheet",

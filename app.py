@@ -28,7 +28,9 @@ from dd_assistant.rules import SEVERITIES, alerts, evaluate, fy
 
 DATA = Path(__file__).parent / "data"
 SAMPLES = {"Duriva — data room with planted issues": DATA / "Duriva_data_room.xlsx",
-           "Velmora — clean company": DATA / "Velmora_data_room.xlsx"}
+           "Velmora — clean company": DATA / "Velmora_data_room.xlsx",
+           "Toyota Caetano Portugal — real, FY24 published accounts": DATA / "Toyota_Caetano_2024_published.xlsx",
+           "Corticeira Amorim — real, FY24 published accounts (EN)": DATA / "Corticeira_Amorim_2024_published.xlsx"}
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 SEVERITY_COLOR = {"High": "#d03b3b", "Medium": "#fab219", "Low": "#8a8f98"}   # status palette; always with a label
 SUMMARY_ROWS = ["vendas", "g_vendas", "gm", "ebitda", "ebitda_m", "ebitda_adj", "ebitda_ex_gain", "cgo", "conv",
@@ -180,7 +182,7 @@ with tab_ov:
         ("Adjusted EBITDA (mgmt)", money(g("ebitda_adj")),
          f"Adjustments {fmt_metric('adj_pct', g('adj_pct'))} of reported" if data.adjustments
          else "Not presented by management"),
-        ("Cash conversion", fmt_metric("conv", g("conv")), "Cash generated from operations / EBITDA"),
+        ("Cash conversion", fmt_metric("conv", g("conv")), "Operating cash / EBITDA"),
         ("Net debt / EBITDA", fmt_metric("nd_ebitda", g("nd_ebitda")),
          f"Covenant {fmt_metric('cov_lim', g('cov_lim'))} · headroom {fmt_metric('cov_head', g('cov_head'))}"
          if g("cov_lim") else f"Net debt {money(g('net_debt'))}"),
