@@ -1,6 +1,6 @@
-"""Camada de IA, sem chamar a API: o material enviado e a forma da chamada.
+"""AI layer without calling the API: the material sent and the shape of the call.
 
-Um cliente falso substitui a Claude API, por isso estes testes não gastam nada.
+A fake client replaces the Claude API, so these tests cost nothing.
 """
 import os
 import tempfile
@@ -10,13 +10,11 @@ from types import SimpleNamespace
 from unittest import mock
 
 from dd_assistant import ai_memo
-from dd_assistant.input_loader import load_input
+from dd_assistant.extract import extract_excel
 from dd_assistant.metrics import compute_metrics
 from dd_assistant.rules import RULES, alerts, evaluate
 
-DATA = Path(__file__).resolve().parents[1] / "data"
-TEMPLATE = DATA / "DD_template_modulo1.xlsx"
-DATA_ROOM = DATA / "Duriva_data_room.xlsx"
+DATA_ROOM = Path(__file__).resolve().parents[1] / "data" / "Duriva_data_room.xlsx"
 
 
 class FakeStream:
@@ -38,9 +36,9 @@ class FakeStream:
 
 
 class FakeClient:
-    """Imita client.beta.messages.stream(...) e guarda os argumentos da chamada."""
+    """Imitates client.beta.messages.stream(...) and records the call arguments."""
 
-    def __init__(self, chunks=("# Memo", "\n\ntexto"), stop_reason="end_turn"):
+    def __init__(self, chunks=("# Memo", "\n\ntext"), stop_reason="end_turn"):
         self.kwargs = None
         self.beta = SimpleNamespace(messages=SimpleNamespace(stream=self._stream))
         self._chunks, self._stop = list(chunks), stop_reason
@@ -53,29 +51,30 @@ class FakeClient:
 class MaterialTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.data = load_input(TEMPLATE)
+        ext = extract_excel(DATA_ROOM, DATA_ROOM.name)
+        cls.data = ext.data
         cls.metrics = compute_metrics(cls.data)
         cls.results = evaluate(cls.data, cls.metrics)
-        cls.material = ai_memo.build_material(cls.data, cls.metrics, cls.results, DATA_ROOM,
-                                              reviews={"R13": ("Descartado", "Erro já corrigido pela empresa")})
+        cls.material = ai_memo.build_material(cls.data, cls.metrics, cls.results, ext.source_text,
+                                              reviews={"R13": ("Dismissed", "Error already corrected by the company")})
 
-    def test_every_alert_with_evidence(self):
+    def test_every_finding_with_evidence(self):
         for r in alerts(self.results):
             self.assertIn(f"{r.rule.id} · {r.rule.name}", self.material)
             self.assertIn(r.evidence, self.material)
 
-    def test_full_rule_catalog(self):
+    def test_full_rule_catalogue(self):
         for rule in RULES:
             self.assertIn(f"| {rule.id} | {rule.name} |", self.material)
 
     def test_data_room_text_with_cell_references(self):
-        self.assertIn("### Folha 'Relatório de Gestão'", self.material)
+        self.assertIn("### Sheet 'Relatório de Gestão'", self.material)
         self.assertIn("A5: §2 Margens", self.material)
-        self.assertIn("D5: 21400", self.material)       # DRE!D5: vendas de 2025
+        self.assertIn("D5: 21400", self.material)       # DRE!D5: FY25 revenue
 
-    def test_review_state_goes_to_the_ai(self):
-        self.assertIn("Estado do revisor: Descartado — Erro já corrigido pela empresa", self.material)
-        self.assertIn("Estado do revisor: Pendente", self.material)
+    def test_review_status_reaches_the_ai(self):
+        self.assertIn("Reviewer status: Dismissed — Error already corrected by the company", self.material)
+        self.assertIn("Reviewer status: Pending", self.material)
 
     def test_never_the_answer_key(self):
         self.assertNotIn("gabarito", self.material.lower())
@@ -86,17 +85,17 @@ class CallTest(unittest.TestCase):
         client = FakeClient()
         seen = []
         memo = ai_memo.write_memo("material", client=client, on_text=seen.append)
-        self.assertEqual(memo.text, "# Memo\n\ntexto")
-        self.assertEqual(seen, ["# Memo", "\n\ntexto"])
+        self.assertEqual(memo.text, "# Memo\n\ntext")
+        self.assertEqual(seen, ["# Memo", "\n\ntext"])
         kw = client.kwargs
         self.assertEqual(kw["model"], "claude-opus-5-5")
         self.assertEqual(kw["output_config"], {"effort": "high"})
         self.assertEqual(kw["fallbacks"], "default")
         self.assertEqual(kw["messages"], [{"role": "user", "content": "material"}])
-        self.assertTrue(kw["system"].startswith("## Papel"))
-        self.assertIn("Não fazes contas", kw["system"])
-        self.assertIn("Não crias alertas", kw["system"])
-        self.assertNotIn("temperature", kw)          # rejeitado pela API desde outubro de 2026
+        self.assertTrue(kw["system"].startswith("## Role"))
+        self.assertIn("No calculations", kw["system"])
+        self.assertIn("No new findings", kw["system"])
+        self.assertNotIn("temperature", kw)          # rejected by the API since October 2026
         self.assertAlmostEqual(memo.cost_usd, (1000 * 4 + 500 * 20) / 1e6)
 
     def test_refusal_raises(self):
@@ -105,7 +104,7 @@ class CallTest(unittest.TestCase):
 
     def test_missing_key_gives_clear_message(self):
         client = FakeClient()
-        client.beta.messages.stream = mock.Mock(side_effect=TypeError(   # o que o SDK lança sem chave
+        client.beta.messages.stream = mock.Mock(side_effect=TypeError(   # what the SDK raises without a key
             '"Could not resolve authentication method. Expected one of api_key, auth_token, or credentials"'))
         with self.assertRaises(ai_memo.MemoError) as ctx:
             ai_memo.write_memo("material", client=client)
@@ -120,13 +119,13 @@ class EnvTest(unittest.TestCase):
     def test_load_env_reads_key_without_overriding(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = Path(tmp) / ".env"
-            env.write_text("# comentário\nANTHROPIC_API_KEY=sk-teste\nOUTRA=\nJA_EXISTE=do_ficheiro\n", encoding="utf-8")
-            with mock.patch.dict(os.environ, {"JA_EXISTE": "do_ambiente"}, clear=False):
+            env.write_text("# comment\nANTHROPIC_API_KEY=sk-test\nOTHER=\nALREADY=from_file\n", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"ALREADY": "from_env"}, clear=False):
                 os.environ.pop("ANTHROPIC_API_KEY", None)
                 ai_memo.load_env(env)
-                self.assertEqual(os.environ["ANTHROPIC_API_KEY"], "sk-teste")
-                self.assertEqual(os.environ["JA_EXISTE"], "do_ambiente")   # o ambiente ganha ao ficheiro
-                self.assertNotIn("OUTRA", os.environ)                     # valor vazio é ignorado
+                self.assertEqual(os.environ["ANTHROPIC_API_KEY"], "sk-test")
+                self.assertEqual(os.environ["ALREADY"], "from_env")    # the environment wins over the file
+                self.assertNotIn("OTHER", os.environ)                   # empty values are ignored
 
 
 if __name__ == "__main__":

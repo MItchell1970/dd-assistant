@@ -1,13 +1,14 @@
-"""Due Diligence Assistant — análise financeira preliminar para M&A.
+"""DD Assistant — preliminary financial due diligence for M&A.
 
-Camadas (sempre separadas):
-    1. input_loader  -> lê os dados da folha Input do template Excel
-    2. metrics       -> calcula as métricas (determinístico)
-    3. rules         -> compara cada métrica com um limite e gera os alertas
-    4. report        -> escreve a tabela de red flags (Excel e CSV)
-    5. ai_memo       -> a Claude API escreve o memo e a request list (nunca faz contas nem cria alertas)
-       memo_check    -> verifica o memo sem IA: números com fonte, alertas, perguntas, sem recomendações
-A app (app.py, Streamlit) só junta estas camadas.
+Layers (always kept separate):
+    1. extract       -> reads the company's own statements (Excel or PDF) into the standard model
+       input_loader  -> the standard model, and the reader for the Excel DD template
+    2. metrics       -> computes the metrics (deterministic)
+    3. rules         -> compares each metric with a threshold and raises the red flags
+    4. report        -> writes the red flag table (Excel and CSV)
+    5. ai_memo       -> the Claude API writes the memo and request list (no calculations, no new findings)
+       memo_check    -> checks the memo without AI: sourced figures, findings, questions, no recommendations
+The app (app.py, Streamlit) only wires these layers together.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

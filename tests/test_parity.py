@@ -1,12 +1,17 @@
-"""Teste de paridade: o Python tem de dar exatamente o mesmo resultado que a planilha.
+"""Parity test: Python must give exactly the same numbers as the Excel template.
 
-Lê os valores já calculados pelo Excel (folhas Métricas, Regras e Red Flags) e compara
-com o que o código calcula a partir da folha Input. Corre nas duas empresas de exemplo:
-a Duriva (com problemas plantados) e a Velmora (empresa "limpa").
+Reads the values already calculated by Excel (Métricas, Regras and Red Flags sheets) and
+compares them with what the code calculates from the Input sheet. Runs on both sample
+companies: Duriva (planted issues) and Velmora (clean company).
 
-Correr:  python -m unittest -v
-Nota: o template tem de ter sido gravado por um programa que calcula fórmulas
-(Excel ou LibreOffice); se as células calculadas estiverem vazias, o teste avisa.
+What is compared: every metric, every rule value, whether each rule fires, the thresholds,
+the severities and the order of the findings. What is not compared: the wording of the
+evidence and of the rule names, because the code writes them in English while the
+reference spreadsheet stays in Portuguese.
+
+Run:  python -m unittest -v
+Note: the template must have been saved by a program that calculates formulas (Excel or
+LibreOffice); if the calculated cells are empty, the test is skipped with a message.
 """
 from __future__ import annotations
 
@@ -23,9 +28,40 @@ from dd_assistant.rules import RULES, alerts, evaluate
 DATA = Path(__file__).resolve().parents[1] / "data"
 YEAR_COLS = {"B": 2022, "C": 2023, "D": 2024, "E": 2025}
 
+# Metric key -> column A label in the template's Métricas sheet (Portuguese).
+SHEET_LABELS = {
+    "vendas": "Vendas", "g_vendas": "Crescimento das vendas", "new_sales": "Vendas a clientes novos",
+    "new_share": "Clientes novos (% das vendas)", "new_name": "Maior cliente novo",
+    "g_ex_new": "Crescimento das vendas sem clientes novos", "top_share": "Maior cliente (% das vendas)",
+    "top_name": "Maior cliente", "ex_top_new": "Vendas sem o maior cliente e sem clientes novos",
+    "g_ex_top_new": "Crescimento das vendas sem o maior cliente e sem novos", "gm": "Margem bruta",
+    "gm_pp": "Variação da margem bruta", "ebitda": "EBITDA reportado", "ebitda_m": "Margem EBITDA",
+    "or_share": "Outros rendimentos (% das vendas)", "or_var": "Variação dos outros rendimentos",
+    "gain": "Ganhos na alienação de ativos (dentro do EBITDA)", "gain_pct": "Ganhos na alienação (% do EBITDA)",
+    "ebitda_ex_gain": "EBITDA sem ganhos na alienação", "adj": "Ajustes da gestão ao EBITDA",
+    "ebitda_adj": "EBITDA ajustado (gestão)", "adj_pct": "Ajustes (% do EBITDA reportado)",
+    "adj_rec": "Ajustes 'não recorrentes' presentes nos 3 anos", "adj_rec_name": "Exemplo de ajuste repetido",
+    "g_cli": "Crescimento de clientes (contas a receber)", "cli_gap": "Clientes vs. vendas (diferença de crescimento)",
+    "dso": "DSO (prazo médio de recebimento)", "dso_var": "Variação do DSO", "g_inv": "Crescimento dos inventários",
+    "g_cmv": "Crescimento do CMV", "inv_gap": "Inventários vs. CMV (diferença de crescimento)",
+    "dio": "DIO (dias de stock)", "dpo": "DPO (prazo médio de pagamento)", "dpo_var": "Variação do DPO",
+    "cgo": "Caixa gerada pelas operações", "conv": "Conversão de caixa", "fco": "Fluxo de caixa operacional (FCO)",
+    "fcf": "Free cash flow", "capex_pct": "Capex (% das vendas)", "debt": "Dívida financeira",
+    "st_share": "Dívida a vencer em 12 meses (% do total)", "net_debt": "Dívida líquida",
+    "nd_ebitda": "Dívida líquida / EBITDA", "nd_ebitda_ex": "Dívida líquida / EBITDA sem ganhos na alienação",
+    "cov_lim": "Limite do covenant (dívida líquida / EBITDA)", "cov_head": "Folga do covenant",
+    "ebitda_min": "EBITDA mínimo para cumprir o covenant", "bs_diff": "Ativo − (capital próprio + passivo)",
+    "cash_diff": "Caixa final da DFC − caixa do balanço", "wc_diff": "Variações de capital de giro: DFC vs. balanço",
+    "ni_diff": "Resultado líquido: maior diferença DRE / balanço / DFC", "cl_diff": "Vendas por cliente − vendas da DRE",
+    "map_diff": "Mapa da dívida − balanço", "docs_miss": "Documentos obrigatórios em falta",
+    "docs_list": "Lista de documentos em falta",
+}
+SEVERITY = {"Alta": "High", "Média": "Medium", "Baixa": "Low"}
+FIRES = {"Sim": "Yes", "Não": "No", "n.d.": "n/a"}
+
 
 def same(a, b) -> bool:
-    """Compara um valor da planilha com um do Python ('n.d.' e vazio = None)."""
+    """Compare a spreadsheet value with a Python one ('n.d.' and blank = None)."""
     a = None if a in ("n.d.", "", None) else a
     if a is None or b is None:
         return a is None and b is None
@@ -34,13 +70,8 @@ def same(a, b) -> bool:
     return str(a) == str(b)
 
 
-def norm(text: str) -> str:
-    """O Excel em português escreve 23,8 e o LibreOffice 23.8: tratamos os dois como iguais."""
-    return str(text).replace(",", ".")
-
-
 class Parity:
-    """Os testes de paridade; cada subclasse indica o template (não é um TestCase sozinha)."""
+    """The parity tests; each subclass names the template (not a TestCase on its own)."""
     TEMPLATE: Path
 
     @classmethod
@@ -50,40 +81,42 @@ class Parity:
         cls.results = evaluate(cls.data, cls.metrics)
         cls.wb = load_workbook(cls.TEMPLATE, data_only=True)
         if cls.wb["Métricas"]["C6"].value is None:
-            raise unittest.SkipTest("O template não tem valores calculados: abra-o no Excel e grave.")
+            raise unittest.SkipTest("The template has no calculated values: open it in Excel and save it.")
+
+    def test_every_metric_has_a_sheet_label(self):
+        self.assertEqual(set(SHEET_LABELS), set(LABELS))
 
     def test_metrics_match_sheet(self):
         ws = self.wb["Métricas"]
         rows = {}
         for r in range(5, ws.max_row + 1):
             label = ws[f"A{r}"].value
-            if label in LABELS.values() and label not in rows:
+            if label in SHEET_LABELS.values() and label not in rows:
                 rows[label] = r
-        missing = [l for l in LABELS.values() if l not in rows]
-        self.assertEqual(missing, [], "métricas sem linha na folha Métricas")
-        for key, label in LABELS.items():
+        missing = [l for l in SHEET_LABELS.values() if l not in rows]
+        self.assertEqual(missing, [], "metrics without a row in the Métricas sheet")
+        for key, label in SHEET_LABELS.items():
             for col, year in YEAR_COLS.items():
                 sheet = ws[f"{col}{rows[label]}"].value
                 py = self.metrics[key].get(year)
-                with self.subTest(metrica=label, ano=year):
-                    self.assertTrue(same(sheet, py), f"planilha={sheet!r}  python={py!r}")
+                if key == "docs_list":          # document names: Portuguese in the sheet, English in the code
+                    continue
+                with self.subTest(metric=label, year=year):
+                    self.assertTrue(same(sheet, py), f"sheet={sheet!r}  python={py!r}")
 
     def test_rules_match_sheet(self):
         ws = self.wb["Regras"]
         by_id = {ws[f"A{r}"].value: r for r in range(5, ws.max_row + 1) if ws[f"A{r}"].value}
-        self.assertEqual(sorted(by_id), sorted(r.id for r in RULES), "catálogo diferente da planilha")
+        self.assertEqual(sorted(by_id), sorted(r.id for r in RULES), "rule catalogue differs from the sheet")
         for res in self.results:
             r = by_id[res.rule.id]
-            with self.subTest(regra=res.rule.id):
-                self.assertTrue(same(ws[f"F{r}"].value, res.rule.limit), "limite diferente")
-                self.assertEqual(ws[f"O{r}"].value, res.rule.relevance, "relevância diferente")
+            with self.subTest(rule=res.rule.id):
+                self.assertTrue(same(ws[f"F{r}"].value, res.rule.limit), "different threshold")
+                self.assertEqual(SEVERITY[ws[f"O{r}"].value], res.rule.severity, "different severity")
                 for (col_v, col_f), year in zip([("G", "J"), ("H", "K"), ("I", "L")], sorted(res.values)):
-                    self.assertTrue(same(ws[f"{col_v}{r}"].value, res.values[year]), f"valor {year}")
-                    self.assertEqual(ws[f"{col_f}{r}"].value, res.fires[year], f"dispara {year}")
+                    self.assertTrue(same(ws[f"{col_v}{r}"].value, res.values[year]), f"value {year}")
+                    self.assertEqual(FIRES[ws[f"{col_f}{r}"].value], res.fires[year], f"fires {year}")
                 self.assertEqual(ws[f"M{r}"].value == "Sim", res.alert)
-                self.assertEqual(ws[f"N{r}"].value or "", res.years_text)
-                self.assertEqual(norm(ws[f"Q{r}"].value), norm(res.evidence), "evidência diferente")
-                self.assertEqual(ws[f"V{r}"].value, res.rule.rule_text(), "texto da regra diferente")
 
     def test_red_flags_order(self):
         ws = self.wb["Red Flags"]

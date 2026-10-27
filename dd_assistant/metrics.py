@@ -1,82 +1,95 @@
-"""Camada 2 — calcular as métricas (determinístico, sem IA).
+"""Layer 2 — compute the metrics (deterministic, no AI).
 
-Cada métrica é um dicionário {ano: valor}. None significa "n.d." (não disponível):
-falta o ano anterior ou o dado. As fórmulas espelham a folha Métricas do template;
-o teste de paridade (tests/test_parity.py) confirma que os resultados são iguais.
+Each metric is a dict {year: value}. None means "n/a": the prior year or the input is
+missing. The formulas mirror the Métricas sheet of the Excel template; the parity test
+(tests/test_parity.py) confirms both give the same numbers.
 """
 from __future__ import annotations
 
 from .input_loader import CompanyData
 
-# Chave -> texto da coluna A da folha Métricas (usado no relatório e no teste de paridade).
+# Key -> display label (reports, app and AI material).
 LABELS = {
-    "vendas": "Vendas",
-    "g_vendas": "Crescimento das vendas",
-    "new_sales": "Vendas a clientes novos",
-    "new_share": "Clientes novos (% das vendas)",
-    "new_name": "Maior cliente novo",
-    "g_ex_new": "Crescimento das vendas sem clientes novos",
-    "top_share": "Maior cliente (% das vendas)",
-    "top_name": "Maior cliente",
-    "ex_top_new": "Vendas sem o maior cliente e sem clientes novos",
-    "g_ex_top_new": "Crescimento das vendas sem o maior cliente e sem novos",
-    "gm": "Margem bruta",
-    "gm_pp": "Variação da margem bruta",
-    "ebitda": "EBITDA reportado",
-    "ebitda_m": "Margem EBITDA",
-    "or_share": "Outros rendimentos (% das vendas)",
-    "or_var": "Variação dos outros rendimentos",
-    "gain": "Ganhos na alienação de ativos (dentro do EBITDA)",
-    "gain_pct": "Ganhos na alienação (% do EBITDA)",
-    "ebitda_ex_gain": "EBITDA sem ganhos na alienação",
-    "adj": "Ajustes da gestão ao EBITDA",
-    "ebitda_adj": "EBITDA ajustado (gestão)",
-    "adj_pct": "Ajustes (% do EBITDA reportado)",
-    "adj_rec": "Ajustes 'não recorrentes' presentes nos 3 anos",
-    "adj_rec_name": "Exemplo de ajuste repetido",
-    "g_cli": "Crescimento de clientes (contas a receber)",
-    "cli_gap": "Clientes vs. vendas (diferença de crescimento)",
-    "dso": "DSO (prazo médio de recebimento)",
-    "dso_var": "Variação do DSO",
-    "g_inv": "Crescimento dos inventários",
-    "g_cmv": "Crescimento do CMV",
-    "inv_gap": "Inventários vs. CMV (diferença de crescimento)",
-    "dio": "DIO (dias de stock)",
-    "dpo": "DPO (prazo médio de pagamento)",
-    "dpo_var": "Variação do DPO",
-    "cgo": "Caixa gerada pelas operações",
-    "conv": "Conversão de caixa",
-    "fco": "Fluxo de caixa operacional (FCO)",
+    "vendas": "Revenue",
+    "g_vendas": "Revenue growth",
+    "new_sales": "Revenue from new customers",
+    "new_share": "New customers (% of revenue)",
+    "new_name": "Largest new customer",
+    "g_ex_new": "Revenue growth excl. new customers",
+    "top_share": "Largest customer (% of revenue)",
+    "top_name": "Largest customer",
+    "ex_top_new": "Revenue excl. largest and new customers",
+    "g_ex_top_new": "Growth excl. largest and new customers",
+    "gm": "Gross margin",
+    "gm_pp": "Gross margin change",
+    "ebitda": "Reported EBITDA",
+    "ebitda_m": "EBITDA margin",
+    "or_share": "Other income (% of revenue)",
+    "or_var": "Other income growth",
+    "gain": "Disposal gains within EBITDA",
+    "gain_pct": "Disposal gains (% of EBITDA)",
+    "ebitda_ex_gain": "EBITDA excl. disposal gains",
+    "adj": "Management adjustments to EBITDA",
+    "ebitda_adj": "Management-adjusted EBITDA",
+    "adj_pct": "Adjustments (% of reported EBITDA)",
+    "adj_rec": "'Non-recurring' adjustments in all 3 years",
+    "adj_rec_name": "Example of recurring adjustment",
+    "g_cli": "Trade receivables growth",
+    "cli_gap": "Receivables vs. revenue growth gap",
+    "dso": "DSO",
+    "dso_var": "DSO change",
+    "g_inv": "Inventory growth",
+    "g_cmv": "COGS growth",
+    "inv_gap": "Inventory vs. COGS growth gap",
+    "dio": "DIO",
+    "dpo": "DPO",
+    "dpo_var": "DPO change",
+    "cgo": "Cash generated from operations",
+    "conv": "Cash conversion (CGO / EBITDA)",
+    "fco": "Operating cash flow",
     "fcf": "Free cash flow",
-    "capex_pct": "Capex (% das vendas)",
-    "debt": "Dívida financeira",
-    "st_share": "Dívida a vencer em 12 meses (% do total)",
-    "net_debt": "Dívida líquida",
-    "nd_ebitda": "Dívida líquida / EBITDA",
-    "nd_ebitda_ex": "Dívida líquida / EBITDA sem ganhos na alienação",
-    "cov_lim": "Limite do covenant (dívida líquida / EBITDA)",
-    "cov_head": "Folga do covenant",
-    "ebitda_min": "EBITDA mínimo para cumprir o covenant",
-    "bs_diff": "Ativo − (capital próprio + passivo)",
-    "cash_diff": "Caixa final da DFC − caixa do balanço",
-    "wc_diff": "Variações de capital de giro: DFC vs. balanço",
-    "ni_diff": "Resultado líquido: maior diferença DRE / balanço / DFC",
-    "cl_diff": "Vendas por cliente − vendas da DRE",
-    "map_diff": "Mapa da dívida − balanço",
-    "docs_miss": "Documentos obrigatórios em falta",
-    "docs_list": "Lista de documentos em falta",
+    "capex_pct": "Capex (% of revenue)",
+    "debt": "Gross financial debt",
+    "st_share": "Debt due within 12 months (% of total)",
+    "net_debt": "Net debt",
+    "nd_ebitda": "Net debt / EBITDA",
+    "nd_ebitda_ex": "Net debt / EBITDA excl. disposal gains",
+    "cov_lim": "Covenant limit (net debt / EBITDA)",
+    "cov_head": "Covenant headroom",
+    "ebitda_min": "Minimum EBITDA to meet covenant",
+    "bs_diff": "Assets − (equity + liabilities)",
+    "cash_diff": "CFS closing cash − balance sheet cash",
+    "wc_diff": "Working capital movements: CFS vs. balance sheet",
+    "ni_diff": "Net income: largest gap P&L / BS / CFS",
+    "cl_diff": "Sales by customer − P&L revenue",
+    "map_diff": "Debt schedule − balance sheet",
+    "docs_miss": "Key documents not provided",
+    "docs_list": "Documents not provided",
 }
+
+# Key -> unit, used only to display the values (pct = decimal shown as %; eur = EUR k).
+_UNIT_GROUPS = {
+    "pct": "g_vendas new_share g_ex_new top_share g_ex_top_new gm ebitda_m or_share or_var gain_pct adj_pct "
+           "g_cli g_inv g_cmv conv capex_pct st_share cov_head",
+    "pp": "gm_pp cli_gap inv_gap",
+    "days": "dso dso_var dio dpo dpo_var",
+    "x": "nd_ebitda nd_ebitda_ex cov_lim",
+    "count": "adj_rec docs_miss",
+    "text": "new_name top_name adj_rec_name docs_list",
+}
+UNITS = {k: unit for unit, keys in _UNIT_GROUPS.items() for k in keys.split()}
+UNITS.update({k: "eur" for k in LABELS if k not in UNITS})
 
 Metrics = dict[str, dict[int, object]]
 
 
 def N(x) -> float:
-    """Como a função N() do Excel: vazio conta como 0."""
+    """Like Excel's N(): blank counts as 0."""
     return x if isinstance(x, (int, float)) else 0.0
 
 
 def div(a, b):
-    """Divisão que devolve None em vez de dar erro."""
+    """Division that returns None instead of raising."""
     if a is None or b is None or b == 0:
         return None
     return a / b
@@ -88,9 +101,9 @@ def growth(cur, prev):
 
 
 def compute_metrics(d: CompanyData) -> Metrics:
-    P = d.pl_years                      # anos com DRE (2023–2025)
-    B = d.bs_years                      # anos com balanço (2022–2025)
-    L = P[-1]                           # último ano
+    P = d.pl_years                      # years with a P&L
+    B = d.bs_years                      # years with a balance sheet
+    L = P[-1]                           # latest year
     prev = {y: (P[i - 1] if i > 0 else None) for i, y in enumerate(P)}
     prev_bs = {y: (B[B.index(y) - 1] if y in B and B.index(y) > 0 else None) for y in B}
     m: Metrics = {k: {} for k in LABELS}
@@ -100,9 +113,9 @@ def compute_metrics(d: CompanyData) -> Metrics:
         for y in years:
             m[key][y] = fn(y)
 
-    Pp = [y for y in P if prev[y] is not None]   # anos com ano anterior na DRE
+    Pp = [y for y in P if prev[y] is not None]   # P&L years with a prior year
 
-    # ---------------- Receitas
+    # ---------------- Revenue
     put("vendas", P, lambda y: v("vendas", y))
     put("g_vendas", Pp, lambda y: growth(v("vendas", y), v("vendas", prev[y])))
 
@@ -134,7 +147,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("ex_top_new", P, lambda y: v("vendas", y) - top(y)[1] - (m["new_sales"][y] if y in Pp else 0))
     put("g_ex_top_new", Pp, lambda y: growth(m["ex_top_new"][y], m["ex_top_new"][prev[y]]))
 
-    # ---------------- Margens e qualidade do EBITDA
+    # ---------------- Margins and quality of earnings
     put("gm", P, lambda y: div(v("vendas", y) + v("cmv", y), v("vendas", y)))
     put("gm_pp", Pp, lambda y: (m["gm"][y] - m["gm"][prev[y]]) * 100)
     ebitda_lines = ["vendas", "cmv", "fse", "pess", "imp", "orend", "ogast"]
@@ -154,8 +167,8 @@ def compute_metrics(d: CompanyData) -> Metrics:
         m["adj_rec"][L] = len(repeated)
         m["adj_rec_name"][L] = repeated[0] if repeated else "—"
 
-    # ---------------- Capital de giro
-    Pb = [y for y in P if prev_bs.get(y) is not None]   # anos com balanço do ano anterior
+    # ---------------- Net working capital
+    Pb = [y for y in P if prev_bs.get(y) is not None]   # years with a prior-year balance sheet
     put("g_cli", Pb, lambda y: growth(v("cli", y), v("cli", prev_bs[y])))
     put("cli_gap", Pp, lambda y: None if m["g_cli"].get(y) is None or m["g_vendas"].get(y) is None
         else (m["g_cli"][y] - m["g_vendas"][y]) * 100)
@@ -169,14 +182,14 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("dpo", P, lambda y: v("forn", y) / -v("cmv", y) * 365)
     put("dpo_var", Pp, lambda y: m["dpo"][y] - m["dpo"][prev[y]])
 
-    # ---------------- Geração de caixa
+    # ---------------- Cash generation
     put("cgo", P, lambda y: v("cgo", y))
     put("conv", P, lambda y: None if m["ebitda"][y] <= 0 else m["cgo"][y] / m["ebitda"][y])
     put("fco", P, lambda y: v("fco", y))
     put("fcf", P, lambda y: N(v("fco", y)) + N(v("capex", y)) + N(v("alien", y)))
     put("capex_pct", P, lambda y: div(-N(v("capex", y)), v("vendas", y)))
 
-    # ---------------- Dívida
+    # ---------------- Debt
     put("debt", B, lambda y: N(v("fin_lp", y)) + N(v("fin_cp", y)))
     put("st_share", B, lambda y: div(N(v("fin_cp", y)), m["debt"][y]))
     put("net_debt", B, lambda y: m["debt"][y] - N(v("caixa", y)))
@@ -189,7 +202,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
         m["cov_head"][L] = None if nd is None else 1 - nd / lim
         m["ebitda_min"][L] = m["net_debt"][L] / lim
 
-    # ---------------- Consistência (0 = tudo bate)
+    # ---------------- Consistency (0 = everything reconciles)
     assets = ["aft", "oanc", "inv", "cli", "oac", "caixa"]
     liabs = ["cp", "fin_lp", "opnc", "forn", "fin_cp", "opc"]
     put("bs_diff", B, lambda y: sum(N(v(k, y)) for k in assets) - sum(N(v(k, y)) for k in liabs))
@@ -198,7 +211,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
     def wc(y):
         p = prev_bs[y]
         delta = lambda k: N(v(k, y)) - N(v(k, p))
-        # ativos: a variação na DFC tem sinal contrário ao aumento no balanço
+        # assets: the CFS movement has the opposite sign to the balance sheet increase
         return (abs(N(v("d_cli", y)) + delta("cli")) + abs(N(v("d_inv", y)) + delta("inv"))
                 + abs(N(v("d_forn", y)) - delta("forn")) + abs(N(v("d_oac", y)) + delta("oac"))
                 + abs(N(v("d_opc", y)) - delta("opc")))
@@ -209,7 +222,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
     if v("map_tot", L) is not None:
         m["map_diff"][L] = abs(N(v("map_tot", L)) - m["debt"][L]) + abs(N(v("map_cur", L)) - N(v("fin_cp", L)))
 
-    # ---------------- Informação
+    # ---------------- Information
     missing = [name for name, ok in d.documents if not ok]
     m["docs_miss"][L] = len(missing)
     m["docs_list"][L] = "; ".join(missing) if missing else "—"

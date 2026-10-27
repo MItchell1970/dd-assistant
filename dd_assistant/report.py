@@ -1,4 +1,4 @@
-"""Camada 4 — escrever a tabela de red flags (Excel e CSV) e um resumo para a consola."""
+"""Layer 4 — write the red flag table (Excel and CSV) and a console summary."""
 from __future__ import annotations
 
 import csv
@@ -10,25 +10,44 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from .metrics import LABELS, Metrics
-from .rules import RuleResult, alerts
+from .metrics import LABELS, UNITS, Metrics
+from .rules import SEVERITIES, RuleResult, alerts, fy, xround
 
-COLUMNS = ["Nº", "Regra", "Área", "Anos", "Evidência (com fonte)", "Cálculo e regra disparada",
-           "Ponto a investigar", "Relevância", "Pergunta para a empresa", "Documento a pedir",
-           "Estado do revisor", "Comentário do revisor"]
-REVIEW_STATES = ["Pendente", "Aceite", "Descartado"]
+COLUMNS = ["#", "Rule", "Area", "Years", "Evidence (with source)", "Test and threshold", "What to investigate",
+           "Severity", "Question for management", "Document to request", "Reviewer status", "Reviewer comment"]
+REVIEW_STATES = ["Pending", "Accepted", "Dismissed"]
 
-# Revisão de cada alerta: ID da regra -> (estado, comentário). Sem revisão = ("Pendente", "").
+# Review of each finding: rule ID -> (status, comment). Not reviewed = ("Pending", "").
 Reviews = dict[str, tuple[str, str]]
 
 
 def fmt_value(v) -> str:
-    """Mostra um valor como na evidência: None = 'n.d.', números com até 4 casas decimais."""
+    """Raw value as sent to the AI: None = 'n/a', numbers with up to 4 decimals."""
     if v is None:
-        return "n.d."
+        return "n/a"
     if isinstance(v, float):
         return f"{v:.4f}".rstrip("0").rstrip(".")
     return str(v)
+
+
+def fmt_metric(key: str, v) -> str:
+    """Value formatted for people: 23.8%, -3.5 pp, 72 days, 2.65x, €1,415k."""
+    if v is None:
+        return "n/a"
+    if not isinstance(v, (int, float)):
+        return str(v)
+    unit = UNITS.get(key, "eur")
+    if unit == "pct":
+        return f"{v * 100:.1f}%"
+    if unit == "pp":
+        return f"{v:.1f} pp"
+    if unit == "days":
+        return f"{v:.0f} days"
+    if unit == "x":
+        return xround(v, 2) + "x"
+    if unit == "count":
+        return xround(v, 0)
+    return f"{round(v):,}".replace("-", "−")
 
 
 def red_flag_rows(results: list[RuleResult], reviews: Reviews | None = None) -> list[list[str]]:
@@ -36,19 +55,18 @@ def red_flag_rows(results: list[RuleResult], reviews: Reviews | None = None) -> 
     rows = []
     for i, r in enumerate(alerts(results), 1):
         rule = r.rule
-        state, comment = reviews.get(rule.id, ("Pendente", ""))
-        rows.append([i, rule.id, rule.area, r.years_text, r.evidence,
-                     f"{rule.calc}\nRegra: {rule.rule_text()}", rule.ponto, rule.relevance,
-                     rule.pergunta, rule.documento, state, comment])
+        state, comment = reviews.get(rule.id, ("Pending", ""))
+        rows.append([i, rule.id, rule.area, r.years_text, r.evidence, f"{rule.test}\nRule: {rule.rule_text()}",
+                     rule.focus, rule.severity, rule.question, rule.request, state, comment])
     return rows
 
 
 def summary(results: list[RuleResult]) -> str:
     al = alerts(results)
-    by = {k: sum(1 for r in al if r.rule.relevance == k) for k in ("Alta", "Média", "Baixa")}
-    lines = [f"Alertas: {len(al)}  ·  Alta: {by['Alta']}  ·  Média: {by['Média']}  ·  Baixa: {by['Baixa']}", ""]
+    by = {k: sum(1 for r in al if r.rule.severity == k) for k in SEVERITIES}
+    lines = [f"Findings: {len(al)}  ·  " + "  ·  ".join(f"{k}: {by[k]}" for k in SEVERITIES), ""]
     for i, r in enumerate(al, 1):
-        lines.append(f"{i:>2}. {r.rule.id} [{r.rule.relevance}] {r.rule.name} ({r.years_text})")
+        lines.append(f"{i:>2}. {r.rule.id} [{r.rule.severity}] {r.rule.name} ({r.years_text})")
     return "\n".join(lines)
 
 
@@ -57,7 +75,7 @@ def csv_bytes(results: list[RuleResult], reviews: Reviews | None = None) -> byte
     w = csv.writer(f, delimiter=";")
     w.writerow(COLUMNS)
     w.writerows(red_flag_rows(results, reviews))
-    return f.getvalue().encode("utf-8-sig")   # utf-8-sig: o Excel abre com acentos
+    return f.getvalue().encode("utf-8-sig")   # utf-8-sig: Excel opens it with the right characters
 
 
 def write_csv(results: list[RuleResult], path: Path, reviews: Reviews | None = None) -> None:
@@ -65,8 +83,11 @@ def write_csv(results: list[RuleResult], path: Path, reviews: Reviews | None = N
 
 
 def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int],
-                path: Path | BinaryIO, reviews: Reviews | None = None) -> None:
-    """Grava num ficheiro ou num buffer em memória (a app usa o buffer para o download)."""
+                path: Path | BinaryIO, reviews: Reviews | None = None, items: list[dict] | None = None) -> None:
+    """Write to a file or to an in-memory buffer (the app uses the buffer for downloads).
+
+    items: the extraction review table (what was read and from where), saved as 'Source data'.
+    """
     wb = Workbook()
     ws = wb.active
     ws.title = "Red Flags"
@@ -85,13 +106,26 @@ def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int],
     dv = DataValidation(type="list", formula1='"' + ",".join(REVIEW_STATES) + '"')
     ws.add_data_validation(dv)
     dv.add(f"K2:K{max(last, 2)}")
-    for col, w in zip("ABCDEFGHIJKL", [5, 8, 16, 10, 60, 34, 34, 10, 44, 32, 14, 28]):
+    for col, w in zip("ABCDEFGHIJKL", [5, 8, 18, 10, 60, 34, 34, 10, 44, 32, 14, 28]):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "C2"
 
-    wm = wb.create_sheet("Métricas")
-    wm.append(["Métrica"] + [str(y) for y in years])
+    wm = wb.create_sheet("Metrics")
+    wm.append(["Metric (EUR k unless stated)"] + [fy(y) for y in years])
     for key, label in LABELS.items():
-        wm.append([label] + [("n.d." if metrics[key].get(y) is None else metrics[key].get(y)) for y in years])
+        wm.append([label] + [("n/a" if metrics[key].get(y) is None else metrics[key].get(y)) for y in years])
+    for cell in wm[1]:
+        cell.font, cell.fill = head, fill
     wm.column_dimensions["A"].width = 52
+
+    if items:
+        ws_src = wb.create_sheet("Source data")
+        cols = [c for c in items[0] if c != "key"]
+        ws_src.append(cols)
+        for it in items:
+            ws_src.append([it[c] for c in cols])
+        for cell in ws_src[1]:
+            cell.font, cell.fill = head, fill
+        for col, w in zip("ABCDE", [22, 40, 44, 30, 12]):
+            ws_src.column_dimensions[col].width = w
     wb.save(path)

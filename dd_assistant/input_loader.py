@@ -1,7 +1,9 @@
-"""Camada 1 — ler os dados da folha Input do template.
+"""Layer 1 — company data: the standard model and the reader for the Excel DD template.
 
-As linhas são encontradas pelo texto da coluna A (não pelo número da linha),
-por isso o template pode ganhar linhas novas sem partir o código.
+CompanyData is the standard model every later layer works on. It is filled either from
+the Input sheet of the DD template (this module) or straight from the company's own
+financial statements (extract.py). In the template, rows are found by the text in
+column A (not by row number), so the template can gain rows without breaking the code.
 """
 from __future__ import annotations
 
@@ -11,7 +13,7 @@ from typing import BinaryIO
 
 from openpyxl import load_workbook
 
-# Texto da coluna A da folha Input -> chave usada no código.
+# Column A text in the template's Input sheet -> key used in the code.
 LINE_LABELS = {
     "Vendas e serviços prestados": "vendas",
     "Custo das mercadorias vendidas (CMV)": "cmv",
@@ -55,21 +57,34 @@ LINE_LABELS = {
     "Covenant: dívida líquida / EBITDA máximo": "cov_lim",
 }
 
-# Início do texto dos cabeçalhos de secção (o "(" evita confundir com linhas
-# da lista de documentos, como "Vendas por cliente").
+# Start of the section headers (the "(" avoids confusion with document-list rows
+# such as "Vendas por cliente").
 SECTION_CLIENTS = "Vendas por cliente ("
 SECTION_ADJ = "Ajustes ao EBITDA apresentados"
 SECTION_DOCS = "Documentos recebidos ("
 OTHER_CLIENTS = "Outros clientes"
 
-YEAR_COLS = ["B", "C", "D", "E"]  # colunas de anos na folha Input
+# The ten key documents the agent expects in a financial data room (R18).
+KEY_DOCUMENTS = [
+    "Income statement", "Balance sheet", "Cash flow statement", "Sales by customer",
+    "Support for EBITDA adjustments (invoices, contracts)", "Breakdown of other income and expenses",
+    "AR ageing", "Inventory ageing", "Debt schedule", "Facility agreements",
+]
+# Document names in the Portuguese template -> English.
+DOC_NAMES = dict(zip([
+    "Demonstração de resultados", "Balanço", "Demonstração de fluxos de caixa", "Vendas por cliente",
+    "Evidência dos ajustes ao EBITDA (faturas, contratos)", "Detalhe de outros rendimentos e outros gastos",
+    "Aging de clientes", "Aging de inventários", "Mapa da dívida", "Contratos de financiamento",
+], KEY_DOCUMENTS))
+
+YEAR_COLS = ["B", "C", "D", "E"]  # year columns in the Input sheet
 HEADER_ROW = 4
 SOURCE_COL = "F"
 
 
 @dataclass
 class Named:
-    """Uma linha com nome (cliente ou ajuste) e um valor por ano."""
+    """A named line (customer or adjustment) with one value per year."""
     name: str
     values: dict[int, float | None]
 
@@ -87,17 +102,17 @@ class CompanyData:
     documents: list[tuple[str, bool]] = field(default_factory=list)
 
     def v(self, key: str, year: int) -> float | None:
-        """Valor de uma linha num ano (None se não existir)."""
+        """Value of a line in a year (None if missing)."""
         return self.lines.get(key, {}).get(year)
 
     @property
     def pl_years(self) -> list[int]:
-        """Anos com demonstração de resultados (têm vendas)."""
+        """Years with an income statement (revenue present)."""
         return [y for y in self.years if self.v("vendas", y) is not None]
 
     @property
     def bs_years(self) -> list[int]:
-        """Anos com balanço (têm clientes)."""
+        """Years with a balance sheet (receivables present)."""
         return [y for y in self.years if self.v("cli", y) is not None]
 
 
@@ -106,7 +121,7 @@ def _num(x):
 
 
 def load_input(path: str | Path | BinaryIO) -> CompanyData:
-    """Lê a folha Input do template (ficheiro ou buffer em memória) e devolve os dados da empresa."""
+    """Read the template's Input sheet (file or in-memory buffer) and return the company data."""
     wb = load_workbook(path, data_only=True)
     ws = wb["Input"]
     years = [int(ws[f"{c}{HEADER_ROW}"].value) for c in YEAR_COLS]
@@ -120,7 +135,7 @@ def load_input(path: str | Path | BinaryIO) -> CompanyData:
         values = {year_of[c]: _num(ws[f"{c}{row}"].value) for c in YEAR_COLS}
         source = ws[f"{SOURCE_COL}{row}"].value or ""
 
-        # cabeçalhos de secção mudam o modo de leitura
+        # section headers switch the reading mode
         if isinstance(label, str) and label.startswith(SECTION_CLIENTS):
             section = "clients"; continue
         if isinstance(label, str) and label.startswith(SECTION_ADJ):
@@ -135,7 +150,7 @@ def load_input(path: str | Path | BinaryIO) -> CompanyData:
                 continue
             if not data.clients_source:
                 data.clients_source = source
-            if label:  # linhas vazias do template são ignoradas
+            if label:  # empty template rows are skipped
                 data.clients.append(Named(str(label), values))
             continue
         if section == "adj":
@@ -144,11 +159,11 @@ def load_input(path: str | Path | BinaryIO) -> CompanyData:
             if label:
                 data.adjustments.append(Named(str(label), values))
             elif source == "" and all(v is None for v in values.values()):
-                section = None  # linha totalmente vazia fecha a secção
+                section = None  # a fully empty row closes the section
             continue
         if section == "docs":
             if label:
-                data.documents.append((str(label), str(ws[f"B{row}"].value).strip() == "Sim"))
+                data.documents.append((DOC_NAMES.get(str(label), str(label)), str(ws[f"B{row}"].value).strip() == "Sim"))
             continue
 
         if label in LINE_LABELS:

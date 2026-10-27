@@ -1,7 +1,15 @@
 [browser]
-# não enviar estatísticas de utilização para o Streamlit
+# do not send usage statistics to Streamlit
 gatherUsageStats = false
 
 [server]
-# só este computador abre a app (por defeito, qualquer pessoa na mesma rede conseguia)
+# only this computer can open the app (by default anyone on the same network could)
 address = "localhost"
+
+[theme]
+base = "light"
+primaryColor = "#0b3d91"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f6fa"
+textColor = "#1b2333"
+font = "sans serif"

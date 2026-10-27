@@ -1,51 +1,51 @@
-# Due Diligence Assistant
+# DD Assistant — preliminary financial due diligence
 
-Protótipo de um agente para **due diligence financeira preliminar em M&A**. Lê as demonstrações financeiras de uma empresa-alvo, calcula as métricas de Transaction Services, aplica 20 regras com limites explícitos e gera uma tabela de red flags: evidência com fonte → ponto a investigar → pergunta para a empresa. Uma camada de IA escreve depois o memo de duas páginas e a information request list, sem fazer contas nem criar alertas.
+An AI-assisted tool for **preliminary buy-side financial due diligence in M&A**. Upload the target's financial data room as received — Excel or PDF, no template to fill in — and the agent identifies every line of the income statement, balance sheet and cash flow statement, computes the Transaction Services metrics, runs 20 rules with explicit thresholds and produces a red flag table: evidence with source → what to investigate → question for management → document to request. An AI layer then drafts a two-page memo and the information request list, without doing calculations or creating findings, and every figure in the memo is checked automatically.
 
-> Exemplos incluídos (empresas fictícias): **Duriva Distribuição Industrial, S.A.**, com problemas plantados, e **Velmora Material Elétrico, S.A.**, uma empresa "limpa" para medir alarmes falsos.
+> Sample data rooms (fictitious companies): **Duriva Distribuição Industrial, S.A.**, with planted issues, and **Velmora Material Elétrico, S.A.**, a clean company used to measure false alarms. Both data rooms are in Portuguese; the analysis is in English.
 
-## Porquê
-Em due diligence, boa parte do trabalho inicial é mecânica: cruzar demonstrações, calcular rácios, procurar variações e montar a lista de pedidos. Este projeto automatiza essa parte e deixa ao analista o julgamento.
+## Why
+Much of the first pass in a due diligence is mechanical: reading the statements, cross-checking them, computing ratios, spotting movements and building the request list. This tool does that part in seconds, with every number traceable to its cell, and leaves the judgement to the analyst.
 
-## Como funciona
-| Camada | Ficheiro | O que faz |
+## How it works
+| Layer | File | What it does |
 |---|---|---|
-| Dados | `input_loader.py` | Lê a folha `Input` do template, com a fonte de cada linha |
-| Métricas | `metrics.py` | Crescimento, concentração, margens, quality of earnings, DSO/DIO/DPO, conversão de caixa, dívida, consistência |
-| Regras | `rules.py` | 20 regras com limites editáveis; cada alerta traz evidência e pergunta-modelo |
-| Relatório | `report.py` | Red flags em Excel e CSV, com o estado e o comentário do revisor |
-| IA | `ai_memo.py` + `docs/camada_ia_prompt.md` | Junta os alertas em temas e escreve o memo e a request list com a Claude API; não faz contas nem cria alertas |
-| Verificação | `memo_check.py` | Confirma, sem IA, que cada número do memo existe no material, que todos os alertas aparecem, que cada pergunta tem um pedido e que não há recomendação de investimento |
-| App | `app.py` | Carregar o template → rever os alertas (Aceite / Descartado / Pendente) → descarregar → memo com IA |
+| Read | `extract.py` | Maps the company's own statements to a standard model: a Portuguese/English dictionary for Excel (figures read from the cells, each with its cell reference); Claude vision for PDFs (figures as printed, with the page; units and signs converted by code) |
+| Metrics | `metrics.py` | Growth, customer concentration, margins, quality of earnings, DSO/DIO/DPO, cash conversion, net debt, covenant headroom, consistency checks |
+| Rules | `rules.py` | 20 rules with editable thresholds; every finding carries evidence, source, a question for management and the document to request |
+| Report | `report.py` | Red flags in Excel and CSV, with the reviewer's status and comments and the source data |
+| AI memo | `ai_memo.py` + `docs/ai_memo_prompt.md` | Groups the findings into themes, tests management's narrative against the numbers and writes the memo and request list (Claude API); no calculations, no new findings |
+| Check | `memo_check.py` | Verifies, without AI, that every figure in the memo exists in the material, every finding is covered, every question has a request and there is no investment recommendation |
+| App | `app.py` | Upload → review what was read → review the red flags → download → memo |
 
-As contas são determinísticas e verificáveis: `tests/test_parity.py` confirma que o Python dá exatamente o mesmo resultado que as fórmulas da planilha, nas duas empresas.
+The calculations are deterministic and auditable: `tests/test_parity.py` confirms the Python gives exactly the same numbers as the formulas of the reference Excel template, and `tests/test_extract.py` confirms that reading the raw data rooms gives exactly the same figures as the hand-filled templates.
 
-## Instalar (Windows, PowerShell)
+## Install (Windows, PowerShell)
 ```powershell
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python -m unittest -v
 ```
-Em PCs Windows com processador ARM, use o Python **x64**: o Streamlit depende do `pyarrow`, que ainda não tem versão para Windows ARM64.
+On Windows ARM PCs, use the **x64** Python: Streamlit depends on `pyarrow`, which has no Windows ARM64 build yet.
 
-## Usar
+## Use
 ```powershell
-# red flags em output\ (Excel e CSV)
-python -m dd_assistant data\DD_template_modulo1.xlsx
-
-# app no browser (só neste computador)
+# the app (runs on this computer only)
 streamlit run app.py
 
-# memo e request list com a Claude API (precisa da chave no ficheiro .env; ver .env.example)
-python -m dd_assistant data\DD_template_modulo1.xlsx --memo --data-room data\Duriva_data_room.xlsx
+# red flags from a company's financial data room, saved to output\ (Excel and CSV)
+python -m dd_assistant data\Duriva_data_room.xlsx
 
-# verificar um memo escrito fora do programa (por exemplo, no claude.ai com o mesmo prompt)
-python -m dd_assistant data\DD_template_modulo1.xlsx --check-memo memo.md --data-room data\Duriva_data_room.xlsx
+# plus the memo and request list with the Claude API (needs the key in .env; see .env.example)
+python -m dd_assistant data\Duriva_data_room.xlsx --memo
+
+# check a memo written elsewhere (e.g. in claude.ai with the same prompt)
+python -m dd_assistant data\Duriva_data_room.xlsx --check-memo memo.md
 ```
-O memo usa o Claude Opus 5.5 e custa cerca de 0,2 a 0,5 USD por empresa (o valor real aparece no fim). O texto exato enviado à IA fica gravado em `output\*_material_ia.md`, para auditoria. Depois de cada memo, o verificador corre sozinho e grava o resultado em `output\*_verificacao.md`; na app aparece a verde ou a vermelho. Limitação: um número pequeno inventado (por exemplo, 37%) pode coincidir por acaso com outro do material; os números grandes são verificados com segurança.
+The memo uses Claude Opus 5.5 and costs roughly USD 0.20–0.50 per company (the actual cost is shown at the end). The exact text sent to the AI is saved in `output\*_ai_material.md` for audit. Reading a PDF also uses the Claude API (roughly USD 0.10–0.40 per document) and always shows the extracted figures for review before they are used.
 
-## Resultados
-**Duriva:** 15 alertas (10 de relevância alta), entre eles: venda pontual apresentada como crescimento orgânico, concentração no maior cliente (23,8%), queda de 3,5 p.p. na margem bruta, ganho na venda de ativos dentro do EBITDA, conversão de caixa de 20,5%, 55% da dívida a vencer em 12 meses e uma DFC que não bate com o balanço.
+## Results
+**Duriva:** 15 findings (10 high severity), including a one-off sale presented as organic growth, concentration on the largest customer (23.8%), a 3.5 pp fall in gross margin, a disposal gain within EBITDA, cash conversion of 20.5%, 55% of debt due within 12 months and a cash flow statement that does not reconcile to the balance sheet. The same 15 findings come out of the raw data room and of the hand-filled template.
 
-**Velmora (empresa limpa):** 0 alertas, com todas as regras calculadas. A regra mais próxima do limite é a dívida a 12 meses (27% para um limite de 40%). Limitação: a Velmora foi desenhada por quem conhece as regras, por isso é um teste de sanidade e não uma medida independente de alarmes falsos. O teste mais forte seria correr o agente sobre contas reais de empresas saudáveis. A empresa é gerada por `scripts/empresa_limpa.py` (precisa do Excel para recalcular o template).
+**Velmora (clean company):** no analytical findings; only R18 (key documents not provided) when reading the raw data room, because ageing reports and facility agreements are not in it — tick them as received in the app and the result is zero. The rule closest to its threshold is debt due within 12 months (27% against 40%). Limitation: Velmora was designed by someone who knows the rules, so it is a sanity check rather than an independent measure of false alarms; the stronger test is to run the tool on the published accounts of healthy companies. It is generated by `scripts/empresa_limpa.py` (needs Excel to recalculate the template).
