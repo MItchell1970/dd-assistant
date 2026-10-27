@@ -53,10 +53,11 @@ def _f(key, label, statement, synonyms, sign=0, zero=False) -> Field:
 
 FIELDS = [
     # income statement
-    _f("vendas", "Revenue", "pl", ["vendas e servicos prestados", "volume de negocios", "vendas", "revenue",
+    _f("vendas", "Revenue", "pl", ["vendas e servicos prestados", "volume de negocios", "vendas", "reditos", "redito",
+                                   "revenue",
                                    "turnover", "net sales", "sales"]),
     _f("cmv", "Cost of goods sold", "pl", ["custo das mercadorias vendidas e das materias consumidas",
-                                           "custo das mercadorias vendidas", "cmvmc", "cmv", "cost of goods sold",
+                                           "custo das mercadorias vendidas", "custo das vendas", "cmvmc", "cmv", "cost of goods sold",
                                            "cost of sales", "cogs"], -1),
     _f("fse", "External supplies and services", "pl", ["fornecimentos e servicos externos", "fse",
                                                         "external supplies and services", "external services"], -1),
@@ -72,11 +73,14 @@ FIELDS = [
     _f("ogast", "Other expenses", "pl", ["outros gastos e perdas", "outros gastos", "other operating expenses",
                                          "other expenses"], -1),
     _f("da", "Depreciation and amortisation", "pl", ["gastos de depreciacao e de amortizacao",
+                                                     "gastos reversoes de depreciacao e de amortizacao",
                                                      "depreciacoes e amortizacoes", "depreciacao e amortizacao",
+                                                     "amortizacoes e depreciacoes",
                                                      "depreciation and amortisation", "depreciation and amortization",
                                                      "depreciation"], -1),
     _f("juros", "Interest expense", "pl", ["juros e gastos similares suportados", "juros e gastos similares",
-                                           "juros suportados", "interest expense", "finance costs",
+                                           "juros suportados", "gastos financeiros", "custos financeiros",
+                                           "encargos financeiros", "interest expense", "finance costs",
                                            "financial expenses"], -1),
     _f("irc", "Income tax", "pl", ["imposto sobre o rendimento do periodo", "imposto sobre o rendimento", "irc",
                                    "income tax expense", "income tax", "tax expense"], -1),
@@ -91,7 +95,8 @@ FIELDS = [
     _f("inv", "Inventories", "bs", ["inventarios", "existencias", "inventories", "inventory", "stocks"]),
     _f("cli", "Trade receivables", "bs", ["clientes", "contas a receber de clientes", "trade receivables",
                                           "accounts receivable", "trade debtors"]),
-    _f("oac", "Other current assets", "bs", ["outros ativos correntes", "other current assets"]),
+    _f("oac", "Other current assets", "bs", ["outros ativos correntes", "outras contas a receber",
+                                             "other current assets", "other receivables"]),
     _f("caixa", "Cash and cash equivalents", "bs", ["caixa e depositos bancarios", "caixa e equivalentes de caixa",
                                                     "cash and cash equivalents", "cash at bank", "cash"]),
     _f("cp", "Total equity", "bs", ["total do capital proprio", "capital proprio", "total equity",
@@ -100,13 +105,22 @@ FIELDS = [
                                                      "resultado liquido", "net income", "profit for the year"]),
     _f("fin_lp", "Non-current borrowings", "bs", ["financiamentos obtidos nao corrente",
                                                   "financiamentos obtidos nao correntes", "non current borrowings",
-                                                  "long term borrowings", "long term debt"]),
+                                                  "long term borrowings", "long term debt",
+                                                  # same label in both sections: read with the section header
+                                                  "passivo nao corrente financiamentos obtidos",
+                                                  "passivo nao corrente emprestimos obtidos",
+                                                  "non current liabilities borrowings",
+                                                  "non current liabilities bank loans"]),
     _f("opnc", "Other non-current liabilities", "bs", ["outros passivos nao correntes",
                                                        "other non current liabilities"], zero=True),
     _f("forn", "Trade payables", "bs", ["fornecedores", "trade payables", "accounts payable", "trade creditors"]),
     _f("fin_cp", "Current borrowings", "bs", ["financiamentos obtidos corrente", "financiamentos obtidos correntes",
-                                              "current borrowings", "short term borrowings", "short term debt"]),
-    _f("opc", "Other current liabilities", "bs", ["outros passivos correntes", "other current liabilities"]),
+                                              "current borrowings", "short term borrowings", "short term debt",
+                                              "passivo corrente financiamentos obtidos",
+                                              "passivo corrente emprestimos obtidos", "current liabilities borrowings",
+                                              "current liabilities bank loans"]),
+    _f("opc", "Other current liabilities", "bs", ["outros passivos correntes", "outras contas a pagar",
+                                                  "other current liabilities", "other payables"]),
     # cash flow statement
     _f("rl_dfc", "Net income (cash flow)", "cf", ["resultado liquido do periodo", "resultado liquido", "net income",
                                                   "profit for the year"]),
@@ -139,13 +153,17 @@ FIELDS = [
                                               "purchase of property plant and equipment",
                                               "purchases of property plant and equipment", "capex"], -1),
     _f("alien", "Proceeds from asset disposals", "cf", ["recebimentos da alienacao de ativos fixos",
-                                                        "recebimentos de ativos fixos", "proceeds from disposal",
+                                                        "recebimentos de ativos fixos",
+                                                        "recebimentos provenientes de ativos fixos tangiveis",
+                                                        "proceeds from disposal",
                                                         "proceeds from sale of property plant and equipment"]),
     _f("cx_ini", "Cash at beginning of period", "cf", ["caixa no inicio do periodo",
+                                                       "caixa e seus equivalentes no inicio do periodo",
                                                        "caixa e equivalentes no inicio do periodo",
                                                        "cash and cash equivalents at beginning of", "cash at beginning of",
                                                        "opening cash"]),
     _f("cx_fim", "Cash at end of period", "cf", ["caixa no fim do periodo", "caixa e equivalentes no fim do periodo",
+                                                 "caixa e seus equivalentes no fim do periodo",
                                                  "cash and cash equivalents at end of", "cash at end of",
                                                  "closing cash"]),
 ]
@@ -225,22 +243,29 @@ class _Row:
     norm: str
     values: dict[int, float | None]
     source: str
+    context: str = ""    # section header + label, e.g. 'passivo corrente financiamentos obtidos'
 
 
 def _rows(ws, header: int, cols: dict[int, int]) -> list[_Row]:
-    """Rows below the header that have a text label and at least one number."""
+    """Rows below the header that have a text label and at least one number.
+
+    A label row without numbers ('Passivo corrente', 'Pagamentos respeitantes a:') is a section
+    header: the rows under it keep it as context, so a label repeated in two sections can be told apart.
+    """
     first, last = min(cols), max(cols)
-    out = []
+    out, section = [], ""
     for cells in ws.iter_rows(min_row=header + 1, max_row=ws.max_row):
         label = next((c.value for c in cells if c.column < first and isinstance(c.value, str) and c.value.strip()), None)
         if label is None:
             continue
         values = {cols[c.column]: _num(c.value) for c in cells if c.column in cols}
         if all(v is None for v in values.values()):
+            section = _norm(label)
             continue
         r = cells[0].row
         source = f"{ws.title}!{get_column_letter(first)}{r}:{get_column_letter(last)}{r}"
-        out.append(_Row(ws.title, r, label.strip(), _norm(label), values, source))
+        norm = _norm(label)
+        out.append(_Row(ws.title, r, label.strip(), norm, values, source, f"{section} {norm}".strip()))
     return out
 
 
@@ -254,14 +279,16 @@ def _sheet_type(ws) -> str | None:
 
 
 def _match(rows: list[_Row], f: Field, used: set) -> _Row | None:
-    """First exact match, then the first row whose label starts with a synonym."""
+    """First an exact match, then a label that starts with a synonym; each tried on the label
+    alone and on section header + label."""
     for exact in (True, False):
         for syn in f.synonyms:
             for r in rows:
                 if (r.sheet, r.row) in used:
                     continue
-                if r.norm == syn if exact else r.norm.startswith(syn + " "):
-                    return r
+                for text in (r.norm, r.context):
+                    if text == syn if exact else text.startswith(syn + " "):
+                        return r
     return None
 
 

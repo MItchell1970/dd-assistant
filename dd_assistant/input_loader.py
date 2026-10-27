@@ -112,8 +112,8 @@ class CompanyData:
 
     @property
     def bs_years(self) -> list[int]:
-        """Years with a balance sheet (receivables present)."""
-        return [y for y in self.years if self.v("cli", y) is not None]
+        """Years with a balance sheet (receivables, equity or cash present)."""
+        return [y for y in self.years if any(self.v(k, y) is not None for k in ("cli", "cp", "caixa"))]
 
 
 def _num(x):

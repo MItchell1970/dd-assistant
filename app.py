@@ -178,7 +178,8 @@ with tab_ov:
         ("Revenue", money(g("vendas")), f"{fmt_metric('g_vendas', g('g_vendas'))} growth vs {fy(data.pl_years[-2])}"),
         ("Reported EBITDA", money(g("ebitda")), f"{fmt_metric('ebitda_m', g('ebitda_m'))} margin"),
         ("Adjusted EBITDA (mgmt)", money(g("ebitda_adj")),
-         f"Adjustments {fmt_metric('adj_pct', g('adj_pct'))} of reported"),
+         f"Adjustments {fmt_metric('adj_pct', g('adj_pct'))} of reported" if data.adjustments
+         else "Not presented by management"),
         ("Cash conversion", fmt_metric("conv", g("conv")), "Cash generated from operations / EBITDA"),
         ("Net debt / EBITDA", fmt_metric("nd_ebitda", g("nd_ebitda")),
          f"Covenant {fmt_metric('cov_lim', g('cov_lim'))} · headroom {fmt_metric('cov_head', g('cov_head'))}"

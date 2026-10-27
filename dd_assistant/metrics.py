@@ -100,6 +100,17 @@ def growth(cur, prev):
     return None if r is None else r - 1
 
 
+def sub(a, b):
+    """Difference that returns None when either side is missing."""
+    return None if a is None or b is None else a - b
+
+
+def days(num, den):
+    """num / den in days (DSO, DIO, DPO); None when a figure is missing."""
+    r = div(num, den)
+    return None if r is None else r * 365
+
+
 def compute_metrics(d: CompanyData) -> Metrics:
     P = d.pl_years                      # years with a P&L
     B = d.bs_years                      # years with a balance sheet
@@ -119,13 +130,15 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("vendas", P, lambda y: v("vendas", y))
     put("g_vendas", Pp, lambda y: growth(v("vendas", y), v("vendas", prev[y])))
 
+    # customer metrics only when the data room has a sales-by-customer listing
     def new_by_client(y):
         p = prev[y]
         return [(c.name, N(c.values.get(y)))
                 for c in d.clients if N(c.values.get(p)) == 0 and N(c.values.get(y)) > 0]
 
-    put("new_sales", Pp, lambda y: sum(x for _, x in new_by_client(y)))
-    put("new_share", Pp, lambda y: div(m["new_sales"][y], v("vendas", y)))
+    if d.clients:
+        put("new_sales", Pp, lambda y: sum(x for _, x in new_by_client(y)))
+        put("new_share", Pp, lambda y: div(m["new_sales"][y], v("vendas", y)))
 
     def new_name(y):
         lst = new_by_client(y)
@@ -134,22 +147,24 @@ def compute_metrics(d: CompanyData) -> Metrics:
         best = max(x for _, x in lst)
         return next(n for n, x in lst if x == best)
 
-    put("new_name", Pp, new_name)
-    put("g_ex_new", Pp, lambda y: growth(v("vendas", y) - m["new_sales"][y], v("vendas", prev[y])))
+    if d.clients:
+        put("new_name", Pp, new_name)
+        put("g_ex_new", Pp, lambda y: growth(v("vendas", y) - m["new_sales"][y], v("vendas", prev[y])))
 
     def top(y):
         vals = [(c.name, N(c.values.get(y))) for c in d.clients]
         best = max(x for _, x in vals)
         return next(n for n, x in vals if x == best), best
 
-    put("top_share", P, lambda y: div(top(y)[1], v("vendas", y)))
-    put("top_name", P, lambda y: top(y)[0])
-    put("ex_top_new", P, lambda y: v("vendas", y) - top(y)[1] - (m["new_sales"][y] if y in Pp else 0))
-    put("g_ex_top_new", Pp, lambda y: growth(m["ex_top_new"][y], m["ex_top_new"][prev[y]]))
+    if d.clients:
+        put("top_share", P, lambda y: div(top(y)[1], v("vendas", y)))
+        put("top_name", P, lambda y: top(y)[0])
+        put("ex_top_new", P, lambda y: v("vendas", y) - top(y)[1] - (m["new_sales"][y] if y in Pp else 0))
+        put("g_ex_top_new", Pp, lambda y: growth(m["ex_top_new"][y], m["ex_top_new"][prev[y]]))
 
     # ---------------- Margins and quality of earnings
-    put("gm", P, lambda y: div(v("vendas", y) + v("cmv", y), v("vendas", y)))
-    put("gm_pp", Pp, lambda y: (m["gm"][y] - m["gm"][prev[y]]) * 100)
+    put("gm", P, lambda y: None if v("cmv", y) is None else div(v("vendas", y) + v("cmv", y), v("vendas", y)))
+    put("gm_pp", Pp, lambda y: None if (x := sub(m["gm"][y], m["gm"][prev[y]])) is None else x * 100)
     ebitda_lines = ["vendas", "cmv", "fse", "pess", "imp", "orend", "ogast"]
     put("ebitda", P, lambda y: sum(N(v(k, y)) for k in ebitda_lines))
     put("ebitda_m", P, lambda y: div(m["ebitda"][y], v("vendas", y)))
@@ -158,12 +173,13 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("gain", P, lambda y: -N(v("ganho_alien", y)))
     put("gain_pct", P, lambda y: None if m["ebitda"][y] <= 0 else m["gain"][y] / m["ebitda"][y])
     put("ebitda_ex_gain", P, lambda y: m["ebitda"][y] - m["gain"][y])
-    put("adj", P, lambda y: sum(N(a.values.get(y)) for a in d.adjustments))
-    put("ebitda_adj", P, lambda y: m["ebitda"][y] + m["adj"][y])
-    put("adj_pct", P, lambda y: None if m["ebitda"][y] <= 0 else m["adj"][y] / m["ebitda"][y])
+    if d.adjustments:   # only when management presents an adjusted EBITDA
+        put("adj", P, lambda y: sum(N(a.values.get(y)) for a in d.adjustments))
+        put("ebitda_adj", P, lambda y: m["ebitda"][y] + m["adj"][y])
+        put("adj_pct", P, lambda y: None if m["ebitda"][y] <= 0 else m["adj"][y] / m["ebitda"][y])
     last3 = P[-3:]
     repeated = [a.name for a in d.adjustments if all(N(a.values.get(y)) != 0 for y in last3)]
-    if len(P) >= 3:
+    if len(P) >= 3 and d.adjustments:
         m["adj_rec"][L] = len(repeated)
         m["adj_rec_name"][L] = repeated[0] if repeated else "—"
 
@@ -172,19 +188,20 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("g_cli", Pb, lambda y: growth(v("cli", y), v("cli", prev_bs[y])))
     put("cli_gap", Pp, lambda y: None if m["g_cli"].get(y) is None or m["g_vendas"].get(y) is None
         else (m["g_cli"][y] - m["g_vendas"][y]) * 100)
-    put("dso", P, lambda y: div(v("cli", y), v("vendas", y)) * 365)
-    put("dso_var", Pp, lambda y: m["dso"][y] - m["dso"][prev[y]])
+    neg = lambda x: None if x is None else -x
+    put("dso", P, lambda y: days(v("cli", y), v("vendas", y)))
+    put("dso_var", Pp, lambda y: sub(m["dso"][y], m["dso"][prev[y]]))
     put("g_inv", Pb, lambda y: growth(v("inv", y), v("inv", prev_bs[y])))
     put("g_cmv", Pp, lambda y: growth(v("cmv", y), v("cmv", prev[y])))
     put("inv_gap", Pp, lambda y: None if m["g_inv"].get(y) is None or m["g_cmv"].get(y) is None
         else (m["g_inv"][y] - m["g_cmv"][y]) * 100)
-    put("dio", P, lambda y: v("inv", y) / -v("cmv", y) * 365)
-    put("dpo", P, lambda y: v("forn", y) / -v("cmv", y) * 365)
-    put("dpo_var", Pp, lambda y: m["dpo"][y] - m["dpo"][prev[y]])
+    put("dio", P, lambda y: days(v("inv", y), neg(v("cmv", y))))
+    put("dpo", P, lambda y: days(v("forn", y), neg(v("cmv", y))))
+    put("dpo_var", Pp, lambda y: sub(m["dpo"][y], m["dpo"][prev[y]]))
 
     # ---------------- Cash generation
     put("cgo", P, lambda y: v("cgo", y))
-    put("conv", P, lambda y: None if m["ebitda"][y] <= 0 else m["cgo"][y] / m["ebitda"][y])
+    put("conv", P, lambda y: None if m["ebitda"][y] <= 0 or m["cgo"][y] is None else m["cgo"][y] / m["ebitda"][y])
     put("fco", P, lambda y: v("fco", y))
     put("fcf", P, lambda y: N(v("fco", y)) + N(v("capex", y)) + N(v("alien", y)))
     put("capex_pct", P, lambda y: div(-N(v("capex", y)), v("vendas", y)))
@@ -193,22 +210,26 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("debt", B, lambda y: N(v("fin_lp", y)) + N(v("fin_cp", y)))
     put("st_share", B, lambda y: div(N(v("fin_cp", y)), m["debt"][y]))
     put("net_debt", B, lambda y: m["debt"][y] - N(v("caixa", y)))
-    put("nd_ebitda", P, lambda y: None if m["ebitda"][y] <= 0 else m["net_debt"][y] / m["ebitda"][y])
-    put("nd_ebitda_ex", P, lambda y: None if m["ebitda_ex_gain"][y] <= 0 else m["net_debt"][y] / m["ebitda_ex_gain"][y])
+    put("nd_ebitda", P, lambda y: None if m["ebitda"][y] <= 0 or y not in m["net_debt"]
+        else m["net_debt"][y] / m["ebitda"][y])
+    put("nd_ebitda_ex", P, lambda y: None if m["ebitda_ex_gain"][y] <= 0 or y not in m["net_debt"]
+        else m["net_debt"][y] / m["ebitda_ex_gain"][y])
     lim = v("cov_lim", L)
     if lim:
         m["cov_lim"][L] = lim
         nd = m["nd_ebitda"].get(L)
         m["cov_head"][L] = None if nd is None else 1 - nd / lim
-        m["ebitda_min"][L] = m["net_debt"][L] / lim
+        m["ebitda_min"][L] = None if L not in m["net_debt"] else m["net_debt"][L] / lim
 
     # ---------------- Consistency (0 = everything reconciles)
     assets = ["aft", "oanc", "inv", "cli", "oac", "caixa"]
     liabs = ["cp", "fin_lp", "opnc", "forn", "fin_cp", "opc"]
     put("bs_diff", B, lambda y: sum(N(v(k, y)) for k in assets) - sum(N(v(k, y)) for k in liabs))
-    put("cash_diff", P, lambda y: N(v("cx_fim", y)) - N(v("caixa", y)))
+    put("cash_diff", P, lambda y: sub(v("cx_fim", y), v("caixa", y)))
 
     def wc(y):
+        if all(v(k, y) is None for k in ("d_cli", "d_inv", "d_forn", "d_oac", "d_opc")):
+            return None   # direct-method cash flow statement: no working capital movements to compare
         p = prev_bs[y]
         delta = lambda k: N(v(k, y)) - N(v(k, p))
         # assets: the CFS movement has the opposite sign to the balance sheet increase
@@ -217,8 +238,13 @@ def compute_metrics(d: CompanyData) -> Metrics:
                 + abs(N(v("d_opc", y)) - delta("opc")))
 
     put("wc_diff", Pb, wc)
-    put("ni_diff", P, lambda y: max(abs(N(v("rl_dre", y)) - N(v("rl_bs", y))), abs(N(v("rl_dre", y)) - N(v("rl_dfc", y)))))
-    put("cl_diff", P, lambda y: sum(N(c.values.get(y)) for c in d.clients) + N(d.other_clients.get(y)) - v("vendas", y))
+    def ni(y):
+        others = [x for x in (v("rl_bs", y), v("rl_dfc", y)) if x is not None]
+        return None if v("rl_dre", y) is None or not others else max(abs(v("rl_dre", y) - x) for x in others)
+
+    put("ni_diff", P, ni)
+    if d.clients:
+        put("cl_diff", P, lambda y: sum(N(c.values.get(y)) for c in d.clients) + N(d.other_clients.get(y)) - v("vendas", y))
     if v("map_tot", L) is not None:
         m["map_diff"][L] = abs(N(v("map_tot", L)) - m["debt"][L]) + abs(N(v("map_cur", L)) - N(v("fin_cp", L)))
 
