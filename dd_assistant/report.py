@@ -12,6 +12,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from .metrics import LABELS, UNITS, Metrics
 from .rules import SEVERITIES, RuleResult, alerts, fy, xround
+from .units import Money
 
 COLUMNS = ["#", "Rule", "Area", "Years", "Evidence (with source)", "Test and threshold", "What to investigate",
            "Severity", "Question for management", "Document to request", "Reviewer status", "Reviewer comment"]
@@ -30,13 +31,16 @@ def fmt_value(v) -> str:
     return str(v)
 
 
-def fmt_metric(key: str, v) -> str:
-    """Value formatted for people: 23.8%, -3.5 pp, 72 days, 2.65x, €1,415k."""
+def fmt_metric(key: str, v, money: Money | None = None) -> str:
+    """Value formatted for people: 23.8%, -3.5 pp, 72 days, 2.65x, 1,415 (in the display unit of money)."""
+    return fmt_unit(UNITS.get(key, "eur"), v, money)
+
+
+def fmt_unit(unit: str, v, money: Money | None = None) -> str:
     if v is None:
         return "n/a"
     if not isinstance(v, (int, float)):
         return str(v)
-    unit = UNITS.get(key, "eur")
     if unit == "pct":
         return f"{v * 100:.1f}%"
     if unit == "pp":
@@ -47,6 +51,8 @@ def fmt_metric(key: str, v) -> str:
         return xround(v, 2) + "x"
     if unit == "count":
         return xround(v, 0)
+    if money is not None:
+        return money.amount(v)
     return f"{round(v):,}".replace("-", "−")
 
 
@@ -83,11 +89,14 @@ def write_csv(results: list[RuleResult], path: Path, reviews: Reviews | None = N
 
 
 def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int],
-                path: Path | BinaryIO, reviews: Reviews | None = None, items: list[dict] | None = None) -> None:
+                path: Path | BinaryIO, reviews: Reviews | None = None, items: list[dict] | None = None,
+                analysis=None) -> None:
     """Write to a file or to an in-memory buffer (the app uses the buffer for downloads).
 
     items: the extraction review table (what was read and from where), saved as 'Source data'.
+    analysis: the whole analysis (pipeline.Analysis): adds the Deal view, Sector and Reading checks sheets.
     """
+    money = analysis.money if analysis else Money()
     wb = Workbook()
     ws = wb.active
     ws.title = "Red Flags"
@@ -111,7 +120,7 @@ def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int],
     ws.freeze_panes = "C2"
 
     wm = wb.create_sheet("Metrics")
-    wm.append(["Metric (EUR k unless stated)"] + [fy(y) for y in years])
+    wm.append([f"Metric ({money.currency} k unless stated)"] + [fy(y) for y in years])
     for key, label in LABELS.items():
         wm.append([label] + [("n/a" if metrics[key].get(y) is None else metrics[key].get(y)) for y in years])
     for cell in wm[1]:
@@ -128,4 +137,81 @@ def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int],
             cell.font, cell.fill = head, fill
         for col, w in zip("ABCDE", [22, 40, 44, 30, 12]):
             ws_src.column_dimensions[col].width = w
+    if analysis:
+        _deal_sheet(wb.create_sheet("Deal view"), analysis, head, fill)
+        _sector_sheet(wb.create_sheet("Sector"), analysis, head, fill)
+        if analysis.checks:
+            wc = wb.create_sheet("Reading checks")
+            wc.append(["Check", "Year", "Rebuilt from the lines", "As published", "Difference", "OK"])
+            for c in analysis.checks:
+                wc.append([c["Check"], fy(c["Year"]), c["Rebuilt from the lines"], c["As published"],
+                           c["Difference"], "Yes" if c["OK"] else "NO"])
+            for cell in wc[1]:
+                cell.font, cell.fill = head, fill
+            wc.column_dimensions["A"].width = 52
     wb.save(path)
+
+
+_NUM_FMT = "#,##0;(#,##0)"
+
+
+def _block(ws, title: str, lines, years: list[int], money: Money, head, fill) -> None:
+    """One bridge: label, one column per year (in the display unit), source and note."""
+    ws.append([])
+    ws.append([title] + [fy(y) for y in years] + ["Source", "Note"])
+    for cell in ws[ws.max_row]:
+        cell.font, cell.fill = head, fill
+    for line in lines:
+        row = [line.label]
+        for y in years:
+            x = line.values.get(y)
+            row.append(None if x is None else x / 1000 if line.unit == "money" and money.millions
+                       else x * 100 if line.unit == "pct" else x)
+        ws.append(row + [line.source, line.note])
+        bold = line.style in ("subtotal", "total", "header")
+        for c, cell in enumerate(ws[ws.max_row]):
+            cell.font = Font(name="Arial", size=10, bold=bold)
+            if 1 <= c <= len(years) and isinstance(cell.value, (int, float)):
+                cell.number_format = _NUM_FMT if line.unit == "money" else "0.0"
+
+
+def _deal_sheet(ws, a, head, fill) -> None:
+    v = a.view
+    ws.append([f"Deal view — {a.ext.company} · {a.money.unit_long} unless stated (percentages in %, days, x)"])
+    ws["A1"].font = Font(name="Arial", bold=True, size=12)
+    _block(ws, "Quality of earnings", v.qoe, v.pl_years, a.money, head, fill)
+    _block(ws, "Net debt", v.net_debt, v.bs_years, a.money, head, fill)
+    _block(ws, "Net working capital", v.nwc, v.bs_years, a.money, head, fill)
+    ws.column_dimensions["A"].width = 62
+    for col in "BCDE":
+        ws.column_dimensions[col].width = 13
+
+
+def _sector_sheet(ws, a, head, fill) -> None:
+    from .sectors import BENCHMARK_SOURCE
+    s = a.sector
+    ws.append([f"Sector: {s.name} — peers: {s.benchmarks['industry']} ({s.benchmarks['firms']} companies), "
+               f"{BENCHMARK_SOURCE}"])
+    ws["A1"].font = Font(name="Arial", bold=True, size=12)
+    ws.append([])
+    ws.append(["Metric", "Company (latest year)", "Sector", "Reading"])
+    for cell in ws[ws.max_row]:
+        cell.font, cell.fill = head, fill
+    for b in a.benchmarks:
+        ws.append([b["Metric"], fmt_unit(b["unit"], b["Company"]), fmt_unit(b["unit"], b["Sector"]), b["Reading"]])
+    ws.append([])
+    ws.append(["Calibrated thresholds"])
+    ws[ws.max_row][0].font = Font(name="Arial", bold=True)
+    for r in a.results:
+        if r.rule.calibration:
+            ws.append([f"{r.rule.id} · {r.rule.name}", r.rule.limit_text(), "", r.rule.calibration])
+    if not any(r.rule.calibration for r in a.results):
+        ws.append(["None: the general thresholds apply."])
+    ws.append([])
+    ws.append(["Sector lens", "Question for management", "", "Document to request"])
+    for cell in ws[ws.max_row]:
+        cell.font, cell.fill = head, fill
+    for item in s.lens:
+        ws.append([item.area, item.question, "", item.request])
+    for col, w in zip("ABCD", [40, 70, 14, 60]):
+        ws.column_dimensions[col].width = w

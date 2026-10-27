@@ -186,6 +186,32 @@ class PublicAccountsTest(unittest.TestCase):
         self.assertEqual(m["net_debt"][2025], 1400)
         self.assertEqual(_ids(d), ["R18"])                     # no false alarms on a clean set of accounts
 
+    def test_uk_income_statement_by_function(self):
+        """Cost of sales, distribution and administrative expenses; D&A only in the cash flow statement."""
+        buf = _workbook({
+            "Income statement": [["£'000", 2025, 2024],
+                                 ["Revenue", 50000, 45000], ["Cost of sales", -30000, -27000],
+                                 ["Gross profit", 20000, 18000], ["Distribution costs", -6000, -5500],
+                                 ["Administrative expenses", -8000, -7600], ["Other operating income", 300, 250],
+                                 ["Operating profit", 6300, 5150], ["Finance income", 100, 80],
+                                 ["Finance costs", -700, -650], ["Profit before tax", 5700, 4580],
+                                 ["Taxation", -1400, -1150], ["Profit for the year", 4300, 3430]],
+            "Cash flow statement": [["£'000", 2025, 2024],
+                                    ["Profit for the year", 4300, 3430],
+                                    ["Depreciation of property, plant and equipment", 1500, 1400],
+                                    ["Amortisation of intangible assets", 200, 150],
+                                    ["Net cash from operating activities", 6000, 5200]],
+        })
+        ext = extract_excel(buf)
+        d = ext.data
+        self.assertEqual((d.currency, d.pl_format), ("GBP", "function"))
+        self.assertEqual(d.lines["opex_fn"], {2024: -13100.0, 2025: -14000.0})
+        self.assertEqual(d.lines["da"], {2024: -1550.0, 2025: -1700.0})
+        m = compute_metrics(d)
+        self.assertEqual(m["ebitda"][2025], 6300 + 1700)                 # operating profit + D&A
+        self.assertNotIn("Staff costs", ext.missing)                    # not expected in a P&L by function
+        self.assertEqual(d.lines["juros"], {2024: -650.0, 2025: -700.0})
+
 
 class PdfConversionTest(unittest.TestCase):
     """What Claude returns for a PDF is converted by the code: units and signs, never by the AI."""
@@ -193,12 +219,15 @@ class PdfConversionTest(unittest.TestCase):
     def test_millions_become_thousands_and_costs_negative(self):
         yv = lambda *pairs: [{"year": y, "value": v} for y, v in pairs]
         parsed = _PdfStatements.model_validate({
-            "company_name": "Acme", "unit": "millions",
+            "company_name": "Acme", "currency": "USD", "unit": "millions",
             "line_items": [
                 {"key": "vendas", "label_in_document": "Revenue", "page": 3, "values": yv((2024, 10.0), (2025, 12.5))},
                 {"key": "cmv", "label_in_document": "Cost of sales", "page": 3, "values": yv((2024, 6.0), (2025, 7.0))},
                 {"key": "cli", "label_in_document": "Trade receivables", "page": 4, "values": yv((2024, 2.0), (2025, 2.5))},
             ],
+            "other_balance_sheet_lines": [
+                {"label_in_document": "Lease liabilities", "page": 4, "side": "liability", "current": False,
+                 "values": yv((2024, 1.0), (2025, 0.8))}],
             "customers": [], "other_customers": [], "adjustments": [],
             "debt_total_latest_year": 3.0, "debt_current_portion_latest_year": 1.0,
             "covenant_max_net_debt_to_ebitda": 3.5,
@@ -212,6 +241,11 @@ class PdfConversionTest(unittest.TestCase):
         self.assertEqual(d.lines["cov_lim"], {2025: 3.5})        # a ratio is not scaled
         self.assertEqual(d.sources["vendas"], "acme.pdf p.3")
         self.assertIn("We expect growth.", ext.source_text)
+        self.assertEqual(d.currency, "USD")
+        self.assertIn("USD millions, converted to USD thousands", ext.method)
+        lease = d.balance_items[0]                                   # a debt-like item, found by the code
+        self.assertEqual((lease.category, lease.nature, lease.include), ("Lease liabilities", "debt", True))
+        self.assertEqual(lease.values, {2024: 1000.0, 2025: 800.0})
 
 
 if __name__ == "__main__":

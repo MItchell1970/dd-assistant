@@ -7,11 +7,14 @@ Nota: a Velmora foi desenhada por quem conhece as regras; é um teste de sanidad
 import unittest
 from pathlib import Path
 
+from dd_assistant import sectors
+from dd_assistant.extract import extract_excel
 from dd_assistant.input_loader import load_input
 from dd_assistant.metrics import compute_metrics
 from dd_assistant.rules import alerts, evaluate
 
-TEMPLATE = Path(__file__).resolve().parents[1] / "data" / "DD_template_velmora.xlsx"
+DATA = Path(__file__).resolve().parents[1] / "data"
+TEMPLATE = DATA / "DD_template_velmora.xlsx"
 
 
 class CleanCompanyTest(unittest.TestCase):
@@ -25,10 +28,18 @@ class CleanCompanyTest(unittest.TestCase):
         self.assertEqual(fired, [], "alarmes falsos na empresa limpa")
 
     def test_every_rule_was_tested(self):
-        """Zero alertas só vale se todas as regras tiveram valor no último ano (nenhuma 'n.d.')."""
+        """Zero alertas só vale se todas as regras tiveram valor no último ano (nenhuma "n/a")."""
         last = self.data.pl_years[-1]
-        untested = [r.rule.id for r in self.results if r.fires[last] == "n.d."]
+        untested = [r.rule.id for r in self.results if r.fires[last] == "n/a"]
         self.assertEqual(untested, [])
+
+    def test_no_false_alarms_with_its_sector_thresholds(self):
+        """Sector calibration must not create alarms either: Velmora is a distributor (suggested from the file)."""
+        ext = extract_excel(DATA / "Velmora_data_room.xlsx")
+        sector, _ = sectors.suggest(ext.source_text, ext.company)
+        self.assertEqual(sector.key, "distribution")
+        fired = [r.rule.id for r in alerts(evaluate(self.data, compute_metrics(self.data), sector=sector))]
+        self.assertEqual(fired, [], "alarmes falsos com os limites do setor")
 
 
 if __name__ == "__main__":

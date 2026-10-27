@@ -7,12 +7,14 @@ the ones produced here.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Callable
 
+from . import sectors
 from .input_loader import CompanyData
 from .metrics import Metrics
+from .units import Money
 
 SEVERITIES = ("High", "Medium", "Low")
 
@@ -27,16 +29,20 @@ def xround(x, nd: int) -> str:
     return "0" if s in ("-0", "") else s
 
 
-def pct(x) -> str:  # 0.238 -> "23.8%"
-    return xround(x * 100, 1) + "%"
+def pct(x) -> str:  # 0.238 -> "23.8%"; a missing value (e.g. no prior year) -> "n/a"
+    return "n/a" if x is None else xround(x * 100, 1) + "%"
+
+
+def spct(x) -> str:  # 0.151 -> "+15.1%", -0.018 -> "-1.8%"
+    return "n/a" if x is None else ("+" if x >= 0 else "") + pct(x)
 
 
 def n0(x) -> str:   # 1415.2 -> "1415"
-    return xround(x, 0)
+    return "n/a" if x is None else xround(x, 0)
 
 
 def d1(x) -> str:   # 72.01 -> "72"
-    return xround(x, 1)
+    return "n/a" if x is None else xround(x, 1)
 
 
 def eur(x) -> str:  # 1415.2 -> "€1,415k" (inputs are in EUR thousands)
@@ -65,6 +71,8 @@ class Rule:
     request: str       # document to request
     rationale: str     # why it matters for the buyer
     evidence: Callable[["Ctx"], str]
+    calibration: str = ""   # set when the sector changes the threshold: why, and the general threshold
+    symbol: str = "€"       # currency symbol for thresholds in amounts
 
     def fires(self, value) -> str:
         """'Yes', 'No' or 'n/a' (no value)."""
@@ -87,11 +95,12 @@ class Rule:
         if f == "days":
             return xround(self.limit, 10) + " days"
         if f == "eur":
-            return "€" + xround(self.limit, 10) + "k"
+            return self.symbol + xround(self.limit, 10) + "k"
         return "more than " + xround(self.limit, 10)
 
     def rule_text(self) -> str:
-        return f"{self.id} · {self.name} (threshold: {self.limit_text()})"
+        note = f"; {self.calibration}" if self.calibration else ""
+        return f"{self.id} · {self.name} (threshold: {self.limit_text()}{note})"
 
 
 class Ctx:
@@ -102,6 +111,7 @@ class Ctx:
         self.Y = d.pl_years[-3:]          # the three years analysed
         self.L = d.pl_years[-1]           # latest year
         self.P = d.pl_years[-2]           # prior year
+        self.money = Money.for_data(d)    # €1,415k, $391,035m
 
     def g(self, key, year):
         return self.m[key].get(year)
@@ -111,6 +121,9 @@ class Ctx:
 
     def src(self, key) -> str:
         return self.d.sources.get(key, "")
+
+    def cur(self, x) -> str:
+        return self.money.fmt(x)
 
 
 def _r(*a, ev):
@@ -136,7 +149,7 @@ RULES: list[Rule] = [
        "Customer contract and invoices; order book",
        "A buyer pays for recurring revenue; a one-off sale inflates both growth and EBITDA.",
        ev=lambda c: f"New customers in {fy(c.L)}: {pct(c.g('new_share', c.L))} of revenue ({c.g('new_name', c.L)}, "
-                    f"{eur(c.g('new_sales', c.L))}). Revenue growth: +{pct(c.g('g_vendas', c.L))}; excluding new "
+                    f"{c.cur(c.g('new_sales', c.L))}). Revenue growth: {spct(c.g('g_vendas', c.L))}; excluding new "
                     f"customers: {pct(c.g('g_ex_new', c.L))}. Source: {c.d.clients_source} et seq."),
     _r("R03", "Margins", "Significant gross margin movement", "Gross margin, year-on-year change (pp)",
        "abs>", 3, "pp", "gm_pp", "High",
@@ -154,7 +167,7 @@ RULES: list[Rule] = [
        "non-recurring items?",
        "Other income ledger; supporting documents for material items",
        "A non-recurring gain within EBITDA inflates the price paid for something that will not recur.",
-       ev=lambda c: "Other income — " + "; ".join(f"{fy(y)}: {eur(c.d.v('orend', y))}" for y in c.Y)
+       ev=lambda c: "Other income — " + "; ".join(f"{fy(y)}: {c.cur(c.d.v('orend', y))}" for y in c.Y)
                     + f" ({pct(c.g('or_share', c.L))} of revenue; {pct(c.g('or_var', c.L))} year-on-year). "
                     f"Source: {c.src('orend')}"),
     _r("R05", "Quality of earnings", "Material management adjustments", "Management adjustments / reported EBITDA",
@@ -164,7 +177,7 @@ RULES: list[Rule] = [
        "Invoices and contracts supporting each adjustment",
        "Adjusted EBITDA anchors the price; every unsupported adjustment transfers value from buyer to seller.",
        ev=lambda c: f"Adjustments as % of reported EBITDA — {c.yrs('adj_pct', pct)}. {fy(c.L)} EBITDA: reported "
-                    f"{eur(c.g('ebitda', c.L))}, management-adjusted {eur(c.g('ebitda_adj', c.L))}. "
+                    f"{c.cur(c.g('ebitda', c.L))}, management-adjusted {c.cur(c.g('ebitda_adj', c.L))}. "
                     f"Source: {c.d.adjustments_source} et seq.; {c.src('vendas')}"),
     _r("R06", "Quality of earnings", "Recurring 'non-recurring' adjustment",
        "Number of adjustments present in all 3 years", ">", 0, "count", "adj_rec", "Medium",
@@ -181,7 +194,7 @@ RULES: list[Rule] = [
        "terms extended?",
        "AR ageing at the last two year-ends; post year-end cash receipts",
        "Revenue that is not collected does not generate cash and may conceal future losses.",
-       ev=lambda c: f"Receivables +{pct(c.g('g_cli', c.L))} vs. revenue +{pct(c.g('g_vendas', c.L))} in {fy(c.L)} "
+       ev=lambda c: f"Receivables {spct(c.g('g_cli', c.L))} vs. revenue {spct(c.g('g_vendas', c.L))} in {fy(c.L)} "
                     f"(gap of {d1(c.g('cli_gap', c.L))} pp; {fy(c.P)}: {d1(c.g('cli_gap', c.P))} pp). "
                     f"DSO: {d1(c.g('dso', c.P))} → {d1(c.g('dso', c.L))} days. Source: {c.src('cli')}; {c.src('vendas')}"),
     _r("R08", "Net working capital", "Significant increase in DSO", "DSO, year-on-year change (days)",
@@ -198,7 +211,7 @@ RULES: list[Rule] = [
        "provisioning policy?",
        "Inventory ageing; slow-moving items list; order book",
        "Idle stock ties up cash and may be worth less than its carrying value.",
-       ev=lambda c: f"Inventory +{pct(c.g('g_inv', c.L))} vs. COGS +{pct(c.g('g_cmv', c.L))} in {fy(c.L)} "
+       ev=lambda c: f"Inventory {spct(c.g('g_inv', c.L))} vs. COGS {spct(c.g('g_cmv', c.L))} in {fy(c.L)} "
                     f"(gap of {d1(c.g('inv_gap', c.L))} pp). DIO: {d1(c.g('dio', c.P))} → {d1(c.g('dio', c.L))} "
                     f"days. Source: {c.src('inv')}; {c.src('cmv')}"),
     _r("R10", "Cash generation", "Weak EBITDA-to-cash conversion",
@@ -209,30 +222,33 @@ RULES: list[Rule] = [
        "EBITDA-to-cash bridge; monthly working capital schedule",
        "A buyer values the business on the cash it generates.",
        ev=lambda c: f"Cash conversion — {c.yrs('conv', pct)}. {fy(c.L)} operating cash flow: "
-                    f"{eur(c.g('fco', c.L))}. Source: {c.src('cgo')}; {c.src('vendas')}"),
+                    f"{c.cur(c.g('fco', c.L))}. Source: {c.src('cgo')}; {c.src('vendas')}"),
     _r("R11", "Debt", "Short-term debt concentration", "Current borrowings / gross financial debt",
        ">", 0.40, "pct", "st_share", "High",
        "Refinancing requirement within the next 12 months.",
        "Are facilities committed, or are refinancing negotiations under way? On what terms?",
        "Facility agreements; bank term sheets; covenant compliance certificates",
        "Without refinancing, the company may be unable to meet maturing debt.",
-       ev=lambda c: f"Debt due within 12 months — {c.yrs('st_share', pct)} ({eur(c.d.v('fin_cp', c.L))} of "
-                    f"{eur(c.g('debt', c.L))} in {fy(c.L)}). Source: {c.src('fin_cp')}; {c.src('fin_lp')}"),
+       ev=lambda c: f"Debt due within 12 months — {c.yrs('st_share', pct)} ({c.cur(c.d.v('fin_cp', c.L))} of "
+                    f"{c.cur(c.g('debt', c.L))} in {fy(c.L)}). Source: {c.src('fin_cp')}; {c.src('fin_lp')}"),
     _r("R12", "Consistency", "Balance sheet does not balance", "Assets − (equity + liabilities)",
        "abs>", 1, "eur", "bs_diff", "High",
        "Error in the financial statements.", "Which version of the balance sheet is correct?",
        "Final trial balance and balance sheet",
        "A balance sheet that does not balance invalidates every analysis that relies on it.",
-       ev=lambda c: f"Balance sheet difference — {c.yrs('bs_diff', eur)}. Source: balance sheet"),
+       ev=lambda c: f"Balance sheet difference — {c.yrs('bs_diff', c.cur)}. Source: balance sheet"),
     _r("R13", "Consistency", "Cash flow statement does not reconcile to balance sheet cash",
        "CFS closing cash − balance sheet cash", "abs>", 1, "eur", "cash_diff", "Medium",
-       "An error in the statements, or cash in the cash flow statement presented net of bank overdrafts (IFRS).",
-       "Please reconcile cash in the cash flow statement to the balance sheet: is it net of bank overdrafts? "
-       "If not, which figure is correct, and is the cash flow statement the audited version?",
-       "Cash reconciliation (cash flow statement to balance sheet); bank overdraft facilities; audit report",
-       "Overdrafts are debt and belong in net debt; an unexplained difference casts doubt on all the financial "
-       "information.",
-       ev=lambda c: f"CFS closing cash − balance sheet cash — {c.yrs('cash_diff', eur)}. "
+       "An error in the statements, or cash defined differently in the cash flow statement: net of bank "
+       "overdrafts (IFRS) or including restricted cash (US GAAP).",
+       "Please reconcile cash in the cash flow statement to the balance sheet: does it net bank overdrafts or "
+       "include restricted cash? If neither, which figure is correct, and is the cash flow statement the audited "
+       "version?",
+       "Cash reconciliation (cash flow statement to balance sheet); overdraft facilities; restricted cash terms; "
+       "audit report",
+       "Overdrafts are debt and restricted cash is not freely available: both change net debt. An unexplained "
+       "difference casts doubt on all the financial information.",
+       ev=lambda c: f"CFS closing cash − balance sheet cash — {c.yrs('cash_diff', c.cur)}. "
                     f"Source: {c.src('cx_fim')}; {c.src('caixa')}"),
     _r("R14", "Consistency", "CFS working capital movements do not reconcile to the balance sheet",
        "Sum of differences across the 5 working capital lines", "abs>", 1, "eur", "wc_diff", "Medium",
@@ -241,13 +257,13 @@ RULES: list[Rule] = [
        "Corrected cash flow statement; opening and closing trial balances",
        "If the cash flow statement is wrong, cash conversion is wrong too.",
        ev=lambda c: f"Difference between CFS and balance sheet working capital movements — "
-                    f"{c.yrs('wc_diff', eur)}. Source: {c.src('d_cli')} to {c.src('d_opc')}"),
+                    f"{c.yrs('wc_diff', c.cur)}. Source: {c.src('d_cli')} to {c.src('d_opc')}"),
     _r("R15", "Consistency", "Net income inconsistent across statements",
        "Largest difference between P&L, balance sheet and CFS", "abs>", 1, "eur", "ni_diff", "High",
        "Statements taken from different versions of the accounts.",
        "What is the correct net income for each year?", "Final approved accounts",
        "Inconsistent statements may come from different versions of the accounts.",
-       ev=lambda c: f"Net income difference — {c.yrs('ni_diff', eur)}. "
+       ev=lambda c: f"Net income difference — {c.yrs('ni_diff', c.cur)}. "
                     f"Source: {c.src('rl_dre')}; {c.src('rl_bs')}; {c.src('rl_dfc')}"),
     _r("R16", "Consistency", "Sales by customer do not reconcile to P&L revenue",
        "Sum of sales by customer − P&L revenue", "abs>", 1, "eur", "cl_diff", "Medium",
@@ -255,14 +271,14 @@ RULES: list[Rule] = [
        "Why does the sales-by-customer listing not reconcile to the P&L?",
        "Sales-by-customer extract reconciled to the general ledger",
        "Concentration analysis is only reliable if the listing reconciles to the accounts.",
-       ev=lambda c: f"Sales by customer − P&L revenue — {c.yrs('cl_diff', eur)}. Source: {c.d.clients_source}"),
+       ev=lambda c: f"Sales by customer − P&L revenue — {c.yrs('cl_diff', c.cur)}. Source: {c.d.clients_source}"),
     _r("R17", "Consistency", "Debt schedule does not reconcile to the balance sheet",
        "Difference in total and current portion", "abs>", 1, "eur", "map_diff", "Medium",
        "Debt missing from the schedule or from the balance sheet.",
        "Which facilities explain the difference between the debt schedule and the balance sheet?",
        "Reconciled debt schedule; bank statements",
        "Unidentified debt reduces equity value one-for-one.",
-       ev=lambda c: f"Debt schedule − balance sheet in {fy(c.L)}: {eur(c.g('map_diff', c.L))}. "
+       ev=lambda c: f"Debt schedule − balance sheet in {fy(c.L)}: {c.cur(c.g('map_diff', c.L))}. "
                     f"Source: {c.src('map_tot')}; {c.src('fin_cp')}"),
     _r("R18", "Information", "Key documents not provided", "Number of key documents not provided",
        ">", 0, "count", "docs_miss", "Medium",
@@ -277,8 +293,8 @@ RULES: list[Rule] = [
        "Which assets were sold? Where was the gain recorded, and is it included in reported EBITDA?",
        "Sale agreement or deed; accounting entry for the gain",
        "A disposal gain does not recur; within EBITDA, the buyer would pay for it at the multiple.",
-       ev=lambda c: f"Disposal gains — {c.yrs('gain', eur)} ({pct(c.g('gain_pct', c.L))} of {fy(c.L)} EBITDA). "
-                    f"{fy(c.L)} EBITDA excluding these gains: {eur(c.g('ebitda_ex_gain', c.L))}. "
+       ev=lambda c: f"Disposal gains — {c.yrs('gain', c.cur)} ({pct(c.g('gain_pct', c.L))} of {fy(c.L)} EBITDA). "
+                    f"{fy(c.L)} EBITDA excluding these gains: {c.cur(c.g('ebitda_ex_gain', c.L))}. "
                     f"Source: {c.src('ganho_alien')}; {c.src('orend')}"),
     _r("R20", "Debt", "Limited covenant headroom", "1 − (net debt / EBITDA) / covenant limit",
        "<", 0.15, "pct", "cov_head", "High",
@@ -289,7 +305,7 @@ RULES: list[Rule] = [
        "A covenant breach can make the debt immediately repayable and shifts negotiating power to the lenders.",
        ev=lambda c: f"Net debt / EBITDA in {fy(c.L)}: {xround(c.g('nd_ebitda', c.L), 2)}x (limit "
                     f"{xround(c.g('cov_lim', c.L), 1)}x); headroom of {pct(c.g('cov_head', c.L))}. Minimum EBITDA "
-                    f"to comply: {eur(c.g('ebitda_min', c.L))}. Excluding disposal gains, the ratio is "
+                    f"to comply: {c.cur(c.g('ebitda_min', c.L))}. Excluding disposal gains, the ratio is "
                     f"{xround(c.g('nd_ebitda_ex', c.L), 2)}x. Source: {c.src('cov_lim')}; {c.src('fin_cp')}"),
 ]
 
@@ -310,16 +326,32 @@ class RuleResult:
         return ", ".join(fy(y) for y, f in self.fires.items() if f == "Yes")
 
 
-def evaluate(d: CompanyData, m: Metrics, rules: list[Rule] = RULES) -> list[RuleResult]:
-    """Apply every rule to the last three years and return the result of each."""
+def calibrate(rules: list[Rule], sector: str | sectors.Sector | None) -> list[Rule]:
+    """The rules with the sector's thresholds; each change carries its reason and the general threshold."""
+    s = sectors.get(sector)
+    out = []
+    for r in rules:
+        if r.id in s.calibration:
+            limit, why = s.calibration[r.id]
+            r = replace(r, limit=limit, calibration=f"calibrated for {s.name}: {why}; general threshold "
+                                                     f"{r.limit_text()}")
+        out.append(r)
+    return out
+
+
+def evaluate(d: CompanyData, m: Metrics, rules: list[Rule] = RULES,
+             sector: str | sectors.Sector | None = None) -> list[RuleResult]:
+    """Apply every rule to the last three years and return the result of each. With a sector, the rules use
+    its calibrated thresholds; without one, the general thresholds (those of the Excel template)."""
     ctx = Ctx(d, m)
+    rules = [replace(r, symbol=ctx.money.symbol) for r in calibrate(rules, sector)]
     out = []
     for r in rules:
         values = {y: m[r.metric].get(y) for y in ctx.Y}
         fires = {y: r.fires(v) for y, v in values.items()}
         try:
             ev = r.evidence(ctx)
-        except (TypeError, ValueError, ZeroDivisionError):
+        except (TypeError, ValueError, ZeroDivisionError, IndexError, KeyError):
             ev = "See the Metrics sheet"   # like the spreadsheet's IFERROR
         out.append(RuleResult(r, values, fires, ev))
     return out

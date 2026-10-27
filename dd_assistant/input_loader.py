@@ -90,6 +90,20 @@ class Named:
 
 
 @dataclass
+class BalanceItem:
+    """A balance sheet line that may belong in net debt: debt-like (leases, pensions, tax payable…) or
+    cash-like (marketable securities…). Found in the statements; the reviewer decides whether to include it."""
+    category: str                      # e.g. 'Lease liabilities'
+    label: str                         # as written in the file
+    nature: str                        # 'debt' or 'cash'
+    kind: str                          # 'current', 'noncurrent' or ''
+    values: dict[int, float | None]
+    source: str
+    include: bool                      # default: a prudent buy-side view
+    in_nwc: bool = False               # sits inside other current assets/liabilities (excluded from NWC if included)
+
+
+@dataclass
 class CompanyData:
     years: list[int]
     lines: dict[str, dict[int, float | None]] = field(default_factory=dict)
@@ -100,6 +114,9 @@ class CompanyData:
     adjustments: list[Named] = field(default_factory=list)
     adjustments_source: str = ""
     documents: list[tuple[str, bool]] = field(default_factory=list)
+    currency: str = "EUR"              # amounts in thousands of this currency
+    pl_format: str = "nature"          # 'nature' (costs by type, as SNC) or 'function' (cost of sales, SG&A…)
+    balance_items: list[BalanceItem] = field(default_factory=list)
 
     def v(self, key: str, year: int) -> float | None:
         """Value of a line in a year (None if missing)."""

@@ -111,6 +111,17 @@ def days(num, den):
     return None if r is None else r * 365
 
 
+# EBITDA lines: by nature (SNC, IFRS) or by function (opex_fn: R&D, SG&A, distribution, administrative).
+EBITDA_LINES = ["vendas", "cmv", "fse", "pess", "imp", "orend", "ogast", "opex_fn"]
+
+
+def ebitda_of(d: CompanyData, y: int) -> float:
+    """Revenue less operating costs before D&A. By function, D&A sits inside cost of sales and the functions,
+    so it is added back (EBITDA = operating profit + D&A from the cash flow statement)."""
+    e = sum(N(d.v(k, y)) for k in EBITDA_LINES)
+    return e - N(d.v("da", y)) if d.pl_format == "function" else e
+
+
 def compute_metrics(d: CompanyData) -> Metrics:
     P = d.pl_years                      # years with a P&L
     B = d.bs_years                      # years with a balance sheet
@@ -165,8 +176,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
     # ---------------- Margins and quality of earnings
     put("gm", P, lambda y: None if v("cmv", y) is None else div(v("vendas", y) + v("cmv", y), v("vendas", y)))
     put("gm_pp", Pp, lambda y: None if (x := sub(m["gm"][y], m["gm"][prev[y]])) is None else x * 100)
-    ebitda_lines = ["vendas", "cmv", "fse", "pess", "imp", "orend", "ogast"]
-    put("ebitda", P, lambda y: sum(N(v(k, y)) for k in ebitda_lines))
+    put("ebitda", P, lambda y: ebitda_of(d, y))
     put("ebitda_m", P, lambda y: div(m["ebitda"][y], v("vendas", y)))
     put("or_share", P, lambda y: div(v("orend", y), v("vendas", y)))
     put("or_var", Pp, lambda y: None if N(v("orend", prev[y])) == 0 else growth(v("orend", y), v("orend", prev[y])))
@@ -257,3 +267,28 @@ def compute_metrics(d: CompanyData) -> Metrics:
     m["docs_miss"][L] = len(missing)
     m["docs_list"][L] = "; ".join(missing) if missing else "—"
     return m
+
+
+# ---------------------------------------------------------------- reading checks
+def reading_checks(d: CompanyData, tolerance: float = 1.0) -> list[dict]:
+    """Did the agent read the statements correctly? Subtotals rebuilt from the lines it identified are
+    compared with the subtotals the company published. A failed check means a line is missing or
+    misclassified: correct it in the review table before relying on the analysis. (Different from the
+    consistency rules R12–R17, which test the company's own figures.)"""
+    checks = []
+
+    def check(name, published_key, rebuilt):
+        for y in d.pl_years:
+            pub = d.v(published_key, y)
+            if pub is None:
+                continue
+            value = rebuilt(y)
+            checks.append({"Check": name, "Year": y, "Rebuilt from the lines": value, "As published": pub,
+                           "Difference": value - pub, "OK": abs(value - pub) <= tolerance})
+
+    check("Gross profit = revenue + cost of sales", "gp_pub", lambda y: N(d.v("vendas", y)) + N(d.v("cmv", y)))
+    check("EBITDA = revenue less operating costs before D&A", "ebitda_pub", lambda y: ebitda_of(d, y))
+    check("Operating profit = EBITDA − D&A", "opinc", lambda y: ebitda_of(d, y) + N(d.v("da", y)))
+    if d.pl_format == "function":
+        check("Operating expenses = sum of the functions", "opex_tot", lambda y: N(d.v("opex_fn", y)))
+    return checks

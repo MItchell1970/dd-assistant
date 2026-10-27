@@ -8,12 +8,14 @@ Sou o Bernardo, finalista de Economia na FEP (Porto), com estágio em Transactio
 **Todo o produto (app, regras, relatórios, memo, README) está em inglês**, para apresentar a empresas estrangeiras. Comigo, fala em português.
 
 ## Arquitetura (não misturar as camadas)
-1. **Dados:** `dd_assistant/extract.py` lê os ficheiros financeiros da empresa tal como vêm (Excel: dicionário PT/EN que identifica cada linha, números lidos das células com a referência; PDF: o Claude lê com visão e o código converte unidades e sinais). `dd_assistant/input_loader.py` define o modelo `CompanyData` e continua a ler o template Excel antigo (folha `Input`), que é a referência da paridade.
-2. **Métricas:** `dd_assistant/metrics.py` faz todas as contas, de forma determinística. `None` = "n/a".
-3. **Regras:** `dd_assistant/rules.py` tem o catálogo R01–R20 (limite, severidade, evidência, pergunta, documento a pedir) e gera os alertas.
-4. **Relatório:** `dd_assistant/report.py` grava os red flags em Excel e CSV, com o estado e o comentário do revisor e a folha "Source data".
-5. **IA:** `dd_assistant/ai_memo.py` envia à Claude API (`claude-opus-5-5`) os alertas, as regras, as métricas, o Input e o data room integral, com `docs/ai_memo_prompt.md` como system prompt, e recebe o memo e a request list. **A IA nunca faz contas nem cria alertas.** Depois, `dd_assistant/memo_check.py` verifica o memo sem IA: números com fonte no material, todos os alertas, perguntas com pedido, nenhuma recomendação de investimento.
-6. **App:** `app.py` (Streamlit) só junta as camadas: upload → rever o que foi lido (editável) → rever os red flags → descarregar → memo com IA.
+1. **Dados:** `dd_assistant/extract.py` lê os ficheiros financeiros da empresa tal como vêm (Excel: dicionário PT/EN que identifica cada linha, números lidos das células com a referência; PDF: o Claude lê com visão e o código converte unidades e sinais). Deteta a moeda (EUR, USD, GBP, BRL) e a unidade, lê DREs por natureza (SNC, IFRS) e por função (US GAAP, UK: EBITDA = resultado operacional + D&A da DFC), para no resultado operacional e marca as linhas *debt-like* e *cash-like* do balanço. `dd_assistant/input_loader.py` define o modelo `CompanyData` e continua a ler o template Excel antigo (folha `Input`), que é a referência da paridade. `dd_assistant/units.py` formata os valores (€1,415k; $134,661m nas empresas com receita acima de mil milhões).
+2. **Métricas:** `dd_assistant/metrics.py` faz todas as contas, de forma determinística. `None` = "n/a". Inclui as **reading checks**: margem bruta, EBITDA e resultado operacional reconstruídos a partir das linhas lidas e comparados com os subtotais publicados.
+3. **Regras:** `dd_assistant/rules.py` tem o catálogo R01–R20 (limite, severidade, evidência, pergunta, documento a pedir) e gera os alertas. `dd_assistant/sectors.py` tem os 15 setores: alguns limites calibrados (sempre com a razão à vista), benchmarks Damodaran (Europa, janeiro de 2026), *sector lens* (perguntas de especialista) e as palavras que sugerem o setor. Sem setor ("General"), os limites são os do template.
+4. **Deal view:** `dd_assistant/deal.py` faz as três pontes que um deal team pede primeiro: quality of earnings (reportado → gestão → *diligence-adjusted*), net debt (com *debt-like* e *cash-like items*) e working capital (com uma referência indicativa para o *peg*). O revisor decide cada ajuste da gestão e cada item; os ajustes ainda não aceites ficam de fora (visão prudente do comprador).
+5. **Relatório:** `dd_assistant/report.py` grava em Excel (red flags, deal view, setor, reading checks, métricas, source data) e CSV, com o estado e o comentário do revisor.
+6. **IA:** `dd_assistant/ai_memo.py` envia à Claude API (`claude-opus-5-5`) os alertas, as regras, as métricas, o Input, o deal view, o setor e o data room integral, com `docs/ai_memo_prompt.md` como system prompt, e recebe o memo e a request list. **A IA nunca faz contas nem cria alertas.** Depois, `dd_assistant/memo_check.py` verifica o memo sem IA: números com fonte no material, todos os alertas, perguntas com pedido, nenhuma recomendação de investimento.
+7. **Pipeline e app:** `dd_assistant/pipeline.py` corre a análise toda numa chamada (usada pela app, pela linha de comandos e pela skill). `app.py` (Streamlit) só junta as camadas: upload → deal view → red flags → setor → source data → descarregar → memo.
+8. **Agente:** `.claude/skills/due-diligence/SKILL.md` transforma o Claude Code num agente que usa o motor como ferramenta: corre a análise, confirma a leitura e o setor, pede ao utilizador as decisões que são dele (ajustes da gestão), escreve o memo sem chave da API e corrige-o até o verificador passar. Exemplo em `docs/examples/`.
 
 ## Comandos (Windows, PowerShell, na pasta do projeto)
 ```powershell
@@ -22,11 +24,17 @@ py -m venv .venv                      # uma vez: cria o ambiente virtual
 pip install -r requirements.txt       # uma vez
 python -m unittest -v                 # corre os testes
 streamlit run app.py                  # abre a app no browser (só neste computador)
-python -m dd_assistant data\Duriva_data_room.xlsx              # red flags a partir do data room bruto, em output\
+python -m dd_assistant data\Duriva_data_room.xlsx              # red flags e deal view a partir do data room bruto, em output\
+python -m dd_assistant data\Apple_FY2024_published.xlsx --sector hardware   # escolher o setor (por defeito: o sugerido)
+python -m dd_assistant --sectors                               # lista os 15 setores e os limites calibrados
+python -m dd_assistant data\Duriva_data_room.xlsx --adjustment "Custos de arranque=Accepted" --set orend:2025=60 --received "AR ageing"
+python -m dd_assistant data\Duriva_data_room.xlsx --json --material   # JSON e material do memo (grátis)
 python -m dd_assistant data\Duriva_data_room.xlsx --memo       # memo com IA (custa dinheiro)
 python -m dd_assistant data\Duriva_data_room.xlsx --check-memo memo.md   # verifica um memo já escrito (grátis)
 python -m dd_assistant data\DD_template_modulo1.xlsx           # o template antigo continua a funcionar
 python scripts\empresa_limpa.py       # volta a gerar a Velmora (precisa do Excel)
+python scripts\real_apple.py data\Apple_FY2024_published.xlsx   # volta a gerar o ficheiro da Apple
+python scripts\sector_benchmarks.py <pasta com os .xls>        # atualiza os benchmarks Damodaran (precisa de pip install xlrd)
 ```
 Se o PowerShell bloquear o `Activate.ps1`: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
@@ -39,7 +47,8 @@ Se o PowerShell bloquear o `Activate.ps1`: `Set-ExecutionPolicy -Scope CurrentUs
 - **Evidência antes de conclusão:** o agente aponta pontos a investigar; não dá recomendações de investimento.
 - **Nunca pôr o gabarito no projeto:** `Duriva_gabarito.xlsx` lista os problemas plantados na empresa de teste e fica fora desta pasta. Se a IA o vir, o teste deixa de valer.
 - **Segredos:** a chave da Claude API vai para a variável de ambiente `ANTHROPIC_API_KEY` ou para um ficheiro `.env` (já no `.gitignore`). Nunca no código.
-- **Alarmes falsos:** `tests/test_clean_company.py` exige zero alertas na Velmora. Se uma mudança de regra o fizer falhar, mostra-me o alarme antes de mudar o teste.
+- **Alarmes falsos:** `tests/test_clean_company.py` exige zero alertas na Velmora, com os limites gerais e com os do setor dela (distribuição). Se uma mudança de regra ou de calibração o fizer falhar, mostra-me o alarme antes de mudar o teste.
+- **Setores:** uma calibração só muda um limite com uma razão escrita, que aparece ao lado do alerta. Os benchmarks são orientação, nunca um alerta por si só.
 - **Custos da API:** os testes nunca chamam a Claude API (usam um cliente falso). Pergunta-me antes de correr o `--memo`, o botão do memo ou a leitura de um PDF.
 - Antes de cada alteração grande, corre os testes; depois, corre-os outra vez.
 
@@ -47,7 +56,7 @@ Se o PowerShell bloquear o `Activate.ps1`: `Set-ExecutionPolicy -Scope CurrentUs
 - `data/DD_template_modulo1.xlsx`: template preenchido com a Duriva (empresa fictícia). É o input de exemplo e a referência da paridade.
 - `data/Duriva_data_room.xlsx`: o data room da Duriva (DRE, balanço, DFC, clientes, EBITDA ajustado, dívida, relatório de gestão).
 - `data/DD_template_velmora.xlsx` e `data/Velmora_data_room.xlsx`: a Velmora, empresa fictícia "limpa" (0 alertas), gerada por `scripts/empresa_limpa.py`. Foi desenhada por quem conhece as regras: é um teste de sanidade.
-- `data/Toyota_Caetano_2024_published.xlsx` e `data/Corticeira_Amorim_2024_published.xlsx`: contas consolidadas **reais** de 2024, copiadas tal como publicadas (fonte e páginas na folha "Source"; gerados por `scripts/real_*.py`). `tests/test_real_companies.py` exige que o agente reconstrua o EBITDA publicado ao euro, feche o balanço e dê os alertas esperados.
+- `data/Toyota_Caetano_2024_published.xlsx`, `data/Corticeira_Amorim_2024_published.xlsx` e `data/Apple_FY2024_published.xlsx`: contas consolidadas **reais** de 2024, copiadas tal como publicadas (fonte e páginas na folha "Source"; gerados por `scripts/real_*.py`). A Apple é US GAAP, por função, em milhões de dólares, com trimestres ao lado do ano. `tests/test_real_companies.py` exige que o agente reconstrua o EBITDA publicado ao euro (ou ao dólar), passe as reading checks, feche o balanço e dê os alertas esperados.
 
 ## Roadmap
 1. ~~**Git e GitHub**~~ feito: repositório público em https://github.com/MItchell1970/dd-assistant (ramo `main`). Os commits usam o email privado do GitHub (`133356273+MItchell1970@users.noreply.github.com`), nunca o Gmail. Para enviar alterações: `git push`.
@@ -55,3 +64,5 @@ Se o PowerShell bloquear o `Activate.ps1`: `Set-ExecutionPolicy -Scope CurrentUs
 3. ~~**Camada de IA com a Claude API**~~ feita e testada sem chamadas reais. Falta a primeira corrida real com a chave do Bernardo e rever a qualidade do memo.
 4. ~~**Segunda empresa fictícia "limpa"**~~ feita: Velmora, 0 alertas. Próximo nível: testar com contas reais de empresas saudáveis.
 5. ~~**Ler ficheiros da empresa sem template**~~ feito para Excel (testado com os dois data rooms). **PDF** feito via Claude, mas ainda não testado com uma chamada real; falta experimentar com o PDF de umas contas reais.
+6. ~~**Deal view, setores, moedas, DRE por função, agente (skill)**~~ feitos (testados com a Apple, a Toyota, a Amorim e as duas fictícias).
+7. **Próximos:** primeira corrida real do memo e do PDF com a chave da API; levar a skill para o claude.ai (upload do Excel no chat); dados mensais (peg e LTM) quando o data room os tiver.

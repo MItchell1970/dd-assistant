@@ -128,23 +128,67 @@ def _input_section(d: CompanyData) -> list[str]:
     rows += [[f"Management EBITDA adjustment: {a.name}"] + vals(a.values) + [d.adjustments_source if i == 0 else ""]
              for i, a in enumerate(d.adjustments)]
     docs = "; ".join(f"{name}: {'Yes' if ok else 'No'}" for name, ok in d.documents)
-    return (["## 4. Input (source figures, EUR thousands, with data room reference)"]
+    return ([f"## 4. Input (source figures, {d.currency} thousands, with data room reference)"]
             + _table(["Line item"] + [fy(y) for y in ys] + ["Source"], rows)
             + ["", f"Key documents received: {docs}"])
 
 
+def _deal_section(a) -> list[str]:
+    out = ["## 5. Deal view (calculated by the code; reviewer decisions included)"]
+    for title, block, years in (("Quality of earnings", a.view.qoe, a.view.pl_years),
+                                ("Net debt", a.view.net_debt, a.view.bs_years),
+                                ("Net working capital", a.view.nwc, a.view.bs_years)):
+        rows = [[l.label + (" (%)" if l.unit == "pct" else " (days)" if l.unit == "days" else
+                            " (x)" if l.unit == "x" else "")]
+                + [fmt_value(l.values.get(y)) if l.values else "" for y in years] + [l.source, l.note] for l in block]
+        out += ["", f"### {title}"] + _table(["Line"] + [fy(y) for y in years] + ["Source", "Note"], rows)
+    return out
+
+
+def _sector_section(a) -> list[str]:
+    from .sectors import BENCHMARK_SOURCE
+    s = a.sector
+    how = (f"suggested from the data room ({', '.join(a.suggested_from)}) and confirmed by the reviewer"
+           if s.key == a.suggested.key and a.suggested_from else "chosen by the reviewer")
+    out = ["## 6. Sector", f"Sector: {s.name} ({how}).", "",
+           "Thresholds calibrated for the sector: " + ("; ".join(f"{r.rule.id} {r.rule.limit_text()} "
+                                                                 f"({r.rule.calibration})"
+                                                                 for r in a.results if r.rule.calibration)
+                                                       or "none (general thresholds)."), "",
+           f"### Benchmarks: {s.benchmarks['industry']}, {s.benchmarks['firms']} companies — {BENCHMARK_SOURCE}. "
+           "Orientation only: listed groups are larger than most targets."]
+    out += _table(["Metric", "Company (latest year)", "Sector", "Reading"],
+                  [[b["Metric"], fmt_value(b["Company"]), fmt_value(b["Sector"]), b["Reading"]] for b in a.benchmarks])
+    if s.lens:
+        out += ["", "### Sector lens: questions a sector specialist would add"]
+        out += _table(["Area", "Question", "Document to request"], [[i.area, i.question, i.request] for i in s.lens])
+    return out
+
+
+def _checks_section(a) -> list[str]:
+    out = ["## 7. Reading checks (did the code read the statements correctly?)"]
+    if not a.checks:
+        return out + ["No published subtotals to check against."]
+    return out + _table(["Check", "Year", "Rebuilt", "Published", "OK"],
+                        [[c["Check"], fy(c["Year"]), fmt_value(c["Rebuilt from the lines"]),
+                          fmt_value(c["As published"]), "Yes" if c["OK"] else "NO"] for c in a.checks])
+
+
 def build_material(d: CompanyData, metrics: Metrics, results: list[RuleResult], source_text: str,
-                   reviews: Reviews | None = None, name: str = "") -> str:
-    """The text sent to the AI: the four layers of the analysis plus the data room. Saved for audit."""
+                   reviews: Reviews | None = None, name: str = "", analysis=None) -> str:
+    """The text sent to the AI: the layers of the analysis plus the data room. Saved for audit.
+    analysis (pipeline.Analysis): adds the deal view, the sector and the reading checks."""
     parts = [f"# Material for the preliminary analysis{' — ' + name if name else ''}", "",
-             "Reading notes: amounts in EUR thousands; percentages as decimals (0.238 = 23.8%); margin changes and "
-             "growth gaps in percentage points; DSO, DIO and DPO in days; 'n/a' = not available. Data room "
-             "references use the form Sheet!Cell (e.g. DRE!D5) or a page number.", ""]
+             f"Reading notes: amounts in {d.currency} thousands; percentages as decimals (0.238 = 23.8%); margin "
+             "changes and growth gaps in percentage points; DSO, DIO and DPO in days; 'n/a' = not available. Data "
+             "room references use the form Sheet!Cell (e.g. DRE!D5) or a page number.", ""]
     parts += _alerts_section(results, reviews or {}) + [""]
     parts += _rules_section(results) + [""]
     parts += _metrics_section(metrics, d.years) + [""]
     parts += _input_section(d) + [""]
-    parts += ["## 5. Data room (full text)", source_text or "Not provided.", "",
+    if analysis is not None:
+        parts += _deal_section(analysis) + [""] + _sector_section(analysis) + [""] + _checks_section(analysis) + [""]
+    parts += [f"## {8 if analysis is not None else 5}. Data room (full text)", source_text or "Not provided.", "",
               "Write the three deliverables (two-page memo, information request list and notes to improve the "
               "template) in Markdown, in British English. Review them against the checklist before answering and "
               "reply with the deliverables only."]
