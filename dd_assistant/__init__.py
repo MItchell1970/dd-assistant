@@ -2,6 +2,7 @@
 
 Layers (always kept separate):
     1. dataroom      -> reads the whole data room: Excel files merged, PDF/Word text for the memo, checklist
+       esef          -> reads an ESEF report package (iXBRL) from its tags
        extract       -> reads the statements (six European formats, euros only, or PDF) into the standard model
        input_loader  -> the standard model, and the reader for the Excel DD template
        units         -> display scale (€1,415k, €939m)
@@ -17,4 +18,4 @@ pipeline runs layers 1–3 in one call for the app (app.py), the command line an
 (.claude/skills/due-diligence), which only wire the layers together.
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"

@@ -6,6 +6,8 @@ Drop the whole folder:
   - PDFs, Word documents and text files are read as text, on this computer and free: the management
     report, the audit report, contracts. They go to the memo, and the key-document checklist is ticked
     from what is there.
+  - An ESEF report package (.zip: the annual report a listed company files in iXBRL) is read from its tags,
+    free and exact: see esef.py.
   - Financial statements that exist only as a PDF are read by Claude, on request (paid).
 """
 from __future__ import annotations
@@ -21,11 +23,13 @@ from pathlib import Path
 import anthropic
 from openpyxl import Workbook, load_workbook
 
+from .esef import EsefReport, is_esef, read_esef
 from .extract import Extraction, ExtractionError, _fill_review, _norm, _sheet_type, data_room_text, extract_excel, \
     extract_pdf, read_financials
 
 SPREADSHEETS = (".xlsx", ".xlsm")
 DOCUMENTS = (".pdf", ".docx", ".txt", ".md", ".csv")
+ESEF = (".zip", ".xhtml", ".html")          # ESEF report package (the report alone is refused with a clear message)
 
 # key documents recognised from a file's name or first lines (Portuguese, Spanish, French, German, Italian, English)
 _AGEING = r"aging|ageing|antiguidade|antiguedad|balance agee|altersstruktur|scadenzario|vencimientos"
@@ -133,11 +137,17 @@ def read_data_room(files: list[tuple[str, bytes]], client: anthropic.Anthropic |
     """Read every document of a data room. read_pdf: the PDF to read the statements from with Claude, when the
     data room has no Excel statements (it uses the Claude API)."""
     files = sorted(files, key=lambda f: f[0].lower())
+    reports = [(n, c) for n, c in files if n.lower().endswith(ESEF) and is_esef(n, c)]
+    if len(reports) > 1:
+        raise ExtractionError("Upload one ESEF report at a time (each already has two years): "
+                              f"{', '.join(n for n, _ in reports)}.")
+    esef: EsefReport | None = read_esef(*reports[0]) if reports else None
     sheets = [(n, c) for n, c in files if n.lower().endswith(SPREADSHEETS)]
     docs = [(n, c) for n, c in files if n.lower().endswith(DOCUMENTS)]
-    ignored = [n for n, _ in files if not n.lower().endswith(SPREADSHEETS + DOCUMENTS)]
-    if not sheets and not docs:
-        raise ExtractionError("Upload Excel (.xlsx), PDF, Word (.docx) or text files.")
+    ignored = [n for n, _ in files if not n.lower().endswith(SPREADSHEETS + DOCUMENTS) and
+               not (esef and n == esef.name)]
+    if not sheets and not docs and not esef:
+        raise ExtractionError("Upload Excel (.xlsx), PDF, Word (.docx), text files or an ESEF report package (.zip).")
 
     templates = [n for n, c in sheets if "Input" in load_workbook(io.BytesIO(c), read_only=True).sheetnames]
     if templates and (len(sheets) > 1 or docs):
@@ -147,19 +157,28 @@ def read_data_room(files: list[tuple[str, bytes]], client: anthropic.Anthropic |
 
     texts = {n: read_document(n, c) for n, c in docs}
     table = []
-    if sheets:
-        buf, origin = _merge(sheets)
-        ext = extract_excel(buf, sheets[0][0])
+    if sheets or esef:
+        books = sheets + ([(esef.name, esef.book)] if esef else [])
+        buf, origin = _merge(books)
+        ext = extract_excel(buf, books[0][0])
+        prefix = f"{esef.name} › " if esef and len(set(origin.values())) > 1 else ""
+        source = lambda s: _with_files(esef.tag(s, prefix) if esef else s, origin)
         d = ext.data
         for key, src in list(d.sources.items()):
-            d.sources[key] = _with_files(src, origin)
-        d.clients_source, d.adjustments_source = _with_files(d.clients_source, origin), \
-            _with_files(d.adjustments_source, origin)
+            d.sources[key] = source(src)
+        d.clients_source, d.adjustments_source = source(d.clients_source), source(d.adjustments_source)
         for b in d.balance_items:
-            b.source = _with_files(b.source, origin)
+            b.source = source(b.source)
         for row in ext.items + ext.unmapped:
-            row["Source"] = _with_files(row["Source"], origin)
+            row["Source"] = source(row["Source"])
         ext.source_text = "\n\n".join(f"## File '{n}'\n{data_room_text(io.BytesIO(c))}" for n, c in sheets)
+        if esef:
+            ext.company = esef.company
+            ext.method = ext.method.replace("Excel — dictionary mapping, figures read from the cells",
+                                            "ESEF (iXBRL) — each line read from its tag" + " and Excel" * bool(sheets))
+            ext.source_text = f"## ESEF report '{esef.name}'\n{esef.text}\n\n{ext.source_text}".strip()
+            table.append({"File": esef.name, "Read as": "ESEF — tagged financial statements (iXBRL)",
+                          "Found": f"income statement, balance sheet, cash flow statement ({esef.facts} facts in euros)"})
         for n, _ in sheets:
             kinds = sorted({_KIND_NAMES.get(_sheet_type(ws) or "", "other") for ws in
                             load_workbook(io.BytesIO(dict(sheets)[n]), read_only=True).worksheets})
@@ -201,5 +220,5 @@ def files_in(paths: list[str | Path]) -> list[tuple[str, bytes]]:
     for p in map(Path, paths):
         members = sorted(p.iterdir()) if p.is_dir() else [p]
         out += [(f.name, f.read_bytes()) for f in members
-                if f.is_file() and f.suffix.lower() in SPREADSHEETS + DOCUMENTS and not f.name.startswith("~$")]
+                if f.is_file() and f.suffix.lower() in SPREADSHEETS + DOCUMENTS + ESEF and not f.name.startswith("~$")]
     return out

@@ -21,7 +21,7 @@ import streamlit as st
 from dd_assistant import europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.deal import ADJUSTMENT_STATES, Line, value_at_stake
-from dd_assistant.dataroom import DOCUMENTS, SPREADSHEETS, NeedsPdfReading, files_in, read_data_room
+from dd_assistant.dataroom import DOCUMENTS, ESEF, SPREADSHEETS, NeedsPdfReading, files_in, read_data_room
 from dd_assistant.extract import ExtractionError, data_room_text
 from dd_assistant.input_loader import Named
 from dd_assistant.memo_check import MemoCheck, check_memo, report
@@ -183,10 +183,11 @@ with st.sidebar:
     st.markdown("### DD Assistant")
     st.caption("Preliminary financial due diligence · European market · EUR")
     uploaded = st.file_uploader(
-        "Data room", type=[x.strip(".") for x in SPREADSHEETS + DOCUMENTS], accept_multiple_files=True,
+        "Data room", type=[x.strip(".") for x in SPREADSHEETS + DOCUMENTS + ESEF], accept_multiple_files=True,
         help="Drop every document at once: Excel statements and schedules (in one file or many), the management "
              "report, the audit report, contracts (PDF, Word, text). Portuguese, Spanish, French, German, Italian "
-             "or English statements, in euros. No template needed.")
+             "or English statements, in euros. No template needed. A listed company: drop its ESEF annual report "
+             "package (.zip, from filings.xbrl.org) and every figure is read from its IFRS tag.")
     sample = st.radio("…or open a sample data room", list(SAMPLES), disabled=bool(uploaded))
 
 if uploaded:

@@ -10,6 +10,7 @@ The focus is M&A, buy-side or vendor due diligence. The same analysis also serve
 What the agent does:
 
 - **Reads the whole data room.** Excel files are read together as one set of statements, every figure keeping its file and cell. PDFs, Word and text documents (management report, audit report, contracts) are read as text for the memo, free and on your computer, and the key-document checklist is ticked from what is there. Statements that exist only as a PDF are read by Claude, on request.
+- **Reads ESEF filings.** Every listed company in the EU files its annual report in iXBRL (ESEF), with each figure tagged with its IFRS meaning. Drop the report package (.zip, from [filings.xbrl.org](https://filings.xbrl.org) or the company's website) and every line is read from its tag, exact and free: the company's own lines are understood through their ESEF anchoring to IFRS, and each figure keeps its tag as its source (`ifrs-full:Revenue`).
 - **Understands every line.** "Vendas e serviços prestados", "Importe neto de la cifra de negocios", "Chiffre d'affaires", "Umsatzerlöse", "Ricavi delle vendite" and "Revenue" are all revenue. It handles European number, date and unit formats (1.234,5 · 31.12.2024 · TEUR · miles de euros), income statements by nature or by function, and subtotals placed before or after their lines.
 - **Checks its own reading.** It rebuilds gross profit, EBITDA and operating profit from the lines it read and compares them with what the company published. A mismatch means a line is missing, and the agent says so.
 - **Builds the deal view**, the numbers a deal team asks for first:
@@ -26,7 +27,8 @@ An AI layer — the Claude API, or Claude Code itself with no API key — then w
 > Sample data:
 > - **Duriva**, a fictitious distributor with planted issues, as a data room of five documents;
 > - **Velmora**, a fictitious clean company, used to measure false alarms;
-> - the published FY2024 accounts of **Toyota Caetano Portugal** and **Corticeira Amorim**.
+> - the published FY2024 accounts of **Toyota Caetano Portugal** and **Corticeira Amorim**;
+> - tested on **EDP**'s FY2025 ESEF filing (not included: 96 MB; download it from filings.xbrl.org).
 
 ## Why
 
@@ -60,6 +62,7 @@ These are the standard checks of financial due diligence (the Big Four transacti
 | Layer | File | What it does |
 |---|---|---|
 | Data room | `dataroom.py` | Reads every document at once: merges the Excel files, extracts the text of PDFs and Word files, ticks the document checklist |
+| ESEF | `esef.py` | Reads an ESEF report package: tagged facts of the consolidated statements, in the company's order, own lines through their anchoring, euros only |
 | Read | `extract.py` | Maps the statements to a standard model with a six-language dictionary. Detects the unit (euros only), the European formats and the P&L presentation; stops at operating profit; flags debt-like and cash-like lines |
 | Metrics | `metrics.py` | Growth, concentration, margins, quality of earnings, DSO/DIO/DPO, cash conversion, net debt, leverage, interest cover, capex/D&A, effective tax rate, consistency checks and reading checks |
 | Rules | `rules.py` | 26 rules with explicit thresholds, plain-language explanations and their practice |
@@ -76,6 +79,7 @@ The calculations are deterministic and auditable. The tests (`python -m unittest
 - reading the raw data room gives the figures of the hand-filled template, whether it is one workbook or five documents;
 - the agent rebuilds the published EBITDA of two real groups exactly;
 - it reads Spanish, French, German and Italian statutory accounts correctly;
+- it reads an ESEF report package from its tags: precise figures over rounded ones, no segment or half-year figure, the company's own lines through their anchors;
 - it raises no false alarm on a clean company.
 
 ## The agent (Claude Code skill)
@@ -110,6 +114,9 @@ streamlit run app.py
 # a whole data room folder, or files, saved to output\ (Excel and CSV)
 python -m dd_assistant data\Duriva_data_room
 python -m dd_assistant data\Corticeira_Amorim_2024_published.xlsx --country PT --sector materials
+
+# a listed company's ESEF annual report package (.zip from filings.xbrl.org)
+python -m dd_assistant 529900CLC3WDMGI9VH80-2025-12-31.zip
 
 # purpose: buy (default), sell (vendor due diligence), lend (credit review), review (health check)
 python -m dd_assistant data\Duriva_data_room --purpose lend
@@ -155,6 +162,8 @@ The deal view finds pensions and income tax payable as debt-like items in both g
 
 **Velmora (clean company):** no analytical findings, with the general thresholds, with its sector's and with the 26 rules.
 
+**EDP (ESEF FY2025, read from the tags):** operating profit rebuilt to the thousand euros in both years (€2,999,414k in FY25, €2,261,983k in FY24), with the share of joint ventures inside it as EDP presents it. The country (Portugal) comes from the report itself and the sector is suggested as energy & utilities. Six findings: material other income (EDP's gains on asset rotation sit there), cash conversion of 67% in FY25, leverage of 3.6x, interest cover of 2.6x, an effective tax rate of 36.7% in FY24 and the documents a listed report does not contain. Tax equity partnerships in North America and collateral deposits are shown as items to assess in net debt.
+
 **Spanish, French, German and Italian accounts:** each format is read correctly, operating profit is rebuilt exactly, the balance sheet balances and no false alarm is raised (`tests/test_europe.py`).
 
 ## Scope
@@ -164,7 +173,7 @@ This is a preliminary **financial** due diligence on annual statements in euros.
 - legal, tax, commercial, IT or HR due diligence;
 - contract review;
 - valuation;
-- statements in other currencies.
+- statements in other currencies (an ESEF report in another currency is refused too).
 
 Monthly, LTM and budget figures are not in annual accounts. The request list asks for them, and the working capital peg reference is labelled indicative for that reason. Sector benchmarks come from European listed groups and are orientation, never a finding on their own. Every threshold, calibration and benchmark is visible in the app, the Excel and `--rules` / `--sectors`.
 

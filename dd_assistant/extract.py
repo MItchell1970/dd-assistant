@@ -185,6 +185,19 @@ FIELDS = [
              "provisoes", "inventory write downs", "provisions", "impairments of assets", "impairment of assets",
              "impairment losses", "impots taxes et versements assimiles", "accantonamenti per rischi",
              "altri accantonamenti"], above_ebit=True),
+    _f("assoc", "Share of profit of associates and JVs (above operating profit)", "pl",
+       ["share of profit of associates and joint ventures", "share of profit loss of associates and joint ventures",
+        "share of results of associates and joint ventures", "share of profit of associates",
+        "share of profit loss of associates", "share of results of associates",
+        "ganhos perdas imputados de subsidiarias associadas e empreendimentos conjuntos",
+        "ganhos perdas imputados de associadas e empreendimentos conjuntos", "resultados relativos a associadas",
+        "participacion en beneficios perdidas de sociedades puestas en equivalencia",
+        "resultado de entidades valoradas por el metodo de la participacion",
+        "quote part de resultat des societes mises en equivalence", "quote part dans les resultats des mises en equivalence",
+        "ergebnis aus at equity bewerteten beteiligungen", "ergebnis aus nach der equity methode bilanzierten",
+        "quota di pertinenza del risultato di societa collegate",
+        "risultato delle partecipazioni valutate con il metodo del patrimonio netto"],
+       optional=True, above_ebit=True),   # inside EBITDA only where the company puts it above operating profit
     _f("ebitda_pub", "EBITDA (as published)", "pl",
        ["ebitda", "ebitda reportado", "operating profit before depreciation",
         "resultado antes de depreciacoes gastos de financiamento e impostos", "resultado antes de depreciacoes",
@@ -206,7 +219,9 @@ FIELDS = [
         "differenza tra valore e costi della produzione", "risultato operativo", "bedrijfsresultaat", "operating profit",
         "operating income", "operating result", "operating results", "profit from operations", "income from operations",
         "results from operating activities", "ebit"], optional=True,
-       exclude=r"before depreciation|antes de depreciac|antes de amortiz|ebitda|%|margem|margin|other operating income"),
+       exclude=r"before depreciation|antes de depreciac|antes de amortiz|ebitda|%|margem|margin|other operating income",
+       patterns=(r"^(?:profit|profit loss|loss|result|results|earnings|income) before (?:net )?financ",
+                 r"^resultados? (?:liquidos? )?antes de (?:resultados |proveitos |gastos |custos )?financ")),
     _f("juros", "Interest expense", "pl",
        ["juros e gastos similares suportados", "juros e gastos similares", "juros suportados",
         "gastos e perdas financeiros", "gastos e perdas de financiamento", "gastos de financiamento",
@@ -217,7 +232,8 @@ FIELDS = [
     _f("pbt", "Profit before tax", "pl",
        ["resultado antes de impostos", "resultados antes de impostos", "resultado antes de impuestos",
         "resultat avant impots", "resultat courant avant impots", "ergebnis vor steuern", "risultato prima delle imposte",
-        "profit before tax", "profit before taxation", "income before income taxes",
+        "profit before tax", "profit loss before tax", "profit before taxation", "profit before income tax",
+        "income before income taxes",
         "income before provision for income taxes", "earnings before taxes"], optional=True),
     _f("irc", "Income tax", "pl",
        ["imposto sobre o rendimento do periodo", "imposto sobre o rendimento", "impostos sobre o rendimento", "irc",
@@ -331,7 +347,7 @@ FIELDS = [
        exclude=_BEFORE_TAX),
     _f("ganho_alien", "(Gains)/losses on disposals", "cf",
        ["ganhos perdas na alienacao", "perdas ganhos na alienacao", "ganhos na alienacao", "gain loss on disposal",
-        "loss gain on disposal", "gain on disposal", "profit on disposal", "resultados por bajas y enajenaciones",
+        "loss gain on disposal", "gains losses on disposal", "losses gains on disposal", "gain on disposal", "profit on disposal", "resultados por bajas y enajenaciones",
         "plus ou moins values de cession", "plusvalenze minusvalenze derivanti dalla cessione"], optional=True),
     _f("da_cf", "D&A (cash flow statement)", "cf",
        ["depreciation and amortization", "depreciation and amortisation", "depreciation amortization and impairment",
@@ -450,6 +466,11 @@ DEBT_LIKE = [
                                      "derivative financial instruments", "instrumentos financeiros derivados"], False),
     ("Taxes and social security payable", ["estado e outros entes publicos", "dettes fiscales et sociales",
                                            "otras deudas con las administraciones publicas"], False),
+    ("Tax equity and institutional partnerships", ["institutional partnerships", "tax equity",
+                                                   "parcerias institucionais"], False),
+    ("Liabilities held for sale", ["liabilities included in disposal groups classified as held for sale",
+                                   "liabilities held for sale", "liabilities associated with assets held for sale",
+                                   "passivos nao correntes detidos para venda", "passivos detidos para venda"], False),
     ("Deferred revenue and customer advances", ["deferred revenue", "contract liabilities", "adiantamentos de clientes",
                                                 "customer advances", "advances from customers", "deferred income",
                                                 "rendimentos diferidos", "anticipos de clientes",
@@ -464,7 +485,8 @@ CASH_LIKE = [
       "valeurs mobilieres de placement", "wertpapiere des umlaufvermogens", "sonstige wertpapiere",
       "attivita finanziarie che non costituiscono immobilizzazioni"], "current"),
     ("Other financial assets", ["outros ativos financeiros", "other financial assets"], False),
-    ("Restricted cash", ["restricted cash", "caixa restrita", "depositos cativos"], False),
+    ("Restricted cash", ["restricted cash", "caixa restrita", "depositos cativos", "collateral deposits",
+                         "depositos colaterais"], False),
     ("Assets held for sale", ["ativos nao correntes detidos para venda", "non current assets held for sale",
                               "assets held for sale"], False),
 ]
@@ -953,7 +975,7 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
         rows = all_rows[st] = [r for ws, header, cols in candidates for r in _rows(ws, header, cols)]
         # lines below operating profit (financial results, 'other income/(expense), net') are not EBITDA
         opinc = FIELD_BY_KEY["opinc"]
-        ebit = _find(rows, opinc.synonyms, set(), exclude=opinc.exclude)[:1] if st == "pl" else []
+        ebit = _find(rows, opinc.synonyms, set(), exclude=opinc.exclude, patterns=opinc.patterns)[:1]             if st == "pl" else []
         above = [r for r in rows if not (ebit and r.sheet == ebit[0].sheet and r.row > ebit[0].row)]
         for f in (f for f in FIELDS if f.statement == st):
             pool = above if f.above_ebit else rows

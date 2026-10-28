@@ -70,8 +70,8 @@ def _print_rules() -> None:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Due Diligence Assistant — red flags and deal view from a company's "
                                             "financial statements.")
-    p.add_argument("financials", nargs="*", help="The data room: files or folders (Excel, PDF, Word, text), or a "
-                                                 "completed DD template")
+    p.add_argument("financials", nargs="*", help="The data room: files or folders (Excel, PDF, Word, text, an ESEF "
+                                                 "report package .zip), or a completed DD template")
     p.add_argument("--read-pdf", metavar="PDF", help="Read the financial statements from this PDF with Claude (paid), "
                                                      "when the data room has no Excel statements")
     p.add_argument("--out", default="output", help="Folder for the results (default: output)")

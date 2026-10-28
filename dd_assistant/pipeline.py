@@ -67,6 +67,8 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
         data = replace(data, documents=documents)
     data = replace(data, country=c.code if c else data.country)
     c = europe.get(data.country)
+    if c and ext.method.startswith("ESEF"):         # an ESEF filing is always consolidated IFRS
+        c = replace(c, framework="IFRS as adopted by the EU (ESEF annual financial report)")
     m = compute_metrics(data)
     results = evaluate(data, m, sector=s)
     general_years = {r.rule.id: r.years_text for r in alerts(evaluate(data, m))}
@@ -89,13 +91,14 @@ PURPOSE_EFFECTS = {
 
 def choice_effects(a: Analysis) -> dict[str, str]:
     """What the reviewer's choices of country, sector and purpose change in this analysis, in one line each."""
-    L = a.data.pl_years[-1]
     r25 = next(r for r in a.results if r.rule.id == "R25")
-    etr, gap = a.metrics["etr"].get(L), a.metrics["etr_gap"].get(L)
+    rates = [(y, a.metrics["etr"].get(y), a.metrics["etr_gap"].get(y)) for y in a.data.pl_years]
+    rates = [(y, etr, gap) for y, etr, gap in rates if etr is not None and gap is not None]
     c = a.country
-    if c and c.tax_rate is not None and etr is not None and gap is not None:
-        country = (f"Tax rate {c.tax_rate:.1%} for R25: the effective rate of {etr:.1%} is {gap:+.1f} pp away → "
-                   + ("R25 fires." if r25.alert else "within ±10 pp, R25 does not fire."))
+    if c and c.tax_rate is not None and rates:
+        shown = ", ".join(f"{fy(y)} {etr:.1%} ({gap:+.1f} pp)" for y, etr, gap in rates)
+        country = (f"Tax rate {c.tax_rate:.1%} for R25: effective rate {shown} → "
+                   + (f"R25 fires in {r25.years_text}." if r25.alert else "within ±10 pp, R25 does not fire."))
     elif c and c.tax_rate is not None:
         country = f"Tax rate {c.tax_rate:.1%} for R25: no profit before tax to test it."
     else:

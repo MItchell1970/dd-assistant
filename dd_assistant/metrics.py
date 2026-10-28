@@ -124,8 +124,9 @@ def days(num, den):
 
 
 # EBITDA lines: by nature (SNC, IFRS) or by function (opex_fn: R&D, SG&A, distribution, administrative);
-# 'own' is own work capitalised (trabalhos para a própria entidade, aktivierte Eigenleistungen).
-EBITDA_LINES = ["vendas", "cmv", "fse", "pess", "imp", "orend", "own", "ogast", "opex_fn"]
+# 'own' is own work capitalised (trabalhos para a própria entidade, aktivierte Eigenleistungen); 'assoc' the share
+# of associates and joint ventures, only when the company presents it above operating profit.
+EBITDA_LINES = ["vendas", "cmv", "fse", "pess", "imp", "orend", "own", "ogast", "assoc", "opex_fn"]
 
 
 def ebitda_of(d: CompanyData, y: int) -> float:

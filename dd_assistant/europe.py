@@ -14,6 +14,9 @@ from dataclasses import dataclass
 
 from .sectors import _norm
 
+# 'Country of incorporation | Portugal': what an ESEF report states about the entity
+_STATED = re.compile(r"(?im)^(?:country of incorporation|domicile)\s*\|\s*(.+)$")
+
 
 @dataclass(frozen=True)
 class Country:
@@ -70,13 +73,16 @@ def get(code: str | None) -> Country | None:
 def suggest(text: str, company: str = "") -> tuple[Country | None, str]:
     """The likely country of the target and why; None when nothing points to one. The reviewer confirms it."""
     name, body = f" {_norm(company)} ", f" {_norm(text)} "
+    stated = " ".join(f" {_norm(m.group(1))} " for m in _STATED.finditer(text))
     best, best_score, why = None, 0, ""
     for c in COUNTRIES:
         form = bool(c.legal_forms) and re.search(c.legal_forms, name)
+        declared = bool(c.legal_forms and stated) and re.search(c.legal_forms, stated)
         words = [w for w in c.words if f" {w} " in body]
-        score = 3 * bool(form) + len(words)
+        score = 5 * bool(declared) + 3 * bool(form) + len(words)
         if score > best_score:
-            reasons = ([f"legal form or name '{form.group(0).strip()}'"] if form else []) + \
+            reasons = ([f"country of incorporation stated in the ESEF report ({c.name})"] if declared else []) + \
+                      ([f"legal form or name '{form.group(0).strip()}'"] if form else []) + \
                       ([f"statements in the local language ({', '.join(words[:3])})"] if words else [])
             best, best_score, why = c, score, "; ".join(reasons)
     return best, why
