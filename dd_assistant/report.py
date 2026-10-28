@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from .metrics import LABELS, UNITS, Metrics
+from .metrics import ALL_LABELS, UNITS, Metrics
 from .rules import SEVERITIES, RuleResult, alerts, fy, xround
 from .units import Money
 
@@ -121,7 +121,7 @@ def write_excel(results: list[RuleResult], metrics: Metrics, years: list[int],
 
     wm = wb.create_sheet("Metrics")
     wm.append([f"Metric ({money.currency} k unless stated)"] + [fy(y) for y in years])
-    for key, label in LABELS.items():
+    for key, label in ALL_LABELS.items():
         wm.append([label] + [("n/a" if metrics[key].get(y) is None else metrics[key].get(y)) for y in years])
     for cell in wm[1]:
         cell.font, cell.fill = head, fill
@@ -193,6 +193,11 @@ def _sector_sheet(ws, a, head, fill) -> None:
     ws.append([f"Sector: {s.name} — peers: {s.benchmarks['industry']} ({s.benchmarks['firms']} companies), "
                f"{BENCHMARK_SOURCE}"])
     ws["A1"].font = Font(name="Arial", bold=True, size=12)
+    from .pipeline import PURPOSES
+    c = a.country
+    ws.append([f"Purpose: {PURPOSES[a.purpose]} · Country: "
+               + (f"{c.name} — {c.framework}; statutory tax rate {c.tax_rate:.2%} ({c.tax_note})"
+                  if c and c.tax_rate is not None else c.name if c else "not set")])
     ws.append([])
     ws.append(["Metric", "Company (latest year)", "Sector", "Reading"])
     for cell in ws[ws.max_row]:

@@ -1,9 +1,7 @@
-"""Sectors and currencies: the suggestion, the calibration and the formatting."""
-import io
+"""Sectors and euros: the suggestion, the calibration and the formatting."""
 import unittest
+from dataclasses import replace
 from pathlib import Path
-
-from openpyxl import Workbook
 
 from dd_assistant import sectors
 from dd_assistant.extract import extract_excel
@@ -17,7 +15,7 @@ class SectorTest(unittest.TestCase):
     def test_suggested_from_the_data_room(self):
         expected = {"Duriva_data_room.xlsx": "distribution", "Velmora_data_room.xlsx": "distribution",
                     "Toyota_Caetano_2024_published.xlsx": "automotive",
-                    "Corticeira_Amorim_2024_published.xlsx": "materials", "Apple_FY2024_published.xlsx": "hardware"}
+                    "Corticeira_Amorim_2024_published.xlsx": "materials"}
         for file, key in expected.items():
             ext = extract_excel(DATA / file)
             with self.subTest(file=file):
@@ -47,35 +45,18 @@ class SectorTest(unittest.TestCase):
                     self.assertTrue(s.keywords)
 
 
-class CurrencyTest(unittest.TestCase):
+class EuroTest(unittest.TestCase):
     def test_formatting(self):
-        self.assertEqual(Money("EUR").fmt(1415.2), "€1,415k")
-        self.assertEqual(Money("EUR").fmt(-250), "-€250k")
-        self.assertEqual(Money("USD", millions=True).fmt(134661000), "$134,661m")
-        self.assertEqual(Money("GBP").fmt(2500), "£2,500k")
-        self.assertEqual(Money("USD", millions=True).unit, "USD m")
+        self.assertEqual(Money().fmt(1415.2), "€1,415k")
+        self.assertEqual(Money().fmt(-250), "-€250k")
+        self.assertEqual(Money(millions=True).fmt(939061), "€939m")
+        self.assertEqual(Money(millions=True).unit, "EUR m")
 
-    def test_large_companies_in_millions(self):
-        apple = extract_excel(DATA / "Apple_FY2024_published.xlsx").data
+    def test_large_groups_in_millions(self):
         duriva = extract_excel(DATA / "Duriva_data_room.xlsx").data
-        self.assertTrue(Money.for_data(apple).millions)
         self.assertFalse(Money.for_data(duriva).millions)
-
-    def test_currency_from_symbols_and_unit_note(self):
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Income statement"
-        ws.append(["Consolidated income statement"])
-        ws.append(["(£ in thousands)"])
-        ws.append(["", 2025, 2024])
-        ws.append(["Revenue", 5000, 4500])
-        ws.append(["Cost of sales", -3000, -2700])
-        buf = io.BytesIO()
-        wb.save(buf)
-        buf.seek(0)
-        ext = extract_excel(buf)
-        self.assertEqual(ext.data.currency, "GBP")
-        self.assertIn("GBP thousands", ext.method)
+        big = replace(duriva, lines={**duriva.lines, "vendas": {2025: 1_200_000.0}})
+        self.assertTrue(Money.for_data(big).millions)
 
     def test_portuguese_words_are_not_currencies(self):
         """'qualquer semelhança com empresas reais' in Duriva's read-me is not Brazilian reais."""

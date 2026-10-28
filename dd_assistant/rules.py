@@ -4,6 +4,11 @@ Each rule compares one metric with a threshold, year by year. If it fires in at 
 one year it becomes a finding, with evidence (figures + data room source), a question for
 management and the document to request. The AI never creates findings: it only explains
 the ones produced here.
+
+Every rule also says, in plain words, what it checks and where the practice comes from:
+financial due diligence (the Big Four transaction services workstreams — quality of earnings,
+net working capital, net debt, cash flow, information quality), private equity and bank credit.
+R01–R20 are the rules of the Excel template (tests/test_parity.py); R21–R26 go beyond it.
 """
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ from dataclasses import dataclass, replace
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Callable
 
-from . import sectors
+from . import europe, sectors
 from .input_loader import CompanyData
 from .metrics import Metrics
 from .units import Money
@@ -50,6 +55,10 @@ def eur(x) -> str:  # 1415.2 -> "€1,415k" (inputs are in EUR thousands)
     return f"-€{-v:,}k" if v < 0 else f"€{v:,}k"
 
 
+def xf(x) -> str:   # 2.6512 -> "2.65x"
+    return "n/a" if x is None else xround(x, 2) + "x"
+
+
 def fy(year: int) -> str:  # 2025 -> "FY25"
     return f"FY{str(year)[2:]}"
 
@@ -73,6 +82,9 @@ class Rule:
     evidence: Callable[["Ctx"], str]
     calibration: str = ""   # set when the sector changes the threshold: why, and the general threshold
     symbol: str = "€"       # currency symbol for thresholds in amounts
+    plain: str = ""         # what the rule checks, in one plain sentence
+    practice: str = ""      # where the test comes from
+    in_template: bool = True    # False: beyond the Excel template (no parity reference)
 
     def fires(self, value) -> str:
         """'Yes', 'No' or 'n/a' (no value)."""
@@ -96,6 +108,8 @@ class Rule:
             return xround(self.limit, 10) + " days"
         if f == "eur":
             return self.symbol + xround(self.limit, 10) + "k"
+        if f == "x":
+            return xround(self.limit, 10) + "x"
         return "more than " + xround(self.limit, 10)
 
     def rule_text(self) -> str:
@@ -111,7 +125,10 @@ class Ctx:
         self.Y = d.pl_years[-3:]          # the three years analysed
         self.L = d.pl_years[-1]           # latest year
         self.P = d.pl_years[-2]           # prior year
-        self.money = Money.for_data(d)    # €1,415k, $391,035m
+        self.money = Money.for_data(d)    # €1,415k, €939m
+        c = europe.get(d.country)
+        self.country = c.name if c else "country not set"
+        self.rate = c.tax_rate if c else None
 
     def g(self, key, year):
         return self.m[key].get(year)
@@ -126,8 +143,8 @@ class Ctx:
         return self.money.fmt(x)
 
 
-def _r(*a, ev):
-    return Rule(*a, evidence=ev)
+def _r(*a, ev, plain="", practice="", in_template=True):
+    return Rule(*a, evidence=ev, plain=plain, practice=practice, in_template=in_template)
 
 
 RULES: list[Rule] = [
@@ -222,7 +239,7 @@ RULES: list[Rule] = [
        "EBITDA-to-cash bridge; monthly working capital schedule",
        "A buyer values the business on the cash it generates.",
        ev=lambda c: f"Cash conversion — {c.yrs('conv', pct)}. {fy(c.L)} operating cash flow: "
-                    f"{c.cur(c.g('fco', c.L))}. Source: {c.src('cgo')}; {c.src('vendas')}"),
+                    f"{c.cur(c.g('fco', c.L))}. Source: {c.src('cgo') or c.src('fco')}; {c.src('vendas')}"),
     _r("R11", "Debt", "Short-term debt concentration", "Current borrowings / gross financial debt",
        ">", 0.40, "pct", "st_share", "High",
        "Refinancing requirement within the next 12 months.",
@@ -308,6 +325,126 @@ RULES: list[Rule] = [
                     f"to comply: {c.cur(c.g('ebitda_min', c.L))}. Excluding disposal gains, the ratio is "
                     f"{xround(c.g('nd_ebitda_ex', c.L), 2)}x. Source: {c.src('cov_lim')}; {c.src('fin_cp')}"),
 ]
+NEW_RULES = [
+    _r("R21", "Debt", "High leverage", "Net debt / EBITDA", ">", 3.5, "x", "nd_ebitda", "High",
+       "Whether cash flow can carry the debt, and how much room is left for acquisition debt.",
+       "How is the current debt supported by cash flow, and what are the repayment profile and change-of-control "
+       "provisions of the facilities?",
+       "Facility agreements; debt maturity schedule; banking plan",
+       "High leverage limits the debt a buyer can raise and reduces the equity value left after repaying debt.",
+       ev=lambda c: f"Net debt / EBITDA — {c.yrs('nd_ebitda', xf)}. {fy(c.L)} net debt: {c.cur(c.g('net_debt', c.L))}; "
+                    f"EBITDA: {c.cur(c.g('ebitda', c.L))}. Source: {c.src('fin_lp')}; {c.src('fin_cp')}; {c.src('caixa')}",
+       plain="Net debt is more than 3.5 times EBITDA: lenders would see the company as highly leveraged.",
+       practice="Bank credit and leveraged finance: net debt / EBITDA is the reference leverage ratio of European loan "
+                "agreements; levels above 3–4x are generally treated as high for mid-market companies.",
+       in_template=False),
+    _r("R22", "Debt", "Low interest cover", "EBITDA / interest expense", "<", 4, "x", "int_cover", "Medium",
+       "Little room before the company struggles to pay its lenders.",
+       "How would interest be covered if EBITDA fell or rates rose? What share of the debt carries a floating rate?",
+       "Debt schedule with interest rates and hedging; breakdown of interest expense",
+       "Thin interest cover leaves little room for an EBITDA dip or a rate rise.",
+       ev=lambda c: f"EBITDA / interest expense — {c.yrs('int_cover', xf)}. {fy(c.L)} interest: "
+                    f"{c.cur(-c.d.v('juros', c.L))}. Source: {c.src('juros')}; {c.src('vendas')}",
+       plain="EBITDA pays the interest bill fewer than four times.",
+       practice="Credit analysis: interest cover below about 4x is generally seen as tight by European lenders and "
+                "rating agencies.",
+       in_template=False),
+    _r("R23", "Net working capital", "Supplier payments stretched", "DPO, year-on-year change (days)",
+       ">", 15, "days", "dpo_var", "Medium",
+       "Suppliers paid later at year-end: overdue payables, or supplier financing such as confirming.",
+       "Have supplier payment terms changed, and are any payables overdue? Is any supplier financing (confirming, "
+       "reverse factoring) in place?",
+       "AP ageing; supplier payment terms; confirming and reverse factoring agreements",
+       "Stretched payables flatter year-end cash and working capital; overdue suppliers and confirming are debt-like.",
+       ev=lambda c: f"DPO — {c.yrs('dpo', d1)} days ({fy(c.L)} change: {d1(c.g('dpo_var', c.L))} days). "
+                    f"Source: {c.src('forn')}; {c.src('cmv')}",
+       plain="The company takes 15 days longer to pay its suppliers than a year earlier.",
+       practice="Net working capital: payables stretched before a sale are a classic year-end window-dressing point "
+                "in financial due diligence.",
+       in_template=False),
+    _r("R24", "Cash generation", "Capex below depreciation", "Capex / D&A, in each of the last two years",
+       "<", 0.8, "x", "capex_da_2y", "Medium",
+       "Under-investment: maintenance capex deferred, to be caught up after the deal.",
+       "Is capex below depreciation a temporary pause, or has maintenance been deferred? What capex is needed in the "
+       "next three years?",
+       "Capex plan (maintenance vs growth); fixed asset register and condition reports",
+       "Deferred maintenance flatters free cash flow today; the buyer pays for it later.",
+       ev=lambda c: f"Capex / D&A — {c.yrs('capex_da', xf)}. {fy(c.L)} capex: {c.cur(-c.d.v('capex', c.L))}; "
+                    f"D&A: {c.cur(-c.d.v('da', c.L))}. Source: {c.src('capex')}; {c.src('da')}",
+       plain="For two years the company has invested less than 80% of what its assets wear out (depreciation).",
+       practice="Quality of earnings and free cash flow: capex persistently below D&A points to deferred maintenance; "
+                "buyers estimate a maintenance capex level.",
+       in_template=False),
+    _r("R25", "Tax", "Effective tax rate far from the statutory rate", "Effective tax rate − statutory rate (pp)",
+       "abs>", 10, "pp", "etr_gap", "Low",
+       "Tax losses, incentives, non-deductible costs or tax disputes.",
+       "Why does the effective tax rate differ from the statutory rate (tax losses, incentives, non-deductible costs, "
+       "prior-year adjustments)?",
+       "Tax rate reconciliation; corporate tax returns for the last three years; tax audit correspondence",
+       "A low rate may not last (losses used up, incentives ending); a high one may signal non-deductible costs or disputes.",
+       ev=lambda c: f"Effective tax rate — {c.yrs('etr', pct)}, against a statutory rate of {pct(c.rate)} "
+                    f"({c.country}). Source: {c.src('irc')}; {c.src('pbt') or c.src('rl_dre')}",
+       plain="Tax paid on profit is more than 10 points away from the country's corporate tax rate.",
+       practice="Tax due diligence screen: effective versus statutory rate, by country of the target.",
+       in_template=False),
+    _r("R26", "Quality of earnings", "Own work capitalised within EBITDA", "Own work capitalised / reported EBITDA",
+       ">", 0.05, "pct", "own_share", "Medium",
+       "Costs moved to the balance sheet as assets, which raises EBITDA.",
+       "Which costs are capitalised as own work, on what criteria, and do they really create assets?",
+       "Own work capitalised by project; capitalisation policy; project time records",
+       "Capitalising costs moves them out of EBITDA; buyers often take them back out of normalised EBITDA.",
+       ev=lambda c: "Own work capitalised — " + "; ".join(f"{fy(y)}: {c.cur(c.d.v('own', y))}" for y in c.Y)
+                    + f" ({pct(c.g('own_share', c.L))} of {fy(c.L)} EBITDA). Source: {c.src('own')}",
+       plain="More than 5% of EBITDA comes from the company's own work booked as assets instead of costs.",
+       practice="Quality of earnings: capitalised own work (trabalhos para a própria entidade, trabajos realizados "
+                "para el activo, aktivierte Eigenleistungen) is reviewed and often reversed.",
+       in_template=False),
+]
+
+# Every template rule in plain words, and where the practice comes from.
+_PLAIN = {
+    "R01": ("One customer brings in more than a fifth of revenue: losing it would hurt badly.",
+            "Revenue quality: customer concentration is tested in every commercial and financial due diligence; "
+            "any customer above 10–20% of revenue is examined."),
+    "R02": ("Part of the growth comes from customers who bought nothing the year before: it may not repeat.",
+            "Revenue quality: growth is split between the recurring base and new or one-off customers."),
+    "R03": ("Gross margin moved by more than 3 points: prices, mix or purchase costs changed.",
+            "Quality of earnings: gross margin bridge by price, volume and mix."),
+    "R04": ("More than 1% of revenue is 'other income' inside EBITDA, which is often one-off.",
+            "Quality of earnings: non-recurring and non-operating income is taken out of normalised EBITDA."),
+    "R05": ("Management adds more than 10% to EBITDA: each add-back needs proof.",
+            "Quality of earnings: management adjustments are tested one by one against evidence."),
+    "R06": ("A cost called 'one-off' appears every year: it is a normal cost.",
+            "Quality of earnings: recurring 'non-recurring' items are reversed."),
+    "R07": ("Money owed by customers grows 10 points faster than sales: customers may be paying later.",
+            "Net working capital: receivables against revenue (DSO trend, ageing)."),
+    "R08": ("Customers take 15 days longer to pay than a year earlier.",
+            "Net working capital: DSO trend."),
+    "R09": ("Stock grows 10 points faster than cost of sales: slow-moving or obsolete stock.",
+            "Net working capital: DIO trend and inventory ageing."),
+    "R10": ("Less than 70% of EBITDA turns into operating cash.",
+            "Cash flow: cash conversion (operating cash / EBITDA) is a core financial due diligence and private "
+            "equity metric; a level below 70–80% needs explaining."),
+    "R11": ("More than 40% of the debt falls due within a year: it must be refinanced soon.",
+            "Net debt and liquidity: debt maturity profile."),
+    "R12": ("Assets do not equal equity plus liabilities.", "Information quality: the statements must tie."),
+    "R13": ("Year-end cash is not the same in the cash flow statement and in the balance sheet.",
+            "Net debt: definition of cash (overdrafts, restricted cash)."),
+    "R14": ("The working capital movements in the cash flow do not match the balance sheet changes.",
+            "Information quality: integrity of the cash flow statement."),
+    "R15": ("Net income is not the same in the three statements.", "Information quality: the statements must tie."),
+    "R16": ("The sales-by-customer listing does not add up to revenue.", "Revenue quality: completeness of the data."),
+    "R17": ("The debt schedule does not match the balance sheet.", "Net debt: completeness of financial debt."),
+    "R18": ("Some key documents were not provided.",
+            "Information request list: every due diligence starts from a document checklist."),
+    "R19": ("Gains on selling assets sit inside EBITDA.",
+            "Quality of earnings: disposal gains are non-recurring and are taken out."),
+    "R20": ("Net debt / EBITDA is within 15% of the bank covenant.",
+            "Net debt: covenant headroom, under the definitions of the facility agreement."),
+}
+for _rule in RULES:
+    _rule.plain, _rule.practice = _PLAIN[_rule.id]
+RULES += NEW_RULES
 
 
 @dataclass

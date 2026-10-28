@@ -73,12 +73,11 @@ class DebtLikeItemsTest(unittest.TestCase):
         gap = deal_view(d, m, include={provisions: True}).net_debt_adjusted[2024] - deal_view(d, m).net_debt_adjusted[2024]
         self.assertAlmostEqual(gap, 3466.893)
 
-    def test_apple_marketable_securities_are_cash_like(self):
-        d = extract_excel(DATA / "Apple_FY2024_published.xlsx").data
+    def test_amorim_pensions_and_income_tax_in_net_debt(self):
+        d = extract_excel(DATA / "Corticeira_Amorim_2024_published.xlsx").data
         v = deal_view(d, compute_metrics(d))
-        self.assertEqual(v.net_debt_reported[2024], (85750 + 10912 + 9967 - 29943) * 1000)
-        self.assertEqual(v.net_debt_adjusted[2024], v.net_debt_reported[2024] - 35228 * 1000)   # current only
-        self.assertEqual(v.nwc_values[2024], (7286 + 33410 - 68960 + 82348 - 35228 - 86553) * 1000)
+        self.assertEqual(v.net_debt_reported[2024], 119053 + 153270 - 76636)
+        self.assertEqual(v.net_debt_adjusted[2024], v.net_debt_reported[2024] + 3210 + 5012)
 
 
 class CommandLineTest(unittest.TestCase):

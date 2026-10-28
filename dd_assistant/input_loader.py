@@ -116,6 +116,7 @@ class CompanyData:
     documents: list[tuple[str, bool]] = field(default_factory=list)
     currency: str = "EUR"              # amounts in thousands of this currency
     pl_format: str = "nature"          # 'nature' (costs by type, as SNC) or 'function' (cost of sales, SG&A…)
+    country: str = ""                  # target's country (europe.py): framework and statutory tax rate
     balance_items: list[BalanceItem] = field(default_factory=list)
 
     def v(self, key: str, year: int) -> float | None:
@@ -143,7 +144,7 @@ def load_input(path: str | Path | BinaryIO) -> CompanyData:
     ws = wb["Input"]
     years = [int(ws[f"{c}{HEADER_ROW}"].value) for c in YEAR_COLS]
     year_of = dict(zip(YEAR_COLS, years))
-    data = CompanyData(years=years)
+    data = CompanyData(years=years, country="PT")   # the template is the Portuguese SNC model
 
     section = None
     for row in range(HEADER_ROW + 1, ws.max_row + 1):

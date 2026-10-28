@@ -6,6 +6,7 @@ missing. The formulas mirror the Métricas sheet of the Excel template; the pari
 """
 from __future__ import annotations
 
+from . import europe
 from .input_loader import CompanyData
 
 # Key -> display label (reports, app and AI material).
@@ -67,18 +68,29 @@ LABELS = {
     "docs_list": "Documents not provided",
 }
 
+# Metrics beyond the Excel template (rules R21–R26). Kept apart: the parity test covers LABELS exactly.
+EXTENDED_LABELS = {
+    "int_cover": "Interest cover (EBITDA / interest expense)",
+    "capex_da": "Capex / D&A",
+    "capex_da_2y": "Capex / D&A, higher of the last two years",
+    "etr": "Effective tax rate",
+    "etr_gap": "Effective tax rate − statutory rate",
+    "own_share": "Own work capitalised (% of EBITDA)",
+}
+ALL_LABELS = LABELS | EXTENDED_LABELS
+
 # Key -> unit, used only to display the values (pct = decimal shown as %; eur = EUR k).
 _UNIT_GROUPS = {
     "pct": "g_vendas new_share g_ex_new top_share g_ex_top_new gm ebitda_m or_share or_var gain_pct adj_pct "
-           "g_cli g_inv g_cmv conv capex_pct st_share cov_head",
-    "pp": "gm_pp cli_gap inv_gap",
+           "g_cli g_inv g_cmv conv capex_pct st_share cov_head etr own_share",
+    "pp": "gm_pp cli_gap inv_gap etr_gap",
     "days": "dso dso_var dio dpo dpo_var",
-    "x": "nd_ebitda nd_ebitda_ex cov_lim",
+    "x": "nd_ebitda nd_ebitda_ex cov_lim int_cover capex_da capex_da_2y",
     "count": "adj_rec docs_miss",
     "text": "new_name top_name adj_rec_name docs_list",
 }
 UNITS = {k: unit for unit, keys in _UNIT_GROUPS.items() for k in keys.split()}
-UNITS.update({k: "eur" for k in LABELS if k not in UNITS})
+UNITS.update({k: "eur" for k in ALL_LABELS if k not in UNITS})
 
 Metrics = dict[str, dict[int, object]]
 
@@ -111,8 +123,9 @@ def days(num, den):
     return None if r is None else r * 365
 
 
-# EBITDA lines: by nature (SNC, IFRS) or by function (opex_fn: R&D, SG&A, distribution, administrative).
-EBITDA_LINES = ["vendas", "cmv", "fse", "pess", "imp", "orend", "ogast", "opex_fn"]
+# EBITDA lines: by nature (SNC, IFRS) or by function (opex_fn: R&D, SG&A, distribution, administrative);
+# 'own' is own work capitalised (trabalhos para a própria entidade, aktivierte Eigenleistungen).
+EBITDA_LINES = ["vendas", "cmv", "fse", "pess", "imp", "orend", "own", "ogast", "opex_fn"]
 
 
 def ebitda_of(d: CompanyData, y: int) -> float:
@@ -128,7 +141,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
     L = P[-1]                           # latest year
     prev = {y: (P[i - 1] if i > 0 else None) for i, y in enumerate(P)}
     prev_bs = {y: (B[B.index(y) - 1] if y in B and B.index(y) > 0 else None) for y in B}
-    m: Metrics = {k: {} for k in LABELS}
+    m: Metrics = {k: {} for k in ALL_LABELS}
     v = d.v
 
     def put(key, years, fn):
@@ -266,6 +279,22 @@ def compute_metrics(d: CompanyData) -> Metrics:
     missing = [name for name, ok in d.documents if not ok]
     m["docs_miss"][L] = len(missing)
     m["docs_list"][L] = "; ".join(missing) if missing else "—"
+
+    # ---------------- Beyond the template: credit, investment, tax and capitalised costs (R21–R26)
+    put("int_cover", P, lambda y: None if not v("juros", y) else div(m["ebitda"][y], -v("juros", y)))
+    put("capex_da", P, lambda y: None if v("capex", y) is None or not v("da", y) else div(-v("capex", y), -v("da", y)))
+    put("capex_da_2y", Pp, lambda y: None if m["capex_da"][y] is None or m["capex_da"][prev[y]] is None
+        else max(m["capex_da"][y], m["capex_da"][prev[y]]))
+
+    def etr(y):   # profit before tax as published, else net income + tax
+        tax = v("irc", y)
+        pbt = v("pbt", y) if v("pbt", y) is not None else sub(v("rl_dre", y), tax)
+        return None if tax is None or pbt is None or pbt <= 0 else -tax / pbt
+
+    put("etr", P, etr)
+    rate = (europe.get(d.country) or europe.COUNTRY_BY_CODE["EU"]).tax_rate
+    put("etr_gap", P, lambda y: None if rate is None or m["etr"][y] is None else (m["etr"][y] - rate) * 100)
+    put("own_share", P, lambda y: None if m["ebitda"][y] <= 0 else N(v("own", y)) / m["ebitda"][y])
     return m
 
 

@@ -2,12 +2,15 @@
 
 Usage:
     python -m dd_assistant data/Duriva_data_room.xlsx              # red flags and deal view, saved to output/
-    python -m dd_assistant data/Apple_FY2024_published.xlsx --sector hardware
+    python -m dd_assistant data/Duriva_data_room                   # a whole data room folder (Excel, PDF, Word)
+    python -m dd_assistant data/Corticeira_Amorim_2024_published.xlsx --sector materials
     python -m dd_assistant data/Duriva_data_room.xlsx --adjustment "Custos de arranque=Accepted" --json
     python -m dd_assistant data/Duriva_data_room.xlsx --material   # the material for the AI memo (free)
     python -m dd_assistant data/Duriva_data_room.xlsx --memo       # ... plus the AI memo (Claude API)
     python -m dd_assistant data/Duriva_data_room.xlsx --check-memo memo.md
+    python -m dd_assistant data/Duriva_data_room.xlsx --purpose lend    # a credit review instead of M&A
     python -m dd_assistant --sectors                               # the sectors and their calibrated thresholds
+    python -m dd_assistant --rules                                 # the rulebook, in plain words
 """
 from __future__ import annotations
 
@@ -17,13 +20,13 @@ import re
 import sys
 from pathlib import Path
 
-from . import sectors
+from . import europe, sectors
 from .deal import ADJUSTMENT_STATES
-from .extract import FIELD_BY_KEY, ExtractionError, data_room_text, read_financials
-from .pipeline import Analysis, analyse, to_dict
+from .dataroom import NeedsPdfReading, files_in, read_data_room
+from .extract import FIELD_BY_KEY, ExtractionError, data_room_text
+from .pipeline import PURPOSES, Analysis, analyse, to_dict
 from .report import summary, write_csv, write_excel
-from .rules import fy
-from .units import CURRENCIES
+from .rules import RULES, fy
 
 
 def _edits(values: list[str]) -> dict[str, dict[int, float]]:
@@ -58,13 +61,26 @@ def _print_sectors() -> None:
         print(f"{s.key:<16} {s.name:<38} {cal}")
 
 
+def _print_rules() -> None:
+    for r in RULES:
+        print(f"{r.id} · {r.name} [{r.area}; {r.severity}; threshold {r.limit_text()}]"
+              f"{'' if r.in_template else ' — beyond the template'}\n  {r.plain}\n  Practice: {r.practice}\n")
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Due Diligence Assistant — red flags and deal view from a company's "
                                             "financial statements.")
-    p.add_argument("financials", nargs="?", help="The company's financial statements (Excel or PDF), or a DD template")
+    p.add_argument("financials", nargs="*", help="The data room: files or folders (Excel, PDF, Word, text), or a "
+                                                 "completed DD template")
+    p.add_argument("--read-pdf", metavar="PDF", help="Read the financial statements from this PDF with Claude (paid), "
+                                                     "when the data room has no Excel statements")
     p.add_argument("--out", default="output", help="Folder for the results (default: output)")
     p.add_argument("--sector", choices=list(sectors.SECTOR_BY_KEY), help="Sector (default: suggested from the file)")
-    p.add_argument("--currency", choices=list(CURRENCIES), help="Reporting currency (default: found in the file)")
+    p.add_argument("--country", choices=list(europe.COUNTRY_BY_CODE),
+                   help="Country of the target (default: suggested from the legal form and the language)")
+    p.add_argument("--purpose", choices=list(PURPOSES), default="buy",
+                   help="buy (M&A buy-side, default), sell (vendor due diligence), lend (credit review), "
+                        "review (health check, no transaction)")
     p.add_argument("--set", action="append", default=[], metavar="KEY:YEAR=VALUE",
                    help="Correct a figure read from the file, in thousands (repeatable)")
     p.add_argument("--adjustment", action="append", default=[], metavar="NAME=STATUS",
@@ -77,32 +93,36 @@ def main(argv=None) -> int:
     p.add_argument("--data-room", help="Data room (Excel) for the memo when the input is a DD template")
     p.add_argument("--check-memo", metavar="MEMO", help="Check a memo already written (e.g. in claude.ai)")
     p.add_argument("--sectors", action="store_true", help="List the sectors and their calibrated thresholds")
+    p.add_argument("--rules", action="store_true", help="Print the rulebook in plain words")
     args = p.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")   # correct characters in the Windows console
-    if args.sectors:
-        _print_sectors()
+    if args.sectors or args.rules:
+        _print_sectors() if args.sectors else _print_rules()
         return 0
     if not args.financials:
-        p.error("the financials file is required")
+        p.error("the data room is required: one or more files, or a folder")
 
-    path = Path(args.financials)
-    for f in [path] + [Path(x) for x in (args.data_room, args.check_memo) if x]:
+    paths = [Path(x) for x in args.financials]
+    for f in paths + [Path(x) for x in (args.data_room, args.check_memo) if x]:
         if not f.exists():
             print(f"File not found: {f}", file=sys.stderr)
             return 1
-    if path.suffix.lower() == ".pdf":
+    path = paths[0] if len(paths) == 1 else Path(paths[0].parent.name or "data_room")   # names the outputs
+    if args.read_pdf:
         from .ai_memo import load_env
-        load_env()   # reading a PDF uses the Claude API
+        load_env()   # reading a PDF's statements uses the Claude API
     try:
-        with open(path, "rb") as fh:
-            ext = read_financials(fh, path.name)
+        ext = read_data_room(files_in(paths), read_pdf=args.read_pdf)
         if args.data_room:
             ext.source_text = data_room_text(args.data_room)
         docs = [(name, ok or any(name.lower().startswith(r.lower()) for r in args.received))
                 for name, ok in ext.data.documents]
-        a = analyse(ext, args.sector, args.currency, _edits(args.set), docs,
-                    _decisions(args.adjustment, [x.name for x in ext.data.adjustments]))
+        a = analyse(ext, args.sector, args.country, _edits(args.set), docs,
+                    _decisions(args.adjustment, [x.name for x in ext.data.adjustments]), purpose=args.purpose)
+    except NeedsPdfReading as e:
+        print(f"{e} Run again with --read-pdf \"{e.pdfs[0]}\" (uses the Claude API).", file=sys.stderr)
+        return 1
     except (ExtractionError, ValueError) as e:
         print(str(e), file=sys.stderr)
         return 1
@@ -133,6 +153,9 @@ def _print(a: Analysis) -> None:
     how = f"suggested from: {', '.join(a.suggested_from)}" if a.sector is a.suggested and a.suggested_from else \
         "chosen" if a.sector is not a.suggested else "no keyword found"
     print(f"Sector: {a.sector.name} ({how}; change with --sector, list with --sectors)")
+    print(f"Country: {a.country.name + ' — ' + a.country.framework if a.country else 'not set'}"
+          + (f" (from {a.country_why})" if a.country and a.country is a.country_suggested and a.country_why else "")
+          + f" · Purpose: {PURPOSES[a.purpose]}")
     if a.ext.missing:
         print(f"Line items not found: {', '.join(a.ext.missing)}")
     failed = [c for c in a.checks if not c["OK"]]

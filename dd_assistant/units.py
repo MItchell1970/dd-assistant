@@ -1,15 +1,15 @@
-"""Currency and display scale.
+"""Amounts and display scale (euros only: the European market).
 
-The model always works in thousands of the reporting currency, as the Excel template does in
-EUR thousands. Large companies (revenue of 1 billion or more) are shown in millions so the
-figures stay readable: €1,415k for a mid-market target, $391,035m for a listed group.
+The model always works in EUR thousands, as the Excel template does. Large groups (revenue of
+€1 billion or more) are shown in millions so the figures stay readable: €1,415k for a mid-market
+target, €939m for a listed group.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
-CURRENCIES = {"EUR": "€", "USD": "$", "GBP": "£", "BRL": "R$"}
+CURRENCIES = {"EUR": "€"}
 
 
 def _round(x: float) -> int:
@@ -33,7 +33,7 @@ class Money:
 
     @property
     def unit(self) -> str:
-        """Short unit for table headers: 'EUR k', 'USD m'."""
+        """Short unit for table headers: 'EUR k', 'EUR m'."""
         return f"{self.currency} {'m' if self.millions else 'k'}"
 
     @property
@@ -41,13 +41,13 @@ class Money:
         return f"{self.currency} {'millions' if self.millions else 'thousands'}"
 
     def amount(self, x) -> str:
-        """The number in the display unit, without symbol: 1,415 · 391,035 · −250."""
+        """The number in the display unit, without symbol: 1,415 · 939 · −250."""
         if x is None:
             return "n/a"
         return f"{_round(x / 1000 if self.millions else x):,}".replace("-", "−")
 
     def fmt(self, x) -> str:
-        """With symbol and unit: €1,415k · $391,035m · -€250k."""
+        """With symbol and unit: €1,415k · €939m · -€250k."""
         if x is None:
             return "n/a"
         v = _round(x / 1000 if self.millions else x)

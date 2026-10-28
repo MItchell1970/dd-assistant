@@ -7,7 +7,9 @@ companies: Duriva (planted issues) and Velmora (clean company).
 What is compared: every metric, every rule value, whether each rule fires, the thresholds,
 the severities and the order of the findings. What is not compared: the wording of the
 evidence and of the rule names, because the code writes them in English while the
-reference spreadsheet stays in Portuguese.
+reference spreadsheet stays in Portuguese; and the rules and metrics beyond the template
+(R21–R26, metrics.EXTENDED_LABELS), which have no reference in the spreadsheet and are
+tested in tests/test_rules.py.
 
 Run:  python -m unittest -v
 Note: the template must have been saved by a program that calculates formulas (Excel or
@@ -24,6 +26,8 @@ from openpyxl import load_workbook
 from dd_assistant.input_loader import load_input
 from dd_assistant.metrics import LABELS, compute_metrics
 from dd_assistant.rules import RULES, alerts, evaluate
+
+TEMPLATE_RULES = [r for r in RULES if r.in_template]
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 YEAR_COLS = {"B": 2022, "C": 2023, "D": 2024, "E": 2025}
@@ -78,7 +82,7 @@ class Parity:
     def setUpClass(cls):
         cls.data = load_input(cls.TEMPLATE)
         cls.metrics = compute_metrics(cls.data)
-        cls.results = evaluate(cls.data, cls.metrics)
+        cls.results = [r for r in evaluate(cls.data, cls.metrics) if r.rule.in_template]
         cls.wb = load_workbook(cls.TEMPLATE, data_only=True)
         if cls.wb["Métricas"]["C6"].value is None:
             raise unittest.SkipTest("The template has no calculated values: open it in Excel and save it.")
@@ -107,7 +111,7 @@ class Parity:
     def test_rules_match_sheet(self):
         ws = self.wb["Regras"]
         by_id = {ws[f"A{r}"].value: r for r in range(5, ws.max_row + 1) if ws[f"A{r}"].value}
-        self.assertEqual(sorted(by_id), sorted(r.id for r in RULES), "rule catalogue differs from the sheet")
+        self.assertEqual(sorted(by_id), sorted(r.id for r in TEMPLATE_RULES), "rule catalogue differs from the sheet")
         for res in self.results:
             r = by_id[res.rule.id]
             with self.subTest(rule=res.rule.id):

@@ -1,9 +1,9 @@
-"""Streamlit app — upload a company's financials, review the deal view and the red flags, download, write the memo.
+"""Streamlit app — drop the data room, review the deal view and the red flags, download, write the memo.
 
 Run (with the virtual environment active):
     streamlit run app.py
 
-The app only wires the layers together (extract → pipeline: metrics, rules, deal view → report → ai_memo →
+The app only wires the layers together (dataroom → pipeline: metrics, rules, deal view → report → ai_memo →
 memo_check). It does no calculations of its own and creates no findings.
 """
 from __future__ import annotations
@@ -18,24 +18,23 @@ import anthropic
 import pandas as pd
 import streamlit as st
 
-from dd_assistant import sectors
+from dd_assistant import europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.deal import ADJUSTMENT_STATES, Line, value_at_stake
-from dd_assistant.extract import ExtractionError, data_room_text, read_financials
+from dd_assistant.dataroom import DOCUMENTS, SPREADSHEETS, NeedsPdfReading, files_in, read_data_room
+from dd_assistant.extract import ExtractionError, data_room_text
 from dd_assistant.input_loader import Named
 from dd_assistant.memo_check import MemoCheck, check_memo, report
-from dd_assistant.metrics import LABELS
-from dd_assistant.pipeline import analyse
+from dd_assistant.metrics import ALL_LABELS
+from dd_assistant.pipeline import PURPOSES, analyse
 from dd_assistant.report import REVIEW_STATES, csv_bytes, fmt_metric, fmt_unit, write_excel
 from dd_assistant.rules import SEVERITIES, fy
-from dd_assistant.units import CURRENCIES
 
 DATA = Path(__file__).parent / "data"
-SAMPLES = {"Duriva — data room with planted issues": DATA / "Duriva_data_room.xlsx",
+SAMPLES = {"Duriva — data room in 5 documents, planted issues": DATA / "Duriva_data_room",
            "Velmora — clean company": DATA / "Velmora_data_room.xlsx",
-           "Toyota Caetano Portugal — real, FY24 published (PT, €)": DATA / "Toyota_Caetano_2024_published.xlsx",
-           "Corticeira Amorim — real, FY24 published (EN, €)": DATA / "Corticeira_Amorim_2024_published.xlsx",
-           "Apple — real, FY24 published (US GAAP, $)": DATA / "Apple_FY2024_published.xlsx"}
+           "Toyota Caetano Portugal — real FY24 accounts (PT)": DATA / "Toyota_Caetano_2024_published.xlsx",
+           "Corticeira Amorim — real FY24 accounts (EN)": DATA / "Corticeira_Amorim_2024_published.xlsx"}
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 SEVERITY_COLOR = {"High": "#d03b3b", "Medium": "#fab219", "Low": "#8a8f98"}   # status palette; always with a label
 SUMMARY_ROWS = ["vendas", "g_vendas", "gm", "ebitda", "ebitda_m", "ebitda_adj", "ebitda_ex_gain", "cgo", "conv",
@@ -60,6 +59,7 @@ CSS = """
           padding: 9px 4px; border-bottom: 1px solid #eef1f5; font-size: .92rem;}
 .dd-find .id {color: #5b6474; font-variant-numeric: tabular-nums;}
 .dd-find .area, .dd-find .yr {color: #5b6474; font-size: .84rem;}
+.dd-find .plain {display: block; color: #5b6474; font-size: .8rem; margin-top: 1px;}
 .dd-section {font-weight: 650; font-size: 1.05rem; color: #1b2333; margin: 1.2rem 0 .4rem;}
 .dd-list {container-type: inline-size;}
 @container (max-width: 620px) {.dd-find {grid-template-columns: 88px 1fr;} .dd-find .id, .dd-find .area, .dd-find .yr {display: none;}}
@@ -85,9 +85,9 @@ def pill(severity: str) -> str:
 
 
 @st.cache_resource(max_entries=8, show_spinner=False)
-def read_file(content: bytes, name: str):
-    """Layer 1: read the upload (cached by content, so a PDF is only sent to Claude once)."""
-    return read_financials(io.BytesIO(content), name)
+def read_room(files: tuple[tuple[str, bytes], ...], read_pdf: str | None):
+    """Layer 1: read the data room (cached by content, so a PDF is only sent to Claude once)."""
+    return read_data_room(list(files), read_pdf=read_pdf)
 
 
 def show_check(check: MemoCheck) -> None:
@@ -132,36 +132,38 @@ has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
 # ---------------------------------------------------------------- input
 with st.sidebar:
     st.markdown("### DD Assistant")
-    st.caption("Preliminary financial due diligence for M&A")
+    st.caption("Preliminary financial due diligence · European market · EUR")
     uploaded = st.file_uploader(
-        "Company financials", type=["xlsx", "xlsm", "pdf"],
-        help="The data room as received: income statement, balance sheet, cash flow, sales by customer, "
-             "adjusted EBITDA, debt schedule. Excel or PDF, by nature or by function, in EUR, USD, GBP or BRL. "
-             "No template needed.")
-    sample = st.radio("…or open a sample data room", list(SAMPLES), disabled=uploaded is not None)
+        "Data room", type=[x.strip(".") for x in SPREADSHEETS + DOCUMENTS], accept_multiple_files=True,
+        help="Drop every document at once: Excel statements and schedules (in one file or many), the management "
+             "report, the audit report, contracts (PDF, Word, text). Portuguese, Spanish, French, German, Italian "
+             "or English statements, in euros. No template needed.")
+    sample = st.radio("…or open a sample data room", list(SAMPLES), disabled=bool(uploaded))
 
-if uploaded is not None:
-    name, content = uploaded.name, uploaded.getvalue()
+if uploaded:
+    files = tuple((f.name, f.getvalue()) for f in uploaded)
+    name = files[0][0] if len(files) == 1 else f"{len(files)} documents"
 else:
-    name, content = SAMPLES[sample].name, SAMPLES[sample].read_bytes()
-file_key = hashlib.sha1(content).hexdigest()[:12]
+    files = tuple(files_in([SAMPLES[sample]]))
+    name = SAMPLES[sample].name
+file_key = hashlib.sha1(b"".join(n.encode() + c for n, c in files)).hexdigest()[:12]
 
-if name.lower().endswith(".pdf") and not st.session_state.get(f"pdf-{file_key}"):
-    st.markdown("<div class='dd-eyebrow'>PDF financial statements</div>"
+try:
+    with st.spinner("Reading the data room…"):
+        ext = read_room(files, st.session_state.get(f"pdf-{file_key}"))
+except NeedsPdfReading as e:
+    st.markdown("<div class='dd-eyebrow'>Data room without Excel statements</div>"
                 f"<div class='dd-title'>{html.escape(name)}</div>", unsafe_allow_html=True)
-    st.info("Claude reads the PDF (vision) and returns every figure exactly as printed, with its page. "
-            "Units and signs are converted by the code, and you review every line before relying on it. "
-            "Typical cost: USD 0.10–0.40 per document.")
-    if st.button("Read the PDF with Claude", type="primary", disabled=not has_key):
-        st.session_state[f"pdf-{file_key}"] = True
+    st.info("The financial statements are only in a PDF. Claude reads it (vision) and returns every figure exactly "
+            "as printed, with its page; units and signs are converted by the code, and you review every line before "
+            "relying on it. The other documents are read on this computer, for free. Typical cost: USD 0.10–0.40.")
+    pdf = st.selectbox("PDF with the financial statements", e.pdfs)
+    if st.button("Read the statements with Claude", type="primary", disabled=not has_key):
+        st.session_state[f"pdf-{file_key}"] = pdf
         st.rerun()
     if not has_key:
         st.warning("Add ANTHROPIC_API_KEY to the .env file (see .env.example) and restart the app to read PDFs.")
     st.stop()
-
-try:
-    with st.spinner("Reading the financial statements…"):
-        ext = read_file(content, name)
 except ExtractionError as e:
     st.error(str(e))
     st.stop()
@@ -170,21 +172,30 @@ except anthropic.AnthropicError as e:
     st.stop()
 
 suggested, words = sectors.suggest(ext.source_text, ext.company)
+c_suggested, c_why = europe.suggest(ext.source_text, ext.company)
 keys = [s.key for s in sectors.SECTORS]
+codes = list(europe.COUNTRY_BY_CODE)
 with st.sidebar:
+    purpose = st.selectbox("Purpose", list(PURPOSES), format_func=PURPOSES.get, key=f"purpose-{file_key}",
+                           help="M&A is the focus; the same analysis serves a lender or an owner. Only the way the "
+                                "memo is written changes.")
+    country = st.selectbox("Country of the target", codes, key=f"country-{file_key}",
+                           index=codes.index(c_suggested.code if c_suggested else "EU"),
+                           format_func=lambda k: europe.COUNTRY_BY_CODE[k].name,
+                           help="Sets the accounting framework and the statutory tax rate (R25).")
+    st.caption(f"Suggested from {c_why}." if c_suggested and country == c_suggested.code and c_why else
+               "Chosen by you." if c_suggested and country != c_suggested.code else "Nothing points to a country.")
     sector_key = st.selectbox("Sector", keys, index=keys.index(suggested.key), key=f"sector-{file_key}",
                               format_func=lambda k: sectors.SECTOR_BY_KEY[k].name,
                               help="Calibrates a few thresholds, sets the peer benchmarks and adds the sector's "
                                    "questions to the request list.")
     st.caption(f"Suggested from the file: {', '.join(words)}." if words and sector_key == suggested.key else
                "Chosen by you." if sector_key != suggested.key else "No sector keyword found: choose one.")
-    currency = st.selectbox("Reporting currency", list(CURRENCIES), index=list(CURRENCIES).index(ext.data.currency),
-                            key=f"cur-{file_key}", help="Found in the file; change it if the file does not say.")
     st.divider()
     st.caption("Claude API: connected" if has_key else
-               "Claude API: not configured. Needed only to read PDFs and to write the memo.")
-    st.caption("Excel files are read and analysed on this computer. Data goes to the Claude API only when you "
-               "read a PDF or write the memo.")
+               "Claude API: not configured. Needed only to read statements from a PDF and to write the memo.")
+    st.caption("Every document is read and analysed on this computer. Data goes to the Claude API only when you "
+               "read statements from a PDF or write the memo.")
 
 # ---------------------------------------------------------------- reviewer input (read before the analysis)
 src_key, docs_key = f"src-{file_key}", f"docs-{file_key}"
@@ -208,7 +219,7 @@ for row in st.session_state.get(own_key, {}).get("added_rows", []):
                                      if row.get(f"FY{str(y)[2:]}") not in (None, "") and not pd.isna(row[f"FY{str(y)[2:]}"])}))
 include = {int(i): bool(ch["Include"]) for i, ch in edited(inc_key).items() if "Include" in ch}
 
-a = analyse(ext, sector_key, currency, overrides, docs, decisions, analyst, include)
+a = analyse(ext, sector_key, country, overrides, docs, decisions, analyst, include, purpose)
 data, metrics, results, al, view, money = a.data, a.metrics, a.results, a.findings, a.view, a.money
 review_key = f"review-{file_key}-{'-'.join(r.rule.id for r in al)}"
 reviews = {r.rule.id: ("Pending", "") for r in al}
@@ -221,16 +232,17 @@ for idx, ch in edited(review_key).items():
 L = data.pl_years[-1]
 B = view.bs_years[-1]
 years3 = data.pl_years[-3:]
-st.markdown(f"<div class='dd-eyebrow'>Preliminary financial due diligence · {html.escape(a.sector.name)}</div>"
+st.markdown(f"<div class='dd-eyebrow'>{html.escape(PURPOSES[a.purpose])} · {html.escape(a.sector.name)} · "
+            f"{html.escape(a.country.name if a.country else 'Europe')}</div>"
             f"<div class='dd-title'>{html.escape(ext.company)}</div>"
             f"<div class='dd-sub'>{html.escape(name)} · {fy(years3[0])}–{fy(L)} · {money.unit_long} · "
             f"{html.escape(ext.method)}</div>", unsafe_allow_html=True)
 if not a.checks_ok:
     st.warning("Reading check failed: a subtotal rebuilt from the lines read does not match the published one. "
-               "A line may be missing or misclassified — see Source data before relying on the figures.")
+               "A line may be missing or misclassified — see Data room before relying on the figures.")
 
-tab_ov, tab_deal, tab_rf, tab_sec, tab_src, tab_m, tab_ai = st.tabs(
-    ["Overview", "Deal view", f"Red flags ({len(al)})", "Sector", "Source data", "Metrics", "AI memo"])
+tab_ov, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(
+    ["Overview", "Deal view", f"Red flags ({len(al)})", "Sector", "Data room", "Rulebook", "Metrics", "AI memo"])
 
 # ---------------------------------------------------------------- overview
 with tab_ov:
@@ -263,11 +275,12 @@ with tab_ov:
     ordered = sorted(al, key=lambda r: SEVERITIES.index(r.rule.severity))
     st.markdown("<div class='dd-list'>" + "".join(
         f"<div class='dd-find'>{pill(r.rule.severity)}<span class='id'>{r.rule.id}</span>"
-        f"<span>{html.escape(r.rule.name)}</span><span class='area'>{r.rule.area}</span>"
+        f"<span>{html.escape(r.rule.name)}<span class='plain'>{html.escape(r.rule.plain)}</span></span>"
+        f"<span class='area'>{r.rule.area}</span>"
         f"<span class='yr'>{r.years_text}</span></div>" for r in ordered) + "</div>", unsafe_allow_html=True)
 
     st.markdown("<div class='dd-section'>Financial summary</div>", unsafe_allow_html=True)
-    summary = pd.DataFrame([[LABELS[k]] + [fmt_metric(k, metrics[k].get(y), money) for y in years3]
+    summary = pd.DataFrame([[ALL_LABELS[k]] + [fmt_metric(k, metrics[k].get(y), money) for y in years3]
                             for k in SUMMARY_ROWS], columns=[f"{money.unit} unless stated"] + [fy(y) for y in years3])
     st.dataframe(summary, hide_index=True, width="stretch", height=35 * (len(summary) + 1) + 3)
     found = len(ext.items) - len(ext.missing)
@@ -277,7 +290,7 @@ with tab_ov:
 
 # ---------------------------------------------------------------- deal view
 with tab_deal:
-    st.caption("The three numbers a deal team asks for first, calculated by the code from the lines in Source data. "
+    st.caption("The three numbers a deal team asks for first, calculated by the code from the lines in Data room. "
                "Your decisions below flow into the Excel download and the AI memo. Hover a line to see its source.")
     st.markdown("<div class='dd-section'>Quality of earnings</div>", unsafe_allow_html=True)
     st.markdown(bridge(view.qoe, view.pl_years, money), unsafe_allow_html=True)
@@ -323,14 +336,15 @@ with tab_deal:
     st.caption("Year-end balances only. A peg is negotiated on 12–24 monthly balances: request the monthly balance "
                "sheets before relying on the average.")
 
-    st.markdown("<div class='dd-section'>Value at stake (illustrative)</div>", unsafe_allow_html=True)
-    multiple = st.number_input("EV / EBITDA multiple you want to test", min_value=1.0, max_value=30.0, value=8.0,
-                               step=0.5, help="Your assumption. Used only for this sensitivity; never sent to the AI.")
-    stake = value_at_stake(view, multiple)
-    st.dataframe(pd.DataFrame([[label, money.fmt(x)] for label, x in stake], columns=["", f"{fy(L)}"]),
-                 hide_index=True, width="stretch")
-    st.caption("What the diligence adjustments represent in equity value at the multiple you chose. Arithmetic, "
-               "not a valuation or a view on price.")
+    if a.purpose in ("buy", "sell"):
+        st.markdown("<div class='dd-section'>Value at stake (illustrative)</div>", unsafe_allow_html=True)
+        multiple = st.number_input("EV / EBITDA multiple you want to test", min_value=1.0, max_value=30.0, value=8.0,
+                                   step=0.5, help="Your assumption. Used only for this sensitivity; never sent to the AI.")
+        stake = value_at_stake(view, multiple)
+        st.dataframe(pd.DataFrame([[label, money.fmt(x)] for label, x in stake], columns=["", f"{fy(L)}"]),
+                     hide_index=True, width="stretch")
+        st.caption("What the diligence adjustments represent in equity value at the multiple you chose. Arithmetic, "
+                   "not a valuation or a view on price.")
 
 # ---------------------------------------------------------------- red flags and review
 with tab_rf:
@@ -366,6 +380,7 @@ with tab_rf:
     for r in sorted(al, key=lambda r: SEVERITIES.index(r.rule.severity)):
         rule = r.rule
         with st.expander(f"{rule.id} · {rule.name}  —  {rule.severity} · {r.years_text} · {reviews[rule.id][0]}"):
+            st.markdown(f"**In plain words**  \n{rule.plain}")
             st.markdown(f"**Evidence**  \n{r.evidence}")
             st.markdown(f"**Test**  \n{rule.test} · threshold {rule.limit_text()}"
                         + (f"  \n_{rule.calibration[0].upper() + rule.calibration[1:]}._" if rule.calibration else ""))
@@ -374,6 +389,7 @@ with tab_rf:
             c2.markdown(f"**Why it matters**  \n{rule.rationale}")
             c1.markdown(f"**Question for management**  \n{rule.question}")
             c2.markdown(f"**Document to request**  \n{rule.request}")
+            st.caption(f"Practice: {rule.practice}")
 
 # ---------------------------------------------------------------- sector
 with tab_sec:
@@ -406,6 +422,11 @@ with tab_sec:
 
 # ---------------------------------------------------------------- what the agent read
 with tab_src:
+    if ext.files:
+        st.markdown("<div class='dd-section'>Documents in the data room</div>", unsafe_allow_html=True)
+        st.caption("Excel files are read together as one set of statements; every figure keeps its file and cell. "
+                   "Documents are read as text for the memo, on this computer.")
+        st.dataframe(pd.DataFrame(ext.files), hide_index=True, width="stretch")
     st.markdown("<div class='dd-section'>Reading checks</div>", unsafe_allow_html=True)
     if a.checks:
         st.caption("Subtotals rebuilt from the lines the agent read, compared with the subtotals the company "
@@ -436,7 +457,8 @@ with tab_src:
     c1, c2 = st.columns(2, gap="large")
     with c1:
         st.markdown("<div class='dd-section'>Key documents received</div>", unsafe_allow_html=True)
-        st.caption("Tick what the company has provided outside this file. Missing documents raise R18.")
+        st.caption("Ticked from the documents in the data room; tick what the company provided otherwise. "
+                   "Missing documents raise R18.")
         st.data_editor(pd.DataFrame(ext.data.documents, columns=["Document", "Received"]), key=docs_key,
                        hide_index=True, width="stretch", disabled=["Document"])
     with c2:
@@ -446,9 +468,22 @@ with tab_src:
             st.dataframe(pd.DataFrame(rows, columns=["Customer"] + [fy(y) for y in years3]), hide_index=True,
                          width="stretch")
 
+# ---------------------------------------------------------------- the rules, in plain words
+with tab_rules:
+    st.caption("Every rule the agent applies: what it checks in plain words, the threshold (calibrated for the sector "
+               "where it says so), whether it fired here, and where the practice comes from. R01–R20 match the Excel "
+               "template; R21–R26 go beyond it.")
+    rulebook = pd.DataFrame([{"Rule": r.rule.id, "Area": r.rule.area, "Name": r.rule.name, "In plain words": r.rule.plain,
+                              "Threshold": r.rule.limit_text() + (" (sector)" if r.rule.calibration else ""),
+                              "Here": "Fired" if r.alert else "n/a" if all(f == "n/a" for f in r.fires.values())
+                              else "Passed", "Practice": r.rule.practice} for r in results])
+    st.dataframe(rulebook, hide_index=True, width="stretch", height=35 * (len(rulebook) + 1) + 3,
+                 column_config={"In plain words": st.column_config.TextColumn(width="large"),
+                                "Practice": st.column_config.TextColumn(width="large")})
+
 # ---------------------------------------------------------------- metrics
 with tab_m:
-    rows = [[label] + [fmt_metric(key, metrics[key].get(y), money) for y in data.years] for key, label in LABELS.items()]
+    rows = [[label] + [fmt_metric(key, metrics[key].get(y), money) for y in data.years] for key, label in ALL_LABELS.items()]
     st.dataframe(pd.DataFrame(rows, columns=[f"Metric ({money.unit} unless stated)"] + [fy(y) for y in data.years]),
                  hide_index=True, width="stretch", height=35 * (len(rows) + 1) + 3)
 

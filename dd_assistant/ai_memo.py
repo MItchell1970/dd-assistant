@@ -18,7 +18,7 @@ import anthropic
 
 from .extract import FIELDS, data_room_text  # noqa: F401  (data_room_text re-exported for callers)
 from .input_loader import CompanyData
-from .metrics import LABELS, Metrics
+from .metrics import ALL_LABELS, Metrics
 from .report import Reviews, fmt_value
 from .rules import RuleResult, alerts, fy
 
@@ -93,6 +93,7 @@ def _alerts_section(results: list[RuleResult], reviews: Reviews) -> list[str]:
         out += ["",
                 f"### {i}. {rule.id} · {rule.name} — {rule.area}; severity {rule.severity}; years {r.years_text}",
                 f"- Evidence (with source): {r.evidence}",
+                f"- In plain words: {rule.plain}",
                 f"- Test and threshold: {rule.test}. Rule: {rule.rule_text()}",
                 f"- What to investigate: {rule.focus}",
                 f"- Why it matters: {rule.rationale}",
@@ -112,7 +113,7 @@ def _rules_section(results: list[RuleResult]) -> list[str]:
 
 
 def _metrics_section(metrics: Metrics, years: list[int]) -> list[str]:
-    rows = [[label] + [fmt_value(metrics[key].get(y)) for y in years] for key, label in LABELS.items()]
+    rows = [[label] + [fmt_value(metrics[key].get(y)) for y in years] for key, label in ALL_LABELS.items()]
     return ["## 3. Metrics (calculated by the template)"] + _table(["Metric"] + [fy(y) for y in years], rows)
 
 
@@ -150,7 +151,14 @@ def _sector_section(a) -> list[str]:
     s = a.sector
     how = (f"suggested from the data room ({', '.join(a.suggested_from)}) and confirmed by the reviewer"
            if s.key == a.suggested.key and a.suggested_from else "chosen by the reviewer")
-    out = ["## 6. Sector", f"Sector: {s.name} ({how}).", "",
+    from .pipeline import PURPOSES
+    c = a.country
+    out = ["## 6. Context: purpose, country and sector",
+           f"Purpose of the review: {PURPOSES[a.purpose]}.",
+           (f"Country of the target: {c.name}. Accounting framework: {c.framework}. Statutory corporate tax rate used "
+            f"for R25: {'n/a' if c.tax_rate is None else f'{c.tax_rate:.4f}'} ({c.tax_note})." if c else
+            "Country of the target: not set."),
+           f"Sector: {s.name} ({how}).", "",
            "Thresholds calibrated for the sector: " + ("; ".join(f"{r.rule.id} {r.rule.limit_text()} "
                                                                  f"({r.rule.calibration})"
                                                                  for r in a.results if r.rule.calibration)
