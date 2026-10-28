@@ -26,6 +26,7 @@ LABELS = {
     "ebitda": "Reported EBITDA",
     "ebitda_m": "EBITDA margin",
     "or_share": "Other income (% of revenue)",
+    "or_ebitda": "Other income (% of EBITDA)",
     "or_var": "Other income growth",
     "gain": "Disposal gains within EBITDA",
     "gain_pct": "Disposal gains (% of EBITDA)",
@@ -47,6 +48,7 @@ LABELS = {
     "dpo_var": "DPO change",
     "cgo": "Cash generated from operations",
     "conv": "Cash conversion (operating cash / EBITDA)",
+    "conv_cum": "Cash conversion, years analysed together",
     "fco": "Operating cash flow",
     "fcf": "Free cash flow",
     "capex_pct": "Capex (% of revenue)",
@@ -81,8 +83,8 @@ ALL_LABELS = LABELS | EXTENDED_LABELS
 
 # Key -> unit, used only to display the values (pct = decimal shown as %; eur = EUR k).
 _UNIT_GROUPS = {
-    "pct": "g_vendas new_share g_ex_new top_share g_ex_top_new gm ebitda_m or_share or_var gain_pct adj_pct "
-           "g_cli g_inv g_cmv conv capex_pct st_share cov_head etr own_share",
+    "pct": "g_vendas new_share g_ex_new top_share g_ex_top_new gm ebitda_m or_share or_ebitda or_var gain_pct "
+           "adj_pct g_cli g_inv g_cmv conv conv_cum capex_pct st_share cov_head etr own_share",
     "pp": "gm_pp cli_gap inv_gap etr_gap",
     "days": "dso dso_var dio dpo dpo_var",
     "x": "nd_ebitda nd_ebitda_ex cov_lim int_cover capex_da capex_da_2y",
@@ -193,6 +195,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("ebitda", P, lambda y: ebitda_of(d, y))
     put("ebitda_m", P, lambda y: div(m["ebitda"][y], v("vendas", y)))
     put("or_share", P, lambda y: div(v("orend", y), v("vendas", y)))
+    put("or_ebitda", P, lambda y: None if m["ebitda"][y] <= 0 or v("orend", y) is None else v("orend", y) / m["ebitda"][y])
     put("or_var", Pp, lambda y: None if N(v("orend", prev[y])) == 0 else growth(v("orend", y), v("orend", prev[y])))
     put("gain", P, lambda y: -N(v("ganho_alien", y)))
     put("gain_pct", P, lambda y: None if m["ebitda"][y] <= 0 else m["gain"][y] / m["ebitda"][y])
@@ -228,6 +231,13 @@ def compute_metrics(d: CompanyData) -> Metrics:
     # cash generated from operations; when the statements do not present it (direct method), operating cash flow
     cash = lambda y: m["cgo"][y] if m["cgo"][y] is not None else v("fco", y)
     put("conv", P, lambda y: None if m["ebitda"][y] <= 0 or cash(y) is None else cash(y) / m["ebitda"][y])
+
+    def conv_cum(y):   # the years analysed up to y (three at most) taken together
+        pairs = [(cash(t), m["ebitda"][t]) for t in [t for t in P if t <= y][-3:] if cash(t) is not None]
+        total = sum(e for _, e in pairs)
+        return None if not pairs or total <= 0 else sum(c for c, _ in pairs) / total
+
+    put("conv_cum", P, conv_cum)
     put("fco", P, lambda y: v("fco", y))
     put("fcf", P, lambda y: N(v("fco", y)) + N(v("capex", y)) + N(v("alien", y)))
     put("capex_pct", P, lambda y: div(-N(v("capex", y)), v("vendas", y)))

@@ -22,7 +22,9 @@ class RealCompany:
         cls.ext = extract_excel(DATA / cls.FILE, cls.FILE)
         cls.d = cls.ext.data
         cls.m = compute_metrics(cls.d)
-        cls.ids = [r.rule.id for r in alerts(evaluate(cls.d, cls.m))]
+        found = alerts(evaluate(cls.d, cls.m))
+        cls.ids = [r.rule.id for r in found]
+        cls.severity = {r.rule.id: r.rule.severity for r in found}
 
     def assertEbitda(self, published: dict):
         for year, value in published.items():
@@ -61,6 +63,9 @@ class ToyotaCaetanoTest(RealCompany, unittest.TestCase):
         # R24: capex of €10.5m and €11.9m against D&A of €17.0m and €28.1m (0.62x, 0.42x): deferred maintenance,
         # or a rental fleet depreciated in D&A but bought outside capex? A question for management.
         self.assertEqual(self.ids, ["R04", "R10", "R11", "R18", "R24"])
+        # other income is about half of EBITDA (51.5%, 46.6%); operating cash was negative in FY23 and the two
+        # years together converted 39%
+        self.assertEqual((self.severity["R04"], self.severity["R10"]), ("High", "High"))
 
 
 class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
@@ -84,6 +89,9 @@ class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
     def test_findings(self):
         # R13: cash flow statement cash is net of bank overdrafts; the finding asks for the reconciliation
         self.assertEqual(self.ids, ["R04", "R10", "R11", "R13", "R18"])
+        # other income is 11% of EBITDA: a breakdown to ask for, not a high finding; cash conversion was 15% in
+        # FY23 (stock build) and the two years together converted 44%
+        self.assertEqual((self.severity["R04"], self.severity["R10"]), ("Medium", "High"))
 
 
 if __name__ == "__main__":

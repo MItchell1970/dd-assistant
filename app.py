@@ -478,6 +478,8 @@ with tab_rf:
             st.markdown(f"**In plain words**  \n{rule.plain}")
             st.markdown(f"**Evidence**  \n{r.evidence}")
             st.markdown(f"**Test**  \n{rule.test} · threshold {rule.limit_text()}"
+                        + (f" · graded severity: {rule.grade_text[0].lower()}{rule.grade_text[1:]}"
+                           if rule.grade_text else "")
                         + (f"  \n_{rule.calibration[0].upper() + rule.calibration[1:]}._" if rule.calibration else ""))
             c1, c2 = st.columns(2)
             c1.markdown(f"**What to investigate**  \n{rule.focus}")
@@ -569,7 +571,8 @@ with tab_rules:
                "where it says so), whether it fired here, and where the practice comes from. R01–R20 match the Excel "
                "template; R21–R26 go beyond it.")
     rulebook = pd.DataFrame([{"Rule": r.rule.id, "Area": r.rule.area, "Name": r.rule.name, "In plain words": r.rule.plain,
-                              "Threshold": r.rule.limit_text() + (" (sector)" if r.rule.calibration else ""),
+                              "Threshold": r.rule.limit_text() + (" (sector)" if r.rule.calibration else "")
+                              + (f"; {r.rule.grade_text}" if r.rule.grade_text else ""),
                               "Here": "Fired" if r.alert else "n/a" if all(f == "n/a" for f in r.fires.values())
                               else "Passed", "Practice": r.rule.practice} for r in results])
     st.dataframe(rulebook, hide_index=True, width="stretch", height=35 * (len(rulebook) + 1) + 3,

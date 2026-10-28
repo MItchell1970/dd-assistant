@@ -19,6 +19,7 @@ What the agent does:
   - net working capital, with an indicative peg reference.
 - **Runs 26 rules**, each explained in plain words with the practice it comes from. Each finding gives evidence with its source, what to investigate, the question for management and the document to request.
   - Thresholds are calibrated for 15 sectors, always with the reason shown.
+  - Severity follows size and persistence where it matters: other income inside EBITDA (R04) is measured against EBITDA and is High above a quarter of it; weak cash conversion (R10) is High only when the years analysed together convert less than 70%, since one weak year is often working capital timing.
   - The country of the target, suggested from its legal form (S.G.P.S., S.L., SAS, GmbH, S.p.A.…), sets the accounting framework and the statutory tax rate.
   - The company is compared with European listed peers in its sector, and each sector adds the questions a specialist would ask.
 

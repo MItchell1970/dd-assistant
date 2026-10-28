@@ -1,9 +1,14 @@
 """Small tests of the rule logic and formatting, without Excel."""
 import unittest
+from pathlib import Path
 
-from dd_assistant.rules import RULES, pct, xround
+from dd_assistant.extract import apply_edits
+from dd_assistant.input_loader import load_input
+from dd_assistant.metrics import compute_metrics
+from dd_assistant.rules import RULES, evaluate, pct, xround
 
 R = {r.id: r for r in RULES}
+VELMORA = Path(__file__).resolve().parents[1] / "data" / "DD_template_velmora.xlsx"
 
 
 class RuleLogicTest(unittest.TestCase):
@@ -36,10 +41,41 @@ class RuleLogicTest(unittest.TestCase):
                 self.assertTrue(r.plain.endswith(".") and len(r.plain.split()) <= 25, r.plain)
                 self.assertTrue(r.practice)
 
+    def test_graded_rules_say_when_they_are_high(self):
+        self.assertIn("High above 25%", R["R04"].rule_text())
+        self.assertEqual([r.id for r in RULES if r.grade], ["R04", "R10"])
+
     def test_excel_rounding(self):
         self.assertEqual(xround(2.5, 0), "3")              # Excel rounds half up
         self.assertEqual(xround(15.0, 1), "15")
         self.assertEqual(pct(0.2383), "23.8%")
+
+
+class GradedSeverityTest(unittest.TestCase):
+    """R04 and R10 are High only when the problem is large or lasting: other income above a quarter of EBITDA;
+    cash conversion below 70% over the years analysed together, not in one year only (working capital timing)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.velmora = load_input(VELMORA)            # clean: other income 4.5% of EBITDA, conversion around 90%
+
+    def result(self, rule, edits):
+        d = apply_edits(self.velmora, edits)
+        return next(r for r in evaluate(d, compute_metrics(d)) if r.rule.id == rule)
+
+    def test_other_income_medium_then_high(self):
+        medium = self.result("R04", {"orend": {2025: 250}})        # 250 / 1,634 = 15.3% of EBITDA
+        self.assertEqual((medium.alert, medium.rule.severity), (True, "Medium"))
+        self.assertIn("15.3% of EBITDA", medium.evidence)
+        high = self.result("R04", {"orend": {2025: 600}})          # 600 / 1,984 = 30.2%
+        self.assertEqual((high.alert, high.rule.severity), (True, "High"))
+
+    def test_one_weak_year_is_medium_a_weak_period_is_high(self):
+        one_year = self.result("R10", {"cgo": {2025: 500}})        # FY25 34.5%; the three years 71.5%
+        self.assertEqual((one_year.years_text, one_year.rule.severity), ("FY25", "Medium"))
+        self.assertIn("the years analysed together: 71.5%", one_year.evidence)
+        lasting = self.result("R10", {"cgo": {2025: 300}})         # FY25 20.7%; the three years 66.7%
+        self.assertEqual(lasting.rule.severity, "High")
 
 
 if __name__ == "__main__":

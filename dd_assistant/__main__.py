@@ -63,7 +63,8 @@ def _print_sectors() -> None:
 
 def _print_rules() -> None:
     for r in RULES:
-        print(f"{r.id} · {r.name} [{r.area}; {r.severity}; threshold {r.limit_text()}]"
+        severity = f"{r.severity}, {r.grade_text}" if r.grade_text else r.severity
+        print(f"{r.id} · {r.name} [{r.area}; {severity}; threshold {r.limit_text()}]"
               f"{'' if r.in_template else ' — beyond the template'}\n  {r.plain}\n  Practice: {r.practice}\n")
 
 

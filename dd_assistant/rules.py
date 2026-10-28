@@ -85,6 +85,8 @@ class Rule:
     plain: str = ""         # what the rule checks, in one plain sentence
     practice: str = ""      # where the test comes from
     in_template: bool = True    # False: beyond the Excel template (no parity reference)
+    grade: Callable[["Ctx", "Rule", dict], bool] | None = None   # graded severity: True -> High
+    grade_text: str = ""        # when a graded rule is High, in words
 
     def fires(self, value) -> str:
         """'Yes', 'No' or 'n/a' (no value)."""
@@ -113,8 +115,9 @@ class Rule:
         return "more than " + xround(self.limit, 10)
 
     def rule_text(self) -> str:
+        grade = f"; {self.grade_text}" if self.grade_text else ""
         note = f"; {self.calibration}" if self.calibration else ""
-        return f"{self.id} · {self.name} (threshold: {self.limit_text()}{note})"
+        return f"{self.id} · {self.name} (threshold: {self.limit_text()}{grade}{note})"
 
 
 class Ctx:
@@ -143,8 +146,16 @@ class Ctx:
         return self.money.fmt(x)
 
 
-def _r(*a, ev, plain="", practice="", in_template=True):
-    return Rule(*a, evidence=ev, plain=plain, practice=practice, in_template=in_template)
+def _r(*a, ev, plain="", practice="", in_template=True, grade=None, grade_text=""):
+    return Rule(*a, evidence=ev, plain=plain, practice=practice, in_template=in_template, grade=grade,
+                grade_text=grade_text)
+
+
+def _period_converts_less(c: Ctx, r: Rule, values: dict) -> bool:
+    """R10 is High when the years analysed, taken together, convert less than the threshold: one weak year
+    alone is often working capital timing."""
+    x = c.g("conv_cum", c.L)
+    return isinstance(x, (int, float)) and x < r.limit
 
 
 RULES: list[Rule] = [
@@ -177,16 +188,18 @@ RULES: list[Rule] = [
        "Every point of gross margin flows straight to EBITDA; if the shift is structural, forward EBITDA changes.",
        ev=lambda c: f"Gross margin — {c.yrs('gm', pct)} ({fy(c.L)} change: {d1(c.g('gm_pp', c.L))} pp). "
                     f"Source: {c.src('vendas')}; {c.src('cmv')}"),
-    _r("R04", "Quality of earnings", "Material other income within EBITDA", "Other income / revenue",
-       ">", 0.01, "pct", "or_share", "High",
+    _r("R04", "Quality of earnings", "Material other income within EBITDA", "Other income / reported EBITDA",
+       ">", 0.10, "pct", "or_ebitda", "Medium",
        "One-off gains (asset disposals, grants, compensation) included in EBITDA.",
        "Please provide a breakdown of other income. Does it include disposal gains, grants or other "
        "non-recurring items?",
        "Other income ledger; supporting documents for material items",
        "A non-recurring gain within EBITDA inflates the price paid for something that will not recur.",
        ev=lambda c: "Other income — " + "; ".join(f"{fy(y)}: {c.cur(c.d.v('orend', y))}" for y in c.Y)
-                    + f" ({pct(c.g('or_share', c.L))} of revenue; {pct(c.g('or_var', c.L))} year-on-year). "
-                    f"Source: {c.src('orend')}"),
+                    + f" ({pct(c.g('or_ebitda', c.L))} of EBITDA and {pct(c.g('or_share', c.L))} of revenue in "
+                    f"{fy(c.L)}; {pct(c.g('or_var', c.L))} year-on-year). Source: {c.src('orend')}",
+       grade=lambda c, r, values: any(isinstance(v, (int, float)) and v > 0.25 for v in values.values()),
+       grade_text="High above 25%"),
     _r("R05", "Quality of earnings", "Material management adjustments", "Management adjustments / reported EBITDA",
        ">", 0.10, "pct", "adj_pct", "High",
        "Whether the adjustments are genuinely non-recurring and supported by evidence.",
@@ -233,13 +246,15 @@ RULES: list[Rule] = [
                     f"days. Source: {c.src('inv')}; {c.src('cmv')}"),
     _r("R10", "Cash generation", "Weak EBITDA-to-cash conversion",
        "Cash generated from operations (operating cash flow if not presented) / EBITDA",
-       "<", 0.70, "pct", "conv", "High",
+       "<", 0.70, "pct", "conv", "Medium",
        "EBITDA that is not converting into cash.",
        "Why did EBITDA not convert into cash? Which working capital items explain the gap?",
        "EBITDA-to-cash bridge; monthly working capital schedule",
        "A buyer values the business on the cash it generates.",
-       ev=lambda c: f"Cash conversion — {c.yrs('conv', pct)}. {fy(c.L)} operating cash flow: "
-                    f"{c.cur(c.g('fco', c.L))}. Source: {c.src('cgo') or c.src('fco')}; {c.src('vendas')}"),
+       ev=lambda c: f"Cash conversion — {c.yrs('conv', pct)}; the years analysed together: "
+                    f"{pct(c.g('conv_cum', c.L))}. {fy(c.L)} operating cash flow: {c.cur(c.g('fco', c.L))}. "
+                    f"Source: {c.src('cgo') or c.src('fco')}; {c.src('vendas')}",
+       grade=_period_converts_less, grade_text="High when the years analysed together are below it"),
     _r("R11", "Debt", "Short-term debt concentration", "Current borrowings / gross financial debt",
        ">", 0.40, "pct", "st_share", "High",
        "Refinancing requirement within the next 12 months.",
@@ -410,8 +425,11 @@ _PLAIN = {
             "Revenue quality: growth is split between the recurring base and new or one-off customers."),
     "R03": ("Gross margin moved by more than 3 points: prices, mix or purchase costs changed.",
             "Quality of earnings: gross margin bridge by price, volume and mix."),
-    "R04": ("More than 1% of revenue is 'other income' inside EBITDA, which is often one-off.",
-            "Quality of earnings: non-recurring and non-operating income is taken out of normalised EBITDA."),
+    "R04": ("More than a tenth of EBITDA comes from 'other income' rather than from sales; it is often one-off "
+            "(High above a quarter).",
+            "Quality of earnings: other operating income is broken down line by line; recurring operating items "
+            "(rents, recharges) stay, one-off and non-operating ones (disposal gains, grants, compensation) come out "
+            "of normalised EBITDA. It is screened against EBITDA, the base of the price, not against revenue."),
     "R05": ("Management adds more than 10% to EBITDA: each add-back needs proof.",
             "Quality of earnings: management adjustments are tested one by one against evidence."),
     "R06": ("A cost called 'one-off' appears every year: it is a normal cost.",
@@ -422,9 +440,11 @@ _PLAIN = {
             "Net working capital: DSO trend."),
     "R09": ("Stock grows 10 points faster than cost of sales: slow-moving or obsolete stock.",
             "Net working capital: DIO trend and inventory ageing."),
-    "R10": ("Less than 70% of EBITDA turns into operating cash.",
+    "R10": ("Less than 70% of EBITDA became cash in some year; High only when the years together stay below 70% "
+            "(one weak year is often timing).",
             "Cash flow: cash conversion (operating cash / EBITDA) is a core financial due diligence and private "
-            "equity metric; a level below 70–80% needs explaining."),
+            "equity metric, read over several years because working capital timing moves a single one; a level "
+            "below 70–80% needs explaining."),
     "R11": ("More than 40% of the debt falls due within a year: it must be refinanced soon.",
             "Net debt and liquidity: debt maturity profile."),
     "R12": ("Assets do not equal equity plus liabilities.", "Information quality: the statements must tie."),
@@ -486,6 +506,8 @@ def evaluate(d: CompanyData, m: Metrics, rules: list[Rule] = RULES,
     for r in rules:
         values = {y: m[r.metric].get(y) for y in ctx.Y}
         fires = {y: r.fires(v) for y, v in values.items()}
+        if r.grade and r.grade(ctx, r, values):
+            r = replace(r, severity="High")
         try:
             ev = r.evidence(ctx)
         except (TypeError, ValueError, ZeroDivisionError, IndexError, KeyError):
