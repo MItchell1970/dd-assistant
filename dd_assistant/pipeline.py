@@ -13,7 +13,7 @@ from .deal import DealView, benchmark_rows, deal_view
 from .extract import Extraction, apply_edits
 from .input_loader import CompanyData, Named
 from .metrics import ALL_LABELS, Metrics, compute_metrics, reading_checks
-from .rules import RuleResult, alerts, evaluate, fy
+from .rules import RULES, RuleResult, alerts, evaluate, fy
 from .units import Money
 
 # Why the review is done: the focus is M&A, but the same analysis serves a lender or an owner.
@@ -40,6 +40,7 @@ class Analysis:
     country_suggested: europe.Country | None = None
     country_why: str = ""
     purpose: str = "buy"
+    general_years: dict[str, str] = field(default_factory=dict)   # general thresholds (no sector): ID -> years
 
     @property
     def checks_ok(self) -> bool:
@@ -68,10 +69,53 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
     c = europe.get(data.country)
     m = compute_metrics(data)
     results = evaluate(data, m, sector=s)
+    general_years = {r.rule.id: r.years_text for r in alerts(evaluate(data, m))}
     view = deal_view(data, m, decisions, analyst, include)
     return Analysis(ext, data, m, results, alerts(results), reading_checks(data), view, s, suggested, words,
                     Money.for_data(data), benchmark_rows(data, m, view, s), dict(decisions or {}), c, c_suggested,
-                    c_why, purpose)
+                    c_why, purpose, general_years)
+
+
+PURPOSE_EFFECTS = {
+    "buy": "The memo is written for the buyer's deal team: priced EBITDA, net debt and the working capital peg. "
+           "Value at stake is shown.",
+    "sell": "The memo frames each point as the question a buyer will ask and the evidence to prepare. "
+            "Value at stake is shown.",
+    "lend": "The memo leads with leverage, interest cover, cash and covenants, for a lender. Value at stake is hidden.",
+    "review": "The memo describes strengths and weaknesses for the owner, with no transaction language. "
+              "Value at stake is hidden.",
+}
+
+
+def choice_effects(a: Analysis) -> dict[str, str]:
+    """What the reviewer's choices of country, sector and purpose change in this analysis, in one line each."""
+    L = a.data.pl_years[-1]
+    r25 = next(r for r in a.results if r.rule.id == "R25")
+    etr, gap = a.metrics["etr"].get(L), a.metrics["etr_gap"].get(L)
+    c = a.country
+    if c and c.tax_rate is not None and etr is not None and gap is not None:
+        country = (f"Tax rate {c.tax_rate:.1%} for R25: the effective rate of {etr:.1%} is {gap:+.1f} pp away → "
+                   + ("R25 fires." if r25.alert else "within ±10 pp, R25 does not fire."))
+    elif c and c.tax_rate is not None:
+        country = f"Tax rate {c.tax_rate:.1%} for R25: no profit before tax to test it."
+    else:
+        country = "No statutory tax rate: R25 is not tested."
+    if c:
+        country += f" Framework named in the memo: {c.framework.split(',')[0]}."
+
+    general = {r.id: r for r in RULES}
+    changed = [f"{r.rule.id} {general[r.rule.id].limit_text()} → {r.rule.limit_text()}"
+               for r in a.results if r.rule.calibration]
+    now = {r.rule.id: r.years_text for r in a.findings}
+    was = a.general_years
+    moves = [f"{i} is a new finding ({y})" for i, y in now.items() if i not in was]
+    moves += [f"{i} no longer fires" for i in was if i not in now]
+    moves += [f"{i} now fires in {y} (was {was[i]})" for i, y in now.items() if i in was and was[i] != y]
+    sector = "Thresholds changed: " + ", ".join(changed) if changed else "No threshold changes in this sector"
+    sector += " → " + "; ".join(moves) if moves else " → same findings as the general thresholds" if changed else ""
+    sector += f". Peers: {a.sector.benchmarks['industry']}"
+    sector += f"; {len(a.sector.lens)} specialist questions added." if a.sector.lens else "."
+    return {"country": country, "sector": sector, "purpose": PURPOSE_EFFECTS[a.purpose]}
 
 
 def to_dict(a: Analysis) -> dict:

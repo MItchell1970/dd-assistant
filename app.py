@@ -26,7 +26,7 @@ from dd_assistant.extract import ExtractionError, data_room_text
 from dd_assistant.input_loader import Named
 from dd_assistant.memo_check import MemoCheck, check_memo, report
 from dd_assistant.metrics import ALL_LABELS
-from dd_assistant.pipeline import PURPOSES, analyse
+from dd_assistant.pipeline import PURPOSES, analyse, choice_effects
 from dd_assistant.report import REVIEW_STATES, csv_bytes, fmt_metric, fmt_unit, write_excel
 from dd_assistant.rules import SEVERITIES, fy
 
@@ -37,6 +37,16 @@ SAMPLES = {"Duriva — data room in 5 documents, planted issues": DATA / "Duriva
            "Corticeira Amorim — real FY24 accounts (EN)": DATA / "Corticeira_Amorim_2024_published.xlsx"}
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 SEVERITY_COLOR = {"High": "#d03b3b", "Medium": "#fab219", "Low": "#8a8f98"}   # status palette; always with a label
+# Overview: which findings colour each headline figure, and where to look for the detail.
+KPI_RULES = {"Revenue": ["R01", "R02", "R16"], "Diligence-adjusted EBITDA": ["R03", "R04", "R05", "R06", "R19", "R26"],
+             "Cash conversion": ["R10", "R14", "R24"],
+             "Adjusted net debt": ["R11", "R13", "R17", "R20", "R21", "R22"],
+             "Net working capital": ["R07", "R08", "R09", "R23"]}
+# Within a severity, what moves the price first: EBITDA quality, cash, debt, then revenue, working capital, data.
+IMPACT = ["R19", "R05", "R04", "R26", "R10", "R20", "R21", "R11", "R13", "R22", "R01", "R02", "R03", "R07", "R09",
+          "R08", "R24", "R06", "R23", "R17", "R12", "R15", "R14", "R16", "R25", "R18"]
+WHERE = {"Quality of earnings": "Deal view", "Net working capital": "Deal view", "Debt": "Deal view",
+         "Consistency": "Data room", "Information": "Data room"}
 SUMMARY_ROWS = ["vendas", "g_vendas", "gm", "ebitda", "ebitda_m", "ebitda_adj", "ebitda_ex_gain", "cgo", "conv",
                 "fco", "dso", "dio", "dpo", "net_debt", "nd_ebitda"]
 
@@ -61,6 +71,28 @@ CSS = """
 .dd-find .area, .dd-find .yr {color: #5b6474; font-size: .84rem;}
 .dd-find .plain {display: block; color: #5b6474; font-size: .8rem; margin-top: 1px;}
 .dd-section {font-weight: 650; font-size: 1.05rem; color: #1b2333; margin: 1.2rem 0 .4rem;}
+.dd-kpi.bad {border-color: #efb3b3; background: #fff7f7;}
+.dd-kpi.warn {border-color: #f3d48b; background: #fffbf0;}
+.dd-kpi.ok {border-color: #bfe2cc;}
+.dd-tag {display: inline-block; font-size: .72rem; font-weight: 650; border-radius: 6px; padding: 1px 7px; margin-top: 6px;}
+.dd-tag.bad {background: #fbe1e1; color: #8f1f1f;} .dd-tag.warn {background: #fcefcc; color: #7a5200;}
+.dd-tag.ok {background: #e3f4ea; color: #1d6b3e;} .dd-tag.muted {background: #eef0f4; color: #5b6474;}
+.dd-steps {display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: .3rem 0 1.2rem;}
+.dd-step {border: 1px solid #e3e7ee; border-radius: 12px; padding: 10px 14px; background: #fff;}
+.dd-step.ok {border-color: #bfe2cc; background: #f5fbf7;} .dd-step.warn {border-color: #f3d48b; background: #fffbf0;}
+.dd-step.bad {border-color: #efb3b3; background: #fff7f7;}
+.dd-step .n {font-size: .72rem; color: #5b6474; text-transform: uppercase; letter-spacing: .06em; font-weight: 650;}
+.dd-step .t {font-weight: 650; color: #1b2333; margin: 2px 0;} .dd-step .d {font-size: .8rem; color: #5b6474;}
+.dd-issue {display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: start; padding: 12px 14px;
+           border: 1px solid #e3e7ee; border-left: 4px solid #8a8f98; border-radius: 10px; margin-bottom: 8px; background: #fff;}
+.dd-issue.High {border-left-color: #d03b3b;} .dd-issue.Medium {border-left-color: #fab219;}
+.dd-issue .big {font-size: 1.35rem; font-weight: 700; color: #1b2333; line-height: 1.2; font-variant-numeric: tabular-nums;}
+.dd-issue .vs {font-size: .76rem; color: #5b6474;}
+.dd-issue .h {font-weight: 650; color: #1b2333;} .dd-issue .p {font-size: .88rem; color: #3b4457; margin: 2px 0;}
+.dd-issue .w {font-size: .78rem; color: #0b3d91; font-weight: 600;}
+.dd-effect {background: #eef4ff; border: 1px solid #d6e2fb; border-radius: 8px; padding: 6px 9px; font-size: .78rem;
+            color: #1b2b4d; margin: -2px 0 12px; line-height: 1.4;}
+@container (max-width: 620px) {.dd-issue {grid-template-columns: 1fr;}}
 .dd-list {container-type: inline-size;}
 @container (max-width: 620px) {.dd-find {grid-template-columns: 88px 1fr;} .dd-find .id, .dd-find .area, .dd-find .yr {display: none;}}
 .dd-wrap {overflow-x: auto;}
@@ -124,6 +156,23 @@ def edited(key: str) -> dict:
     return st.session_state.get(key, {}).get("edited_rows", {})
 
 
+def headline(r, money) -> tuple[str, str]:
+    """The figure that made a rule fire (latest year it fired) and its threshold, for people."""
+    year = max(y for y, f in r.fires.items() if f == "Yes")
+    value = r.values[year]
+    shown = money.fmt(value) if r.rule.limit_fmt == "eur" else fmt_metric(r.rule.metric, value, money)
+    return shown, f"{fy(year)} · threshold {r.rule.limit_text()}"
+
+
+def status(ids: list[str], fired: dict) -> tuple[str, str]:
+    """Card colour and tag from the worst finding among the rules behind a figure."""
+    hits = [fired[i] for i in ids if i in fired]
+    if not hits:
+        return "ok", "No flag"
+    worst = min(hits, key=lambda r: SEVERITIES.index(r.rule.severity))
+    return ("bad" if worst.rule.severity == "High" else "warn"), f"{', '.join(r.rule.id for r in hits)} · {worst.rule.severity}"
+
+
 st.set_page_config(page_title="DD Assistant", page_icon=":material/fact_check:", layout="wide")
 st.markdown(CSS, unsafe_allow_html=True)
 load_env()
@@ -179,18 +228,21 @@ with st.sidebar:
     purpose = st.selectbox("Purpose", list(PURPOSES), format_func=PURPOSES.get, key=f"purpose-{file_key}",
                            help="M&A is the focus; the same analysis serves a lender or an owner. Only the way the "
                                 "memo is written changes.")
+    purpose_effect = st.empty()
     country = st.selectbox("Country of the target", codes, key=f"country-{file_key}",
                            index=codes.index(c_suggested.code if c_suggested else "EU"),
                            format_func=lambda k: europe.COUNTRY_BY_CODE[k].name,
                            help="Sets the accounting framework and the statutory tax rate (R25).")
     st.caption(f"Suggested from {c_why}." if c_suggested and country == c_suggested.code and c_why else
                "Chosen by you." if c_suggested and country != c_suggested.code else "Nothing points to a country.")
+    country_effect = st.empty()
     sector_key = st.selectbox("Sector", keys, index=keys.index(suggested.key), key=f"sector-{file_key}",
                               format_func=lambda k: sectors.SECTOR_BY_KEY[k].name,
                               help="Calibrates a few thresholds, sets the peer benchmarks and adds the sector's "
                                    "questions to the request list.")
     st.caption(f"Suggested from the file: {', '.join(words)}." if words and sector_key == suggested.key else
                "Chosen by you." if sector_key != suggested.key else "No sector keyword found: choose one.")
+    sector_effect = st.empty()
     st.divider()
     st.caption("Claude API: connected" if has_key else
                "Claude API: not configured. Needed only to read statements from a PDF and to write the memo.")
@@ -225,8 +277,12 @@ review_key = f"review-{file_key}-{'-'.join(r.rule.id for r in al)}"
 reviews = {r.rule.id: ("Pending", "") for r in al}
 for idx, ch in edited(review_key).items():
     rid = al[int(idx)].rule.id
-    status, comment = reviews[rid]
-    reviews[rid] = (ch.get("Status", status), ch.get("Comment", comment) or "")
+    state, comment = reviews[rid]
+    reviews[rid] = (ch.get("Status", state), ch.get("Comment", comment) or "")
+effects = choice_effects(a)   # what the choices in the sidebar change, shown right under each of them
+for box, key in ((purpose_effect, "purpose"), (country_effect, "country"), (sector_effect, "sector")):
+    box.markdown(f"<div class='dd-effect'><b>What this changes:</b> {html.escape(effects[key])}</div>",
+                 unsafe_allow_html=True)
 
 # ---------------------------------------------------------------- header
 L = data.pl_years[-1]
@@ -261,23 +317,61 @@ with tab_ov:
          f"{fmt_unit('pct', nwc_pct)} of revenue" + (f" · average {money.fmt(view.nwc_average)}"
                                                     if len(view.bs_years) > 1 else "")),
     ]
-    st.markdown("<div class='dd-kpis'>" + "".join(
-        f"<div class='dd-kpi'><div class='l'>{l} · {fy(L if 'EBITDA' in l or l in ('Revenue', 'Cash conversion') else B)}"
-        f"</div><div class='v'>{v}</div><div class='s'>{s}</div></div>" for l, v, s in kpis) + "</div>",
-        unsafe_allow_html=True)
-
+    fired = {r.rule.id: r for r in al}
     by = {k: sum(r.rule.severity == k for r in al) for k in SEVERITIES}
-    st.markdown(f"<div class='dd-section'>Key findings · {len(al)} red flags</div>"
+
+    # ---- start here: the four things to look at, in order
+    failed = [c for c in a.checks if not c["OK"]]
+    under_review = [x for x in data.adjustments if a.decisions.get(x.name, "Under review") == "Under review"]
+    missing_docs = [d for d, ok in data.documents if not ok]
+    steps = [
+        ("bad" if failed else "ok", "1 · Reading", f"{len(failed)} subtotal(s) do not match" if failed else
+         f"All {len(a.checks)} subtotals match" if a.checks else "No subtotal to check",
+         "Correct the line in Data room before relying on the figures" if failed else
+         "The figures read add up to what the company published"),
+        ("bad" if by["High"] else "warn" if al else "ok", "2 · Red flags",
+         f"{len(al)} to review · {by['High']} high" if al else "No red flag",
+         "Start with the high ones below, then the Red flags tab" if al else "No rule fired on the data provided"),
+        ("warn" if under_review else "ok" if data.adjustments else "muted", "3 · Management adjustments",
+         f"{len(under_review)} to decide · {money.fmt(view.upside[L])} not yet accepted" if under_review else
+         "All decided" if data.adjustments else "None presented",
+         "Accept or reject each one in Deal view" if under_review else "EBITDA bridge in Deal view"),
+        ("warn" if missing_docs else "ok", "4 · Documents", f"{len(missing_docs)} of {len(data.documents)} missing"
+         if missing_docs else "All key documents received", "Ask for them (request list) or tick them in Data room"
+         if missing_docs else "Nothing outstanding"),
+    ]
+    st.markdown("<div class='dd-steps'>" + "".join(
+        f"<div class='dd-step {c}'><div class='n'>{n}</div><div class='t'>{html.escape(t)}</div>"
+        f"<div class='d'>{html.escape(d)}</div></div>" for c, n, t, d in steps) + "</div>", unsafe_allow_html=True)
+
+    # ---- the headline figures, coloured by the findings behind them
+    cards = []
+    for l, v, sub in kpis:
+        cls, tag = status(KPI_RULES[l], fired)
+        year = fy(L if "EBITDA" in l or l in ("Revenue", "Cash conversion") else B)
+        cards.append(f"<div class='dd-kpi {cls}'><div class='l'>{l} · {year}</div><div class='v'>{v}</div>"
+                     f"<div class='s'>{sub}</div><span class='dd-tag {cls}'>{html.escape(tag)}</span></div>")
+    st.markdown("<div class='dd-kpis'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
+
+    # ---- where it goes wrong: the figure, the threshold, in plain words, and where to look
+    st.markdown(f"<div class='dd-section'>Where it goes wrong · {len(al)} red flags</div>"
                 + " ".join(f"{pill(k)} <span style='color:#5b6474;font-size:.85rem'>{by[k]}</span>&nbsp;&nbsp;"
                            for k in SEVERITIES), unsafe_allow_html=True)
     if not al:
         st.success("No rule fired: no red flags on the data provided.")
-    ordered = sorted(al, key=lambda r: SEVERITIES.index(r.rule.severity))
-    st.markdown("<div class='dd-list'>" + "".join(
-        f"<div class='dd-find'>{pill(r.rule.severity)}<span class='id'>{r.rule.id}</span>"
-        f"<span>{html.escape(r.rule.name)}<span class='plain'>{html.escape(r.rule.plain)}</span></span>"
-        f"<span class='area'>{r.rule.area}</span>"
-        f"<span class='yr'>{r.years_text}</span></div>" for r in ordered) + "</div>", unsafe_allow_html=True)
+    ordered = sorted(al, key=lambda r: (SEVERITIES.index(r.rule.severity), IMPACT.index(r.rule.id)))
+    issues = []
+    for r in ordered[:6]:
+        big, vs = headline(r, money)
+        issues.append(f"<div class='dd-issue {r.rule.severity}'><div><div class='big'>{html.escape(big)}</div>"
+                      f"<div class='vs'>{html.escape(vs)}</div></div><div><div class='h'>{pill(r.rule.severity)} "
+                      f"{r.rule.id} · {html.escape(r.rule.name)}</div><div class='p'>{html.escape(r.rule.plain)}</div>"
+                      f"<div class='w'>Ask: {html.escape(r.rule.question.split('?')[0])}? · "
+                      f"See {WHERE.get(r.rule.area, 'Red flags')}</div></div></div>")
+    st.markdown("<div class='dd-list'>" + "".join(issues) + "</div>", unsafe_allow_html=True)
+    if len(ordered) > 6:
+        st.caption(f"…and {len(ordered) - 6} more in the Red flags tab: "
+                   + ", ".join(f"{r.rule.id} {r.rule.name}" for r in ordered[6:]) + ".")
 
     st.markdown("<div class='dd-section'>Financial summary</div>", unsafe_allow_html=True)
     summary = pd.DataFrame([[ALL_LABELS[k]] + [fmt_metric(k, metrics[k].get(y), money) for y in years3]
@@ -365,7 +459,7 @@ with tab_rf:
                 "Status": st.column_config.SelectboxColumn(options=REVIEW_STATES, required=True, width="small"),
                 "Comment": st.column_config.TextColumn(width="medium"),
             })
-        pending = sum(status == "Pending" for status, _ in reviews.values())
+        pending = sum(state == "Pending" for state, _ in reviews.values())
         st.caption(f"{len(al) - pending} of {len(al)} reviewed.")
     else:
         st.success("No rule fired: no red flags on the data provided.")

@@ -11,7 +11,7 @@ from dd_assistant.deal import deal_view, value_at_stake
 from dd_assistant.extract import extract_excel
 from dd_assistant.input_loader import Named
 from dd_assistant.metrics import compute_metrics
-from dd_assistant.pipeline import analyse
+from dd_assistant.pipeline import analyse, choice_effects
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 START_UP = "Custos de arranque das novas instalações"
@@ -112,6 +112,19 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual((r11(general).rule.limit, r11(auto).rule.limit), (0.40, 0.60))
         self.assertIn("floorplan", r11(auto).rule.calibration)
         self.assertEqual(r11(auto).fires[2023], "Yes")       # 71% of debt due within 12 months still fires
+
+    def test_each_choice_says_what_it_changes(self):
+        """Country, sector and purpose must show their effect: a choice that changes nothing visible looks useless."""
+        ext = extract_excel(DATA / "Corticeira_Amorim_2024_published.xlsx")
+        germany = analyse(ext, country="DE")
+        self.assertIn("R25", [r.rule.id for r in germany.findings])        # 17.7% against Germany's 30%
+        self.assertIn("R25 fires", choice_effects(germany)["country"])
+        self.assertIn("does not fire", choice_effects(analyse(ext, country="PT"))["country"])
+        software = choice_effects(analyse(ext, "software"))["sector"]
+        self.assertIn("R10 70% → 80%", software)
+        self.assertIn("R10 now fires in FY23, FY24 (was FY23)", software)
+        self.assertIn("No threshold changes", choice_effects(analyse(ext, "materials"))["sector"])
+        self.assertIn("hidden", choice_effects(analyse(ext, purpose="lend"))["purpose"])
 
 
 if __name__ == "__main__":
