@@ -1,4 +1,4 @@
-"""Tickmark — preliminary financial due diligence for M&A.
+"""DD Assistant — preliminary financial due diligence for M&A.
 
 Layers (always kept separate):
     1. dataroom      -> reads the whole data room: Excel files merged, PDF/Word text for the memo, checklist

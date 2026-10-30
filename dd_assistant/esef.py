@@ -240,7 +240,7 @@ def _facts(text: str, contexts: dict, units: dict) -> tuple[dict[str, dict[str, 
         if key not in best or precision > best[key][0]:  # the same figure rounded in the management report
             best[key] = (precision, v)
     if currencies and max(currencies, key=currencies.get) != "EUR":
-        raise ExtractionError(f"This ESEF report is in {max(currencies, key=currencies.get)}. Tickmark analyses "
+        raise ExtractionError(f"This ESEF report is in {max(currencies, key=currencies.get)}. DD Assistant analyses "
                               "statements in euros (European market).")
     values: dict[str, dict[str, dict[int, float]]] = defaultdict(lambda: defaultdict(dict))
     for (concept, kind, year), (_, v) in best.items():
