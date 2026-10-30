@@ -1,5 +1,26 @@
 # DD Assistant — preliminary financial due diligence for European companies
 
+**At a glance.** DD Assistant reads a company's data room (Excel, PDF, Word or an ESEF filing) and returns the first pass of a financial due diligence: quality of earnings, net debt, working capital and 26 red-flag rules, each finding with its source. I tested it on the published accounts of EDP, Corticeira Amorim and Toyota Caetano Portugal, and it rebuilds their reported profit figures exactly. Deterministic code produces every number; Claude only writes the memo and the request list, and a checker with no AI confirms each figure it writes.
+
+![Reading checks and red flags for Corticeira Amorim, FY2024](docs/images/report-red-flags.png)
+
+*The Excel report for Corticeira Amorim's published FY2024 accounts: the reading checks rebuild EBITDA and operating profit to the euro, and each red flag carries its evidence, source cell and question for management.*
+
+![Deal view for Corticeira Amorim, FY2024](docs/images/report-deal-view.png)
+
+*The deal view for the same accounts: quality of earnings and net debt, with the debt-like items found in the balance sheet and the source cell of every line.*
+
+## Who built it, and how
+
+I am Bernardo Espinola, a final-year Economics student at FEP (University of Porto). I built this as a personal project after an internship in International Tax and Transaction Services at EY in Porto, where I supported buy-side and sell-side due diligence work.
+
+- **My part:** the scope and the method, the 26 rules and their thresholds, the deal view bridges, the choice of test companies, and checking every result against the published accounts.
+- **AI's part:** I wrote the code with AI coding tools (Claude Code), working from my specifications. Every change runs against 124 tests that compare the Python with a hand-built Excel template and with real published accounts.
+
+Contact: [LinkedIn](https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/)
+
+## What it does
+
 Drop a target's data room as the seller sends it — a folder of Excel statements, PDFs and Word documents — and get, in seconds, the first pass of a financial due diligence. It is built for the European market:
 
 - euros only;
