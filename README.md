@@ -2,7 +2,7 @@
 
 *A tick mark is the sign an auditor puts next to a figure once it has been traced to its source. Here, every figure carries one.*
 
-**At a glance.** Tickmark reads a company's data room (Excel, PDF, Word or an ESEF filing) and returns the first pass of a financial due diligence: quality of earnings, net debt, working capital and 26 red-flag rules, each finding with its source. I tested it on the published accounts of EDP, Corticeira Amorim and Toyota Caetano Portugal, and it rebuilds their reported profit figures exactly. Deterministic code produces every number; Claude only writes the memo and the request list, and a checker with no AI confirms each figure it writes.
+**At a glance.** DD Assistant reads a company's data room (Excel, PDF, Word or an ESEF filing) and returns the first pass of a financial due diligence: quality of earnings, net debt, working capital and 26 red-flag rules, each finding with its source. I tested it on the published accounts of EDP, Corticeira Amorim and Toyota Caetano Portugal, and it rebuilds their reported profit figures exactly. Deterministic code produces every number; Claude only writes the memo and the request list, and a checker with no AI confirms each figure it writes.
 
 ![Reading checks and red flags for Corticeira Amorim, FY2024](docs/images/report-red-flags.png)
 
