@@ -882,7 +882,7 @@ def _unit(wb) -> tuple[float, str, str]:
                          if isinstance(c.value, str) and len(c.value) <= 12 and (cur := _currency_of(c.value)))
         currency = counts.most_common(1)[0][0] if counts else None
     if currency not in (None, "EUR"):
-        raise ExtractionError(f"The figures in this file appear to be in {currency}. DD Assistant analyses statements "
+        raise ExtractionError(f"The figures in this file appear to be in {currency}. Tickmark analyses statements "
                               "in euros (European market): convert them to euros first, or check the unit note.")
     text = {"thousands": "EUR thousands", "millions": "EUR millions, converted to EUR thousands",
             "units": "euros, converted to EUR thousands", None: "EUR thousands (no unit stated in the file)"}[unit]
@@ -1206,7 +1206,7 @@ def extract_pdf(pdf: bytes, name: str = "", client: anthropic.Anthropic | None =
 
 def _from_pdf(p: _PdfStatements, name: str) -> Extraction:
     if p.currency != "EUR":
-        raise ExtractionError("The statements in this PDF are not in euros. DD Assistant analyses statements in "
+        raise ExtractionError("The statements in this PDF are not in euros. Tickmark analyses statements in "
                               "euros (European market).")
     scale = {"units": 0.001, "thousands": 1.0, "millions": 1000.0}[p.unit]   # the model works in EUR thousands
     currency = "EUR"

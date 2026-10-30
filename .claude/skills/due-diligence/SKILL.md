@@ -1,11 +1,11 @@
 ---
 name: due-diligence
-description: Preliminary financial due diligence on a European company (euros) with the DD Assistant engine in this repository — for M&A buy-side or vendor due diligence, a lender's credit review or a health check with no transaction. Reads a whole data room (a folder or several files — Excel statements in Portuguese SNC, Spanish PGC, French PCG, German HGB, Italian civil code or IFRS English, a listed company's ESEF report package (.zip), plus PDF/Word documents), then gives red flags with sources and plain-language explanations, the quality of earnings bridge, net debt with debt-like items, working capital, sector and country context, and writes the two-page memo and request list, verified by the automatic checker. Use when the user asks to analyse a target, a data room, a set of accounts or a folder in data/, or to prepare a DD memo or request list.
+description: Preliminary financial due diligence on a European company (euros) with the Tickmark engine in this repository — for M&A buy-side or vendor due diligence, a lender's credit review or a health check with no transaction. Reads a whole data room (a folder or several files — Excel statements in Portuguese SNC, Spanish PGC, French PCG, German HGB, Italian civil code or IFRS English, a listed company's ESEF report package (.zip), plus PDF/Word documents), then gives red flags with sources and plain-language explanations, the quality of earnings bridge, net debt with debt-like items, working capital, sector and country context, and writes the two-page memo and request list, verified by the automatic checker. Use when the user asks to analyse a target, a data room, a set of accounts or a folder in data/, or to prepare a DD memo or request list.
 ---
 
 # Due diligence agent
 
-You are the reasoning layer of the DD Assistant. The engine (`python -m dd_assistant`) reads the data room and computes everything; you check what it read, take the user through the decisions that are theirs, write the memo and loop until the deterministic checker passes.
+You are the reasoning layer of the Tickmark. The engine (`python -m dd_assistant`) reads the data room and computes everything; you check what it read, take the user through the decisions that are theirs, write the memo and loop until the deterministic checker passes.
 
 ## Ground rules
 

@@ -1,4 +1,4 @@
-# Due Diligence Assistant — contexto para o Claude Code
+# Tickmark (Due Diligence Assistant) — contexto para o Claude Code
 
 ## Quem sou e o que é este projeto
 Sou o Bernardo, finalista de Economia na FEP (Porto), com estágio em Transaction Services na EY. Este projeto é um **AI agent para due diligence financeira preliminar em M&A**. Serve três objetivos: mostrar a empresas de M&A e Corporate Finance que domino o tema, aprender a usar IA no trabalho e ter um protótipo para apresentar.

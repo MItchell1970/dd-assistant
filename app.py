@@ -173,14 +173,14 @@ def status(ids: list[str], fired: dict) -> tuple[str, str]:
     return ("bad" if worst.rule.severity == "High" else "warn"), f"{', '.join(r.rule.id for r in hits)} · {worst.rule.severity}"
 
 
-st.set_page_config(page_title="DD Assistant", page_icon=":material/fact_check:", layout="wide")
+st.set_page_config(page_title="Tickmark", page_icon=":material/fact_check:", layout="wide")
 st.markdown(CSS, unsafe_allow_html=True)
 load_env()
 has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 # ---------------------------------------------------------------- input
 with st.sidebar:
-    st.markdown("### DD Assistant")
+    st.markdown("### Tickmark")
     st.caption("Preliminary financial due diligence · European market · EUR")
     uploaded = st.file_uploader(
         "Data room", type=[x.strip(".") for x in SPREADSHEETS + DOCUMENTS + ESEF], accept_multiple_files=True,
