@@ -12,7 +12,7 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 - **M2e feito:** R27 (D&A muito acima do imobilizado), R28 (rubrica "outra" acima de 10% da receita, listada "a avaliar" no net debt), R29 (crescimento com aquisições), EBITDA antes da IFRS 16 (QoE) e nota IFRS 16 (Net Debt). Dividendos como possível leakage ficam para o M3.
 - **M3 feito:** `dd_assistant/price.py` (completion accounts, locked box, leakage, sensibilidade), candidatos a leakage lidos da DFC (dividendos pagos), folhas EV to Equity e Leakage no databook, secção "Price" na app (mecanismo obrigatório, sem escolha por defeito).
 - **Parado aqui, como pede a especificação:** fim do M3, à espera do resumo revisto pelo Bernardo. Depois, com aprovação: versão simples do M6.
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 166 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
+- **Comando para retomar:** `python -m unittest -v` (tem de dar 165 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
 
 ## Diagnóstico (4 de novembro de 2026)
 
@@ -59,7 +59,7 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
-| M3 | EV → equity (completion accounts, locked box), registo de leakage, sensibilidade só com EV derivado; folhas no databook; secção na app | Sim | 166 testes OK (14 em `tests/test_price.py` com os casos da secção 6; 1 no databook recalculado); app headless: sem mecanismo não calcula, CA €7,099k e LB €9,050k na Duriva | Casos da especificação (esperados escritos na especificação); Duriva conferida à mão (EV 10,000 + 603 − 4,350 + 846) | Pendente |
+| M3 | EV → equity (completion accounts, locked box), registo de leakage, sensibilidade só com EV derivado; folhas no databook; secção na app | Sim | 165 testes OK (14 em `tests/test_price.py` com os casos da secção 6; 1 no databook recalculado); app headless: sem mecanismo não calcula, CA €7,099k e LB €9,050k na Duriva | Casos da especificação (esperados escritos na especificação); Duriva conferida à mão (EV 10,000 + 603 − 4,350 + 846) | Pendente |
 | M2e | Regras R27–R29, item "a avaliar" para rubricas "outras" materiais, EBITDA antes da IFRS 16 | Sim | 149 testes OK; Velmora continua com zero alertas analíticos | Toyota: esperados calculados à mão a partir da DRE, Balanço e DFC publicados (`test_what_a_reviewer_found`) | Pendente |
 | M2a–d | Databook: Read Me, Executive Summary, Source Register (com SHA-256), Financials, QoE (registo de ajustes com estado), NWC (política de inclusão), Net Debt (classificação e inclusão), Issues & Requests (pedidos fundidos), Checks; EV to Equity, Leakage e Monthly & LTM dizem que ainda não existem | Sim | 148 testes OK (10 novos em `tests/test_databook.py`, 2 recalculam no Excel); app headless com o botão nas 4 amostras | Totais do Excel = Python na Duriva e na Toyota (11 e 6 controlos) | Pendente (inspeção visual tua) |
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
