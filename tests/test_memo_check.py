@@ -10,9 +10,11 @@ from dd_assistant.ai_memo import build_material
 from dd_assistant.extract import extract_excel
 from dd_assistant.memo_check import _readings, check_memo
 from dd_assistant.metrics import compute_metrics
+from dd_assistant.pipeline import analyse
 from dd_assistant.rules import alerts, evaluate
 
-DATA_ROOM = Path(__file__).resolve().parents[1] / "data" / "Duriva_data_room.xlsx"
+DATA = Path(__file__).resolve().parents[1] / "data"
+DATA_ROOM = DATA / "Duriva_data_room.xlsx"
 
 # A short, correct memo: every figure comes from Duriva's material, in several formats.
 GOOD = """# Duriva — preliminary memo
@@ -96,6 +98,36 @@ class MemoCheckTest(unittest.TestCase):
         self.assertEqual(_readings("21,400.5"), [(21400.5, 1)])
         self.assertEqual(_readings("1 415"), [(1415.0, 0)])
         self.assertEqual(_readings("−114"), [(-114.0, 0)])
+
+
+class PeriodTest(unittest.TestCase):
+    """A figure counts as sourced only for the period cited next to it. Toyota's other income was €27,739k in
+    FY23 and €34,747k in FY24 (published income statement, DRE row 8): the FY23 figure cited as FY24 fails."""
+
+    @classmethod
+    def setUpClass(cls):
+        def material(name):   # as the app and the command line build it, with the deal view
+            a = analyse(extract_excel(DATA / name, name))
+            return build_material(a.data, a.metrics, a.results, a.ext.source_text, analysis=a)
+        cls.toyota = material("Toyota_Caetano_2024_published.xlsx")
+        cls.amorim = material("Corticeira_Amorim_2024_published.xlsx")
+
+    def test_a_figure_from_another_year_fails(self):
+        c = check_memo("Other income was €27,739k in FY24.", self.toyota, [])
+        self.assertEqual([n for n, _, _ in c.misdated_numbers], ["27,739"])
+        self.assertIn("FY23 value", c.misdated_numbers[0][2])
+
+    def test_the_right_years_pass(self):
+        c = check_memo("Other income was €34,747k in FY24 and €27,739k in FY23. In FY23 other income was €27,739k. "
+                       "Cash conversion was 84.2% in FY24, -23.9% in FY23. FY24 operating cash flow: €62,857k.",
+                       self.toyota, [])
+        self.assertEqual((c.unmatched_numbers, c.misdated_numbers), ([], []))
+
+    def test_the_amorim_example_memo_cites_every_period_right(self):
+        memo = (DATA.parent / "docs" / "examples" / "Corticeira_Amorim_FY2024_memo.md").read_text(encoding="utf-8")
+        c = check_memo(memo, self.amorim, [])
+        self.assertGreater(c.numbers_checked, 50)
+        self.assertEqual((c.unmatched_numbers, c.misdated_numbers, c.other_line_numbers), ([], [], []))
 
 
 class CheckMemoCliTest(unittest.TestCase):

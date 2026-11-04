@@ -1,0 +1,17 @@
+# Registo de lacunas
+
+Atualizado em cada incremento. "Não verificado" quer dizer que não há evidência; a consequência está ao lado.
+
+| Lacuna | Porque importa | Dados ou decisão necessários | Módulo | O que continua possível | Responsável | Critério para fechar | Estado |
+|---|---|---|---|---|---|---|---|
+| Evidência dos ajustes de EBITDA | Um ajuste sem fatura ou contrato não deve entrar no EBITDA ajustado | Faturas, contratos, razão das contas dos ajustes | M2 | Ajustes ficam "precisa de evidência"; o EBITDA ajustado do cenário base exclui-os | Bernardo (decide) | Cada ajuste com documento e decisão registada | Aberta |
+| Balancetes, razão e contratos | Sem eles a ponte de QoE fica ao nível das demonstrações | Balancete por conta, razão geral, detalhe de custos | M2 | Request list específica; nenhum ajuste inventado | Vendedor (num deal) | Ponte ao nível da conta | Aberta |
+| Dados mensais e aging | Um peg defensável precisa de 12–24 meses de saldos | Saldos mensais de clientes, stock, fornecedores; aging | M4 | Referência anual indicativa (média dos fechos), marcada como tal | Vendedor | Peg mensal com meses válidos e exclusões | Aberta |
+| SPA, partes relacionadas e pagamentos | Leakage só se avalia contra a cláusula do SPA | SPA (ou minuta), lista de partes relacionadas, registo de pagamentos desde a locked box | M3 | "Evidência insuficiente para avaliar leakage" | Bernardo (cenário) / vendedor | Registo de leakage com cobertura | Aberta |
+| Cobertura e revisão independente do ESEF | Uma só empresa real (EDP) testada; conferência à mão | Filings de outros países; esperados por um revisor independente | M5 (fora desta fase) | Ler ESEF de emissores IFRS, com o aviso de cobertura | Claude Code / Bernardo | Matriz de 20 factos por filing | Aberta |
+| Formatos, setores, jurisdições e bases contabilísticas | Contas PGC, PCG, HGB e OIC reais nunca foram lidas | Contas estatutárias publicadas (Registo Mercantil, Bundesanzeiger…) | Futuro | Formatos testados com dados sintéticos | Bernardo (obter ficheiros) | Uma empresa real por formato | Não verificado: a leitura pode falhar em layouts reais |
+| Recálculo das exportações | Uma fórmula do openpyxl não está calculada até um motor a recalcular | Excel neste PC (disponível via COM) ou LibreOffice | M2 | Valores do Python escritos como cache | Claude Code | Recálculo pelo Excel igual ao Python em todos os totais | Aberta |
+| Custo real por análise e tempo com revisão | Sem medição não há números de custo nem de tempo poupado | Primeira corrida real do memo (API); cronometrar uma revisão | M6 | Estimativa de custo da documentação, marcada como estimativa | Bernardo | Custo e tempo medidos numa corrida real | Não verificado |
+| Passar de demo local a piloto com dados de cliente | Dados de clientes exigem confidencialidade, acordo e revisão humana | Autorização do cliente; política de dados; revisor profissional | Futuro | Demo local com dados públicos e sintéticos | Bernardo | Piloto supervisionado acordado | Fora de âmbito |
+| Ausência tratada como zero | Uma ponte com caixa em falta parece completa | — | M0.2 | — | Claude Code | Testes da secção 6 ("Ausência") | Em curso |
+| Expansão de ZIP sem limite | Um pacote malicioso pode esgotar a memória | Limite de tamanho (decisão técnica) | M0/M2 | Pacotes ESEF normais (até ~200 MB) | Claude Code | ZIP acima do limite recusado | Aberta |
