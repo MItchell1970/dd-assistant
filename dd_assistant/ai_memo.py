@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-import anthropic
 
 from .extract import FIELDS, data_room_text  # noqa: F401  (data_room_text re-exported for callers)
 from .input_loader import CompanyData
@@ -208,7 +207,9 @@ def build_material(d: CompanyData, metrics: Metrics, results: list[RuleResult], 
 def write_memo(material: str, client: anthropic.Anthropic | None = None,
                on_text: Callable[[str], None] | None = None) -> Memo:
     """Send the material to the Claude API and return the memo. on_text receives the text as it arrives."""
-    client = client or anthropic.Anthropic()
+    if client is None:
+        import anthropic   # only to write the memo with the API: the rest of the engine works without the library
+        client = anthropic.Anthropic()
     try:
         with client.beta.messages.stream(
             model=MODEL,

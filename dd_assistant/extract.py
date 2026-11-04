@@ -41,7 +41,6 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import BinaryIO, Literal
 
-import anthropic
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from pydantic import BaseModel
@@ -1265,7 +1264,9 @@ State the currency ('EUR' or 'other') and the unit of the figures (units, thousa
 
 def extract_pdf(pdf: bytes, name: str = "", client: anthropic.Anthropic | None = None) -> Extraction:
     """Claude reads the PDF statements; the code converts units and signs and builds the standard model."""
-    client = client or anthropic.Anthropic()
+    if client is None:
+        import anthropic   # only to read a PDF with Claude: the rest of the engine works without the library
+        client = anthropic.Anthropic()
     fields = "\n".join(f"- {f.key}: {f.label} ({STATEMENTS[f.statement]})" for f in FIELDS)
     try:
         response = client.beta.messages.parse(

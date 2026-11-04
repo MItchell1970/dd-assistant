@@ -2,6 +2,8 @@
 
 Run (with the virtual environment active):
     streamlit run app.py
+Demo on three real companies' published accounts (no upload, no API):
+    $env:DD_DEMO=1; streamlit run app.py
 
 The app only wires the layers together (dataroom → pipeline: metrics, rules, deal view → report → ai_memo →
 memo_check). It does no calculations of its own and creates no findings.
@@ -12,13 +14,13 @@ import hashlib
 import html
 import io
 import os
+import types
 from pathlib import Path
 
-import anthropic
 import pandas as pd
 import streamlit as st
 
-from dd_assistant import europe, sectors
+from dd_assistant import demo, europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.deal import ADJUSTMENT_STATES, Line, value_at_stake
 from dd_assistant.databook import write_databook
@@ -35,11 +37,24 @@ from dd_assistant.pipeline import PURPOSES, analyse, choice_effects
 from dd_assistant.report import REVIEW_STATES, csv_bytes, fmt_metric, fmt_unit, write_excel
 from dd_assistant.rules import SEVERITIES, fy
 
+try:
+    import anthropic
+except ImportError:   # the demo, and every analysis without a PDF or the memo, runs without the library
+    class _NoApi(Exception):
+        """Never raised: stands in for the API errors when the library is not installed."""
+    anthropic = types.SimpleNamespace(**{n: _NoApi for n in ("AnthropicError", "AuthenticationError", "RateLimitError",
+                                                             "APIStatusError", "APIConnectionError")})
+
+DEMO = demo.enabled()   # DD_DEMO=1: three real companies, no upload, no API (see dd_assistant/demo.py)
 DATA = Path(__file__).parent / "data"
 SAMPLES = {"Duriva — data room in 5 documents, planted issues": DATA / "Duriva_data_room",
            "Velmora — clean company": DATA / "Velmora_data_room.xlsx",
+           "TAP Air Portugal — real FY25 accounts (EN)": DATA / "TAP_2025_published.xlsx",
+           "Toyota Caetano Portugal — real FY25 accounts (PT)": DATA / "Toyota_Caetano_2025_published.xlsx",
+           "Corticeira Amorim — real FY25 accounts (PT)": DATA / "Corticeira_Amorim_2025_published.xlsx",
            "Toyota Caetano Portugal — real FY24 accounts (PT)": DATA / "Toyota_Caetano_2024_published.xlsx",
            "Corticeira Amorim — real FY24 accounts (EN)": DATA / "Corticeira_Amorim_2024_published.xlsx"}
+MD_MIME = "text/markdown"
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 SEVERITY_COLOR = {"High": "#d03b3b", "Medium": "#fab219", "Low": "#8a8f98"}   # status palette; always with a label
 # Overview: which findings colour each headline figure, and where to look for the detail.
@@ -113,6 +128,13 @@ CSS = """
 .dd-br tr.total td {font-weight: 700; border-top: 1.5px solid #1b2333; background: #f5f7fb;}
 .dd-br tr.memo td {color: #5b6474; font-style: italic;}
 .dd-br td.note {color: #5b6474; font-size: .8rem; white-space: normal; min-width: 160px;}
+.dd-banner {border: 1px solid #f3d48b; background: #fffbf0; color: #5c4300; border-radius: 10px; padding: 8px 14px;
+            font-size: .9rem; font-weight: 600; margin: .4rem 0 1rem;}
+.dd-card-co {font-weight: 700; font-size: 1.15rem; color: #1b2333;}
+.dd-card-acc {font-size: .8rem; color: #5b6474; margin-bottom: .5rem;}
+.dd-card-find {font-size: .95rem; color: #1b2333; min-height: 4.4em;}
+.dd-foot {border-top: 1px solid #e3e7ee; margin-top: 2.4rem; padding-top: .8rem; font-size: .8rem; color: #5b6474;}
+.dd-foot a {color: #0b3d91;}
 </style>
 """
 
@@ -179,29 +201,112 @@ def status(ids: list[str], fired: dict) -> tuple[str, str]:
     return ("bad" if worst.rule.severity == "High" else "warn"), f"{', '.join(r.rule.id for r in hits)} · {worst.rule.severity}"
 
 
+@st.cache_resource(max_entries=4, show_spinner=False)
+def stored_memo(slug: str):
+    """Demo: the stored memo, the material it is checked against and the check, run again now (no AI)."""
+    c = demo.CASE_BY_SLUG[slug]
+    return demo.memo(c), demo.material(c), demo.check(c)
+
+
+def show_stored_memo(c: demo.Case) -> None:
+    text, material, check = stored_memo(c.slug)
+    if text is None:
+        st.info("The memo for this company is not stored yet.")
+        return
+    st.markdown("**Written by the agent and checked automatically, before publication.** Claude Code, running the "
+                "project's due-diligence skill, wrote this memo on the author's computer from the material the "
+                "engine produced, with no API call. Then `memo_check.py`, which uses no AI, confirmed every figure "
+                "against that material, for the year it is cited. The check runs again here, now.")
+    first, figures, *rest = report(check).split("\n")
+    (st.success if check.ok else st.error)(f"{first} {figures.lstrip('- ')}")
+    if rest:
+        with st.expander("Check details"):
+            st.markdown("\n".join(rest))
+    st.caption("The memo reflects the default analysis: findings pending and the default debt-like items. Your "
+               "decisions in this session change the Deal view and the databook, not the stored memo.")
+    m1, m2, _ = st.columns([1, 1, 3])
+    m1.download_button("Download memo (.md)", text.encode("utf-8"), f"{c.slug}_memo.md", mime=MD_MIME)
+    m2.download_button("Material the memo was written from", material.encode("utf-8"), f"{c.slug}_material.md",
+                       mime=MD_MIME)
+    st.divider()
+    st.markdown(text)
+
+
+def footer() -> None:
+    st.markdown(f"<div class='dd-foot'>Built by {demo.AUTHOR} · <a href='{demo.GITHUB}'>GitHub</a> · "
+                f"<a href='{demo.LINKEDIN}'>LinkedIn</a><br>Limits: " + " · ".join(demo.LIMITS) + ".</div>",
+                unsafe_allow_html=True)
+
+
+def open_case(slug: str | None) -> None:
+    if slug:
+        st.query_params["company"] = slug
+    else:
+        st.query_params.clear()
+
+
+def landing() -> None:
+    """Demo home page: what the agent does, the warning and one card per company."""
+    st.markdown("<div class='dd-eyebrow'>Live demo · published accounts</div><div class='dd-title'>DD Assistant</div>"
+                f"<div class='dd-sub' style='font-size:1.05rem'>{html.escape(demo.TAGLINE)}.</div>"
+                f"<div class='dd-banner'>{html.escape(demo.WARNING)}</div>", unsafe_allow_html=True)
+    for col, case in zip(st.columns(len(demo.CASES), gap="medium"), demo.CASES):
+        with col.container(border=True):
+            st.markdown(f"<div class='dd-card-co'>{html.escape(case.company)}</div>"
+                        f"<div class='dd-card-acc'>{html.escape(case.accounts)}</div>"
+                        f"<div class='dd-card-find'>{html.escape(case.headline)}</div>", unsafe_allow_html=True)
+            st.button("Open the analysis", key=f"open-{case.slug}", type="primary", width="stretch",
+                      on_click=open_case, args=(case.slug,))
+    st.markdown("<div class='dd-section'>What you can do here</div>", unsafe_allow_html=True)
+    st.markdown("- See what the agent read, line by line, and the published subtotals it rebuilt.\n"
+                "- Review the red flags, each with its evidence, its source and the question for management.\n"
+                "- Change the decisions a deal team makes: debt-like items, the price mechanism, an enterprise "
+                "value. They stay in your browser session.\n"
+                "- Read the memo the agent wrote and the automatic check of every figure in it.\n"
+                "- Download the databook: the Excel a transaction team works in, with live formulas.")
+    st.caption("No file is uploaded and no AI is called on this site: the memos were written beforehand and checked "
+               "automatically. Nothing here is an investment recommendation or a view on price.")
+    footer()
+
+
 st.set_page_config(page_title="DD Assistant", page_icon=":material/fact_check:", layout="wide")
 st.markdown(CSS, unsafe_allow_html=True)
-load_env()
-has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+if not DEMO:
+    load_env()
+has_key = not DEMO and bool(os.environ.get("ANTHROPIC_API_KEY"))
+case = demo.CASE_BY_SLUG.get(st.query_params.get("company", "")) if DEMO else None
+if DEMO and case is None:
+    landing()
+    st.stop()
 
 # ---------------------------------------------------------------- input
 with st.sidebar:
     st.markdown("### DD Assistant")
     st.caption("Preliminary financial due diligence · European market · EUR")
-    uploaded = st.file_uploader(
-        "Data room", type=[x.strip(".") for x in SPREADSHEETS + DOCUMENTS + ESEF], accept_multiple_files=True,
-        help="Drop every document at once: Excel statements and schedules (in one file or many), the management "
-             "report, the audit report, contracts (PDF, Word, text). Portuguese, Spanish, French, German, Italian "
-             "or English statements, in euros. No template needed. A listed company: drop its ESEF annual report "
-             "package (.zip, from filings.xbrl.org) and every figure is read from its IFRS tag.")
-    sample = st.radio("…or open a sample data room", list(SAMPLES), disabled=bool(uploaded))
-
-if uploaded:
-    files = tuple((f.name, f.getvalue()) for f in uploaded)
-    name = files[0][0] if len(files) == 1 else f"{len(files)} documents"
+if DEMO:   # no upload: the visitor picks one of the three companies
+    with st.sidebar:
+        st.button("← All companies", on_click=open_case, args=(None,), width="stretch")
+        slugs = [c.slug for c in demo.CASES]
+        st.radio("Company", slugs, index=slugs.index(case.slug), format_func=lambda k: demo.CASE_BY_SLUG[k].company,
+                 key="demo-company", on_change=lambda: open_case(st.session_state["demo-company"]))
+    uploaded = None
+    files = tuple(files_in([case.path]))
+    name = case.path.name
 else:
-    files = tuple(files_in([SAMPLES[sample]]))
-    name = SAMPLES[sample].name
+    with st.sidebar:
+        uploaded = st.file_uploader(
+            "Data room", type=[x.strip(".") for x in SPREADSHEETS + DOCUMENTS + ESEF], accept_multiple_files=True,
+            help="Drop every document at once: Excel statements and schedules (in one file or many), the management "
+                 "report, the audit report, contracts (PDF, Word, text). Portuguese, Spanish, French, German, Italian "
+                 "or English statements, in euros. No template needed. A listed company: drop its ESEF annual report "
+                 "package (.zip, from filings.xbrl.org) and every figure is read from its IFRS tag.")
+        sample = st.radio("…or open a sample data room", list(SAMPLES), disabled=bool(uploaded))
+    if uploaded:
+        files = tuple((f.name, f.getvalue()) for f in uploaded)
+        name = files[0][0] if len(files) == 1 else f"{len(files)} documents"
+    else:
+        files = tuple(files_in([SAMPLES[sample]]))
+        name = SAMPLES[sample].name
 file_key = hashlib.sha1(b"".join(n.encode() + c for n, c in files)).hexdigest()[:12]
 
 try:
@@ -232,18 +337,23 @@ c_suggested, c_why = europe.suggest(ext.source_text, ext.company)
 keys = [s.key for s in sectors.SECTORS]
 codes = list(europe.COUNTRY_BY_CODE)
 with st.sidebar:
+    if DEMO:
+        st.caption("Fixed in the demo: the stored memo was written and checked with these three settings.")
     purpose = st.selectbox("Purpose", list(PURPOSES), format_func=PURPOSES.get, key=f"purpose-{file_key}",
+                           index=list(PURPOSES).index(case.purpose) if DEMO else 0, disabled=DEMO,
                            help="M&A is the focus; the same analysis serves a lender or an owner. Only the way the "
                                 "memo is written changes.")
     purpose_effect = st.empty()
     country = st.selectbox("Country of the target", codes, key=f"country-{file_key}",
-                           index=codes.index(c_suggested.code if c_suggested else "EU"),
+                           index=codes.index(case.country if DEMO else c_suggested.code if c_suggested else "EU"),
+                           disabled=DEMO,
                            format_func=lambda k: europe.COUNTRY_BY_CODE[k].name,
                            help="Sets the accounting framework and the statutory tax rate (R25).")
     st.caption(f"Suggested from {c_why}." if c_suggested and country == c_suggested.code and c_why else
                "Chosen by you." if c_suggested and country != c_suggested.code else "Nothing points to a country.")
     country_effect = st.empty()
-    sector_key = st.selectbox("Sector", keys, index=keys.index(suggested.key), key=f"sector-{file_key}",
+    sector_key = st.selectbox("Sector", keys, index=keys.index(case.sector if DEMO else suggested.key),
+                              key=f"sector-{file_key}", disabled=DEMO,
                               format_func=lambda k: sectors.SECTOR_BY_KEY[k].name,
                               help="Calibrates a few thresholds, sets the peer benchmarks and adds the sector's "
                                    "questions to the request list.")
@@ -251,10 +361,14 @@ with st.sidebar:
                "Chosen by you." if sector_key != suggested.key else "No sector keyword found: choose one.")
     sector_effect = st.empty()
     st.divider()
-    st.caption("Claude API: connected" if has_key else
-               "Claude API: not configured. Needed only to read statements from a PDF and to write the memo.")
-    st.caption("Every document is read and analysed on this computer. Data goes to the Claude API only when you "
-               "read statements from a PDF or write the memo.")
+    if DEMO:
+        st.caption("Demo: no upload and no AI call. The engine runs here on the published accounts stored in the "
+                   "repository; your decisions stay in this browser session.")
+    else:
+        st.caption("Claude API: connected" if has_key else
+                   "Claude API: not configured. Needed only to read statements from a PDF and to write the memo.")
+        st.caption("Every document is read and analysed on this computer. Data goes to the Claude API only when you "
+                   "read statements from a PDF or write the memo.")
 
 # ---------------------------------------------------------------- reviewer input (read before the analysis)
 src_key, docs_key = f"src-{file_key}", f"docs-{file_key}"
@@ -300,12 +414,17 @@ st.markdown(f"<div class='dd-eyebrow'>{html.escape(PURPOSES[a.purpose])} · {htm
             f"<div class='dd-title'>{html.escape(ext.company)}</div>"
             f"<div class='dd-sub'>{html.escape(name)} · {fy(years3[0])}–{fy(L)} · {money.unit_long} · "
             f"{html.escape(ext.method)}</div>", unsafe_allow_html=True)
+if DEMO:
+    st.markdown(f"<div class='dd-banner'>{html.escape(demo.WARNING)} {html.escape(case.accounts)}, figures as "
+                "published: see Data room for the source of each line.</div>", unsafe_allow_html=True)
+    downloads = st.container()   # filled after Deal view, so the databook carries the visitor's price inputs
 if not a.checks_ok:
     st.warning("Reading check failed: a subtotal rebuilt from the lines read does not match the published one. "
                "A line may be missing or misclassified — see Data room before relying on the figures.")
 
 tab_ov, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(
-    ["Overview", "Deal view", f"Red flags ({len(al)})", "Sector", "Data room", "Rulebook", "Metrics", "AI memo"])
+    ["Overview", "Deal view", f"Red flags ({len(al)})", "Sector", "Data room", "Rulebook", "Metrics",
+     "Memo" if DEMO else "AI memo"])
 
 # ---------------------------------------------------------------- overview
 with tab_ov:
@@ -575,12 +694,27 @@ with tab_rf:
     write_excel(results, metrics, data.years, buf, reviews, items=ext.items, analysis=a)
     book = io.BytesIO()
     write_databook(a, book, reviews, price=price)
-    d1, d2, d3, _ = st.columns([1, 1, 1, 2])
-    d1.download_button("Download databook", book.getvalue(), f"{stem}_databook.xlsx", mime=XLSX_MIME, type="primary",
-                       help="The Excel a transaction team works in: QoE, NWC and net debt with formulas, the source "
-                            "register, issues and requests, and checks. Edit only the yellow cells.")
-    d2.download_button("Download report", buf.getvalue(), f"{stem}_due_diligence.xlsx", mime=XLSX_MIME)
-    d3.download_button("Download CSV", csv_bytes(results, reviews), f"{stem}_red_flags.csv", mime="text/csv")
+    book_help = ("The Excel a transaction team works in: QoE, NWC and net debt with formulas, the source register, "
+                 "issues and requests, and checks. Edit only the yellow cells.")
+    if DEMO:
+        st.caption("The downloads are at the top of the page.")
+        with downloads:
+            requests = demo.request_list(case)
+            d1, d2, d3, d4, _ = st.columns([1.3, 1, 1, 1, 1])
+            d1.download_button("Download the databook (Excel)", book.getvalue(), f"{case.slug}_databook.xlsx",
+                               mime=XLSX_MIME, type="primary", help=book_help + " Includes your decisions.")
+            d2.download_button("Red flags (Excel)", buf.getvalue(), f"{case.slug}_red_flags.xlsx", mime=XLSX_MIME,
+                               help="Every finding with its evidence, source, question and document to request.")
+            d3.download_button("Request list (.md)", requests.encode("utf-8"), f"{case.slug}_request_list.md",
+                               mime=MD_MIME, disabled=not requests, help="From the stored memo (tab Memo).")
+            d4.download_button("Red flags (CSV)", csv_bytes(results, reviews), f"{case.slug}_red_flags.csv",
+                               mime="text/csv")
+    else:
+        d1, d2, d3, _ = st.columns([1, 1, 1, 2])
+        d1.download_button("Download databook", book.getvalue(), f"{stem}_databook.xlsx", mime=XLSX_MIME,
+                           type="primary", help=book_help)
+        d2.download_button("Download report", buf.getvalue(), f"{stem}_due_diligence.xlsx", mime=XLSX_MIME)
+        d3.download_button("Download CSV", csv_bytes(results, reviews), f"{stem}_red_flags.csv", mime="text/csv")
 
     for r in sorted(al, key=lambda r: SEVERITIES.index(r.rule.severity)):
         rule = r.rule
@@ -648,12 +782,13 @@ with tab_src:
                    "against: review the lines below.")
     st.markdown("<div class='dd-section'>What the agent read</div>", unsafe_allow_html=True)
     st.caption(f"Every standard line item, the label it matched in your file and the cell it read, in "
-               f"{data.currency} thousands. Correct any figure here and the whole analysis updates.")
+               f"{data.currency} thousands. " + ("Figures as published: locked in the demo." if DEMO else
+                                                 "Correct any figure here and the whole analysis updates."))
     if ext.missing:
         st.warning("Not found in the file: " + ", ".join(ext.missing) + ". Enter the figures below if available.")
     items = pd.DataFrame([{k: v for k, v in it.items() if k != "key"} for it in ext.items])
     st.data_editor(items, key=src_key, hide_index=True, width="stretch", height=560,
-                   disabled=["Statement", "Line item", "Found as", "Source"],
+                   disabled=True if DEMO else ["Statement", "Line item", "Found as", "Source"],
                    column_config={"Line item": st.column_config.TextColumn(width="medium"),
                                   "Found as": st.column_config.TextColumn(width="medium")})
     if ext.unmapped:
@@ -697,71 +832,77 @@ with tab_m:
 
 # ---------------------------------------------------------------- AI memo
 with tab_ai:
-    st.markdown("Claude reads the findings (with your review), the deal view, the sector lens, the metrics and the "
-                "full data room, and writes a two-page memo, the information request list and notes to improve the "
-                "template. **It does no calculations and creates no findings**; every figure is then checked "
-                "automatically.")
-    source_text = ext.source_text
-    if not source_text:   # a completed template carries no data room text
-        room = st.file_uploader("Data room (Excel) for the memo", type=["xlsx", "xlsm"], key="data_room")
-        source_text = data_room_text(io.BytesIO(room.getvalue())) if room is not None else ""
-    material = build_material(data, metrics, results, source_text, reviews, ext.company, analysis=a)
-    alert_ids = [r.rule.id for r in al]
-    st.caption(f"Model {MODEL}, effort {EFFORT}. Typical cost USD 0.20–0.50 per memo; the actual cost is shown "
-               "at the end.")
+    if DEMO:
+        show_stored_memo(case)
+    else:
+        st.markdown("Claude reads the findings (with your review), the deal view, the sector lens, the metrics and the "
+                    "full data room, and writes a two-page memo, the information request list and notes to improve the "
+                    "template. **It does no calculations and creates no findings**; every figure is then checked "
+                    "automatically.")
+        source_text = ext.source_text
+        if not source_text:   # a completed template carries no data room text
+            room = st.file_uploader("Data room (Excel) for the memo", type=["xlsx", "xlsm"], key="data_room")
+            source_text = data_room_text(io.BytesIO(room.getvalue())) if room is not None else ""
+        material = build_material(data, metrics, results, source_text, reviews, ext.company, analysis=a)
+        alert_ids = [r.rule.id for r in al]
+        st.caption(f"Model {MODEL}, effort {EFFORT}. Typical cost USD 0.20–0.50 per memo; the actual cost is shown "
+                   "at the end.")
 
-    memo_key = f"memo-{file_key}"
-    if st.button("Write the memo", type="primary", disabled=not has_key):
-        box, parts = st.empty(), []
+        memo_key = f"memo-{file_key}"
+        if st.button("Write the memo", type="primary", disabled=not has_key):
+            box, parts = st.empty(), []
 
-        def show(text: str) -> None:
-            parts.append(text)
-            box.markdown("".join(parts))
+            def show(text: str) -> None:
+                parts.append(text)
+                box.markdown("".join(parts))
 
-        with st.spinner("Writing the memo. The model thinks first; this can take a few minutes…"):
-            try:
-                memo = write_memo(material, on_text=show)
-                st.session_state[memo_key] = (memo, material, check_memo(memo.text, material, alert_ids))
-            except anthropic.AuthenticationError:
-                st.error("The Claude API key is invalid. Check ANTHROPIC_API_KEY in the .env file.")
-            except anthropic.RateLimitError:
-                st.error("Rate limit reached. Wait a minute and try again.")
-            except anthropic.APIStatusError as e:
-                st.error(f"Claude API error ({e.status_code}): {e.message}")
-            except anthropic.APIConnectionError:
-                st.error("Cannot reach the Claude API. Check the internet connection.")
-            except MemoError as e:
-                st.error(str(e))
-            except anthropic.AnthropicError as e:
-                st.error(f"Could not call the Claude API: {e}")
-        box.empty()
-    if not has_key:
-        st.info("To write the memo here, add ANTHROPIC_API_KEY to the .env file and restart the app. "
-                "Without a key, use the option below, or ask Claude Code to run the due-diligence skill.")
+            with st.spinner("Writing the memo. The model thinks first; this can take a few minutes…"):
+                try:
+                    memo = write_memo(material, on_text=show)
+                    st.session_state[memo_key] = (memo, material, check_memo(memo.text, material, alert_ids))
+                except anthropic.AuthenticationError:
+                    st.error("The Claude API key is invalid. Check ANTHROPIC_API_KEY in the .env file.")
+                except anthropic.RateLimitError:
+                    st.error("Rate limit reached. Wait a minute and try again.")
+                except anthropic.APIStatusError as e:
+                    st.error(f"Claude API error ({e.status_code}): {e.message}")
+                except anthropic.APIConnectionError:
+                    st.error("Cannot reach the Claude API. Check the internet connection.")
+                except MemoError as e:
+                    st.error(str(e))
+                except anthropic.AnthropicError as e:
+                    st.error(f"Could not call the Claude API: {e}")
+            box.empty()
+        if not has_key:
+            st.info("To write the memo here, add ANTHROPIC_API_KEY to the .env file and restart the app. "
+                    "Without a key, use the option below, or ask Claude Code to run the due-diligence skill.")
 
-    stem = Path(name).stem
-    if memo_key in st.session_state:
-        memo, sent, check = st.session_state[memo_key]
-        st.caption(f"{memo.model} · {memo.input_tokens:,} input tokens, {memo.output_tokens:,} output tokens "
-                   f"· estimated cost ≈ USD {memo.cost_usd:.2f}")
-        if memo.truncated:
-            st.warning("The answer stopped at the token limit and may be incomplete.")
-        show_check(check)
-        m1, m2, _ = st.columns([1, 1, 3])
-        m1.download_button("Download memo (.md)", memo.text.encode("utf-8"), f"{stem}_memo.md", mime="text/markdown")
-        m2.download_button("Material sent to the AI", sent.encode("utf-8"), f"{stem}_ai_material.md",
-                           mime="text/markdown")
-        st.divider()
-        st.markdown(memo.text)
+        stem = Path(name).stem
+        if memo_key in st.session_state:
+            memo, sent, check = st.session_state[memo_key]
+            st.caption(f"{memo.model} · {memo.input_tokens:,} input tokens, {memo.output_tokens:,} output tokens "
+                       f"· estimated cost ≈ USD {memo.cost_usd:.2f}")
+            if memo.truncated:
+                st.warning("The answer stopped at the token limit and may be incomplete.")
+            show_check(check)
+            m1, m2, _ = st.columns([1, 1, 3])
+            m1.download_button("Download memo (.md)", memo.text.encode("utf-8"), f"{stem}_memo.md", mime="text/markdown")
+            m2.download_button("Material sent to the AI", sent.encode("utf-8"), f"{stem}_ai_material.md",
+                               mime="text/markdown")
+            st.divider()
+            st.markdown(memo.text)
 
-    with st.expander("No API key? Write the memo elsewhere and check it here"):
-        st.markdown("1. Download the material and the prompt.  \n"
-                    "2. In a new claude.ai conversation, paste the prompt, then the material.  \n"
-                    "3. Save the answer as a `.md` file and upload it below: the app checks the figures, the "
-                    "findings and the request list.")
-        e1, e2, _ = st.columns([1, 1, 3])
-        e1.download_button("Material (.md)", material.encode("utf-8"), f"{stem}_ai_material.md", mime="text/markdown")
-        e2.download_button("Prompt (.md)", PROMPT_FILE.read_bytes(), "ai_memo_prompt.md", mime="text/markdown")
-        outside = st.file_uploader("Memo written outside the app (.md)", type=["md", "txt"], key="memo_upload")
-        if outside is not None:
-            show_check(check_memo(outside.getvalue().decode("utf-8"), material, alert_ids))
+        with st.expander("No API key? Write the memo elsewhere and check it here"):
+            st.markdown("1. Download the material and the prompt.  \n"
+                        "2. In a new claude.ai conversation, paste the prompt, then the material.  \n"
+                        "3. Save the answer as a `.md` file and upload it below: the app checks the figures, the "
+                        "findings and the request list.")
+            e1, e2, _ = st.columns([1, 1, 3])
+            e1.download_button("Material (.md)", material.encode("utf-8"), f"{stem}_ai_material.md", mime="text/markdown")
+            e2.download_button("Prompt (.md)", PROMPT_FILE.read_bytes(), "ai_memo_prompt.md", mime="text/markdown")
+            outside = st.file_uploader("Memo written outside the app (.md)", type=["md", "txt"], key="memo_upload")
+            if outside is not None:
+                show_check(check_memo(outside.getvalue().decode("utf-8"), material, alert_ids))
+
+if DEMO:
+    footer()

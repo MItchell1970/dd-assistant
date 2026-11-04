@@ -21,7 +21,6 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-import anthropic
 from openpyxl import Workbook, load_workbook
 
 from .esef import EsefReport, is_esef, read_esef
