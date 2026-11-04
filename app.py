@@ -21,6 +21,7 @@ import streamlit as st
 from dd_assistant import europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.deal import ADJUSTMENT_STATES, Line, value_at_stake
+from dd_assistant.databook import write_databook
 from dd_assistant.dataroom import DOCUMENTS, ESEF, SPREADSHEETS, NeedsPdfReading, files_in, read_data_room
 from dd_assistant.extract import ExtractionError, data_room_text
 from dd_assistant.input_loader import Named
@@ -471,9 +472,14 @@ with tab_rf:
     stem = Path(name).stem
     buf = io.BytesIO()
     write_excel(results, metrics, data.years, buf, reviews, items=ext.items, analysis=a)
-    d1, d2, _ = st.columns([1, 1, 3])
-    d1.download_button("Download Excel", buf.getvalue(), f"{stem}_due_diligence.xlsx", mime=XLSX_MIME, type="primary")
-    d2.download_button("Download CSV", csv_bytes(results, reviews), f"{stem}_red_flags.csv", mime="text/csv")
+    book = io.BytesIO()
+    write_databook(a, book, reviews)
+    d1, d2, d3, _ = st.columns([1, 1, 1, 2])
+    d1.download_button("Download databook", book.getvalue(), f"{stem}_databook.xlsx", mime=XLSX_MIME, type="primary",
+                       help="The Excel a transaction team works in: QoE, NWC and net debt with formulas, the source "
+                            "register, issues and requests, and checks. Edit only the yellow cells.")
+    d2.download_button("Download report", buf.getvalue(), f"{stem}_due_diligence.xlsx", mime=XLSX_MIME)
+    d3.download_button("Download CSV", csv_bytes(results, reviews), f"{stem}_red_flags.csv", mime="text/csv")
 
     for r in sorted(al, key=lambda r: SEVERITIES.index(r.rule.severity)):
         rule = r.rule

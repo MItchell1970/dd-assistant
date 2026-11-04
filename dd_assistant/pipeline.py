@@ -41,6 +41,8 @@ class Analysis:
     country_why: str = ""
     purpose: str = "buy"
     general_years: dict[str, str] = field(default_factory=dict)   # general thresholds (no sector): ID -> years
+    include: dict[int, bool] = field(default_factory=dict)        # reviewer: balance item index -> in net debt
+    analyst: list[Named] = field(default_factory=list)            # reviewer's own adjustments to EBITDA
 
     @property
     def checks_ok(self) -> bool:
@@ -75,7 +77,7 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
     view = deal_view(data, m, decisions, analyst, include)
     return Analysis(ext, data, m, results, alerts(results), reading_checks(data), view, s, suggested, words,
                     Money.for_data(data), benchmark_rows(data, m, view, s), dict(decisions or {}), c, c_suggested,
-                    c_why, purpose, general_years)
+                    c_why, purpose, general_years, dict(include or {}), list(analyst or []))
 
 
 PURPOSE_EFFECTS = {

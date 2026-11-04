@@ -69,7 +69,10 @@ class DocumentsTest(unittest.TestCase):
         self.assertTrue(received["AR ageing"])
         self.assertFalse(received["Inventory ageing"])
         self.assertIn("Cláusula 12.ª", ext.source_text)
-        self.assertEqual(ext.files[-1], {"File": "logo.png", "Read as": "Not read", "Found": "format not supported"})
+        last = ext.files[-1]
+        self.assertEqual({k: last[k] for k in ("File", "Read as", "Found")},
+                         {"File": "logo.png", "Read as": "Not read", "Found": "format not supported"})
+        self.assertEqual(len(last["SHA-256"]), 64)                    # every file has its fingerprint
 
     def test_statements_only_in_a_pdf_need_claude(self):
         pdf = (FOLDER / "05 Relatório de gestão 2025.pdf").read_bytes()

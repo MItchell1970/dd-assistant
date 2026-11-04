@@ -12,6 +12,7 @@ Drop the whole folder:
 """
 from __future__ import annotations
 
+import hashlib
 import html
 import io
 import logging
@@ -203,6 +204,11 @@ def read_data_room(files: list[tuple[str, bytes]], client: anthropic.Anthropic |
 
     found = _found_documents([(n, t.text) for n, t in texts.items()] + [(n, "") for n, _ in sheets])
     ext.data.documents = [(doc, ok or doc in found) for doc, ok in ext.data.documents]
+    content = dict(files)
+    for row in table:   # each file's fingerprint, for the source register: a changed file is a different analysis
+        data = content.get(row["File"], b"")
+        row["Size (KB)"] = round(len(data) / 1024)
+        row["SHA-256"] = hashlib.sha256(data).hexdigest()
     ext.files = table
     if not ext.items:
         _fill_review(ext, {})

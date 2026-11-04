@@ -90,6 +90,8 @@ def main(argv=None) -> int:
                    help="A key document received outside the file, e.g. 'AR ageing' (repeatable)")
     p.add_argument("--json", action="store_true", help="Also save the whole analysis as JSON (for the Claude skill)")
     p.add_argument("--material", action="store_true", help="Also save the material for the AI memo (no API call)")
+    p.add_argument("--databook", action="store_true", help="Also save the databook (Excel with formulas) and, when "
+                                                           "Excel is installed, recalculate it and compare the totals")
     p.add_argument("--memo", action="store_true", help="Also write the memo and request list with the Claude API")
     p.add_argument("--data-room", help="Data room (Excel) for the memo when the input is a DD template")
     p.add_argument("--check-memo", metavar="MEMO", help="Check a memo already written (e.g. in claude.ai)")
@@ -137,6 +139,8 @@ def main(argv=None) -> int:
     if args.json:
         (out / f"{stem}_analysis.json").write_text(json.dumps(to_dict(a), indent=1, ensure_ascii=False, default=str),
                                                    encoding="utf-8")
+    if args.databook:
+        _databook(a, out / f"{stem}_databook.xlsx")
     if args.material or args.memo or args.check_memo:
         _material(a, out, path)
     print(f"\nResults saved to: {out.resolve()}")
@@ -145,6 +149,18 @@ def main(argv=None) -> int:
     if args.check_memo:
         rc = max(rc, _check(a, Path(args.check_memo), out, path))
     return rc
+
+
+def _databook(a: Analysis, path: Path) -> None:
+    from .databook import control_results, recalculate, write_databook
+    write_databook(a, path)
+    if not recalculate(path):
+        print(f"Databook: {path.name} (not recalculated: no spreadsheet engine; Excel calculates it on opening)")
+        return
+    controls = control_results(path)
+    bad = [c for c in controls if not str(c[4]).startswith("OK")]
+    print(f"Databook: {path.name}, recalculated by Excel: {len(controls) - len(bad)} of {len(controls)} totals equal "
+          "the Python values" + "".join(f"\n  CHECK {c[0]} {c[1]}: workbook {c[2]}, Python {c[3]}" for c in bad))
 
 
 def _print(a: Analysis) -> None:
