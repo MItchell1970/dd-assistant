@@ -6,12 +6,11 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 
 ## Agora
 
-- **Módulo:** M0, correções de confiança.
-- **Feito:** M0.1 (o verificador do memo liga cada número ao ano citado); M0.2 (ausência ≠ zero nas pontes e nas regras de consistência).
-- **M0 concluído.** A Amorim ficou fechada com a nota 19 do relatório publicado (conferida no PDF descarregado com autorização do Bernardo).
-- **Feito também:** M0.4 (alertas das empresas reais classificados; contagem em `docs/VALIDATION.md`).
-- **Próximo passo:** M2, databook.
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 138 testes OK) e `python scriptsalidation_report.py`.
+- **Módulo:** M2, databook.
+- **M0 concluído:** M0.1 (o verificador do memo liga cada número ao ano citado), M0.2 (ausência ≠ zero), M0.3 (R13 com descobertos; a Amorim ficou fechada com a nota 19 do relatório publicado, conferida no PDF descarregado com autorização do Bernardo), M0.4 (alertas das empresas reais classificados; contagem em `docs/VALIDATION.md`).
+- **M2 feito até agora:** databook com as 12 folhas (`dd_assistant/databook.py`), fórmulas nos totais e pontes, recálculo pelo Excel e comparação com o Python; na app (botão "Download databook") e na linha de comandos (`--databook`).
+- **Próximo passo:** M2e, as regras novas vindas da Toyota (D&A vs. imobilizado, rubricas "outras" materiais, IFRS 16, crescimento não like-for-like); depois M3.
+- **Comando para retomar:** `python -m unittest -v` (tem de dar 148 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
 
 ## Diagnóstico (4 de novembro de 2026)
 
