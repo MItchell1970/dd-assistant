@@ -2,8 +2,9 @@
 
 **A first-pass financial due diligence on published accounts: every figure traced to its source.**
 
-<!-- Replace the link below with the Streamlit Community Cloud address once the demo is published (docs/DEPLOY.md). -->
-[![Live demo](https://img.shields.io/badge/Live_demo-link_coming_soon-0b3d91?style=for-the-badge)](docs/DEPLOY.md)
+[![Live demo](https://img.shields.io/badge/Live_demo-open_the_app-0b3d91?style=for-the-badge)](https://dd-assistant-tickmark.streamlit.app)
+
+**Live demo:** <https://dd-assistant-tickmark.streamlit.app> — three real companies on their published FY2025 accounts; no upload, no AI call. Direct links: [TAP Air Portugal](https://dd-assistant-tickmark.streamlit.app/?company=tap) · [Toyota Caetano Portugal](https://dd-assistant-tickmark.streamlit.app/?company=toyota-caetano) · [Corticeira Amorim](https://dd-assistant-tickmark.streamlit.app/?company=corticeira-amorim).
 
 It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings, net debt with debt-like items, working capital, 29 red-flag rules with their sources, a two-page memo, the request list and an Excel databook with live formulas. European companies, euros only.
 

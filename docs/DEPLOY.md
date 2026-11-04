@@ -1,5 +1,7 @@
 # Publishing the demo on Streamlit Community Cloud
 
+Published at <https://dd-assistant-tickmark.streamlit.app> (checked on 4 November 2026: the three companies open, the memo check passes, no upload).
+
 The public demo is the same `app.py` in demo mode: three real companies, no upload, no Claude API, no key. It costs nothing to run.
 
 ## Before you start
@@ -48,7 +50,7 @@ What the cloud needs is already in the repository:
 
 ## Then
 
-- Replace the "Live demo" badge link at the top of `README.md` with the app's address, commit and push.
+- The "Live demo" badge at the top of `README.md` points to the app; change it there if the address changes.
 - Add the link to LinkedIn and to your CV.
 
 ## If something goes wrong
