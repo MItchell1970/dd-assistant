@@ -368,25 +368,39 @@ def compute_metrics(d: CompanyData) -> Metrics:
 
 
 # ---------------------------------------------------------------- reading checks
-def reading_checks(d: CompanyData, tolerance: float = 1.0) -> list[dict]:
+def rounding_tolerance(d: CompanyData, keys, y: int, floor: float = 1.0) -> float:
+    """The rounding a sum of printed lines can carry: half a unit per line when the statements are printed in
+    thousands (every figure a whole EUR k), else €1k. Eight lines in thousands: up to €4k, as printed."""
+    values = [d.v(k, y) for k in keys if d.v(k, y) is not None]
+    if not values or any(abs(x - round(x)) > 1e-9 for x in values):
+        return floor
+    rows = sum(1 + d.sources.get(k, "").count(" + ") for k in keys if d.v(k, y) is not None)
+    return max(floor, 0.5 * rows)
+
+
+def reading_checks(d: CompanyData, tolerance: float | None = None) -> list[dict]:
     """Did the agent read the statements correctly? Subtotals rebuilt from the lines it identified are
     compared with the subtotals the company published. A failed check means a line is missing or
     misclassified: correct it in the review table before relying on the analysis. (Different from the
-    consistency rules R12–R17, which test the company's own figures.)"""
+    consistency rules R12–R17, which test the company's own figures.) The tolerance is the rounding of the
+    printed lines, never wider (see rounding_tolerance), and is shown with each check."""
     checks = []
 
-    def check(name, published_key, rebuilt):
+    def check(name, published_key, rebuilt, keys):
         for y in d.pl_years:
             pub = d.v(published_key, y)
             if pub is None:
                 continue
             value = rebuilt(y)
+            tol = tolerance if tolerance is not None else rounding_tolerance(d, list(keys) + [published_key], y)
             checks.append({"Check": name, "Year": y, "Rebuilt from the lines": value, "As published": pub,
-                           "Difference": value - pub, "OK": abs(value - pub) <= tolerance})
+                           "Difference": value - pub, "Tolerance": tol, "OK": abs(value - pub) <= tol})
 
-    check("Gross profit = revenue + cost of sales", "gp_pub", lambda y: N(d.v("vendas", y)) + N(d.v("cmv", y)))
-    check("EBITDA = revenue less operating costs before D&A", "ebitda_pub", lambda y: ebitda_of(d, y))
-    check("Operating profit = EBITDA − D&A", "opinc", lambda y: ebitda_of(d, y) + N(d.v("da", y)))
+    check("Gross profit = revenue + cost of sales", "gp_pub", lambda y: N(d.v("vendas", y)) + N(d.v("cmv", y)),
+          ["vendas", "cmv"])
+    check("EBITDA = revenue less operating costs before D&A", "ebitda_pub", lambda y: ebitda_of(d, y), EBITDA_LINES)
+    check("Operating profit = EBITDA − D&A", "opinc", lambda y: ebitda_of(d, y) + N(d.v("da", y)),
+          EBITDA_LINES + ["da"])
     if d.pl_format == "function":
-        check("Operating expenses = sum of the functions", "opex_tot", lambda y: N(d.v("opex_fn", y)))
+        check("Operating expenses = sum of the functions", "opex_tot", lambda y: N(d.v("opex_fn", y)), ["opex_fn"])
     return checks

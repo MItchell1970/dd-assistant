@@ -27,6 +27,24 @@ FINDINGS = {
         "R29": (REVIEW, "€12,388k paid for 'financial investments' in FY23 (SNC line): may be acquisitions, but the "
                         "line also holds other financial investments; needs the note."),
     },
+    "Toyota_Caetano_2025_published.xlsx": {
+        "R04": (TRUE, "Other income is 60.5% of FY25 EBITDA (€40,036k): a breakdown is needed before pricing on EBITDA."),
+        "R09": (TRUE, "Inventory +25.8% against cost of sales +4.5% in FY25; DIO 98 to 118 days."),
+        "R10": (TRUE, "Operating cash flow was −€3,987k in FY25; the two years together converted 41.8%."),
+        "R11": (REVIEW, "46.4% of debt due within a year in FY25: stock financed with short-term lines; depends on the "
+                        "facility terms."),
+        "R18": (TRUE, "Published accounts carry no customer listing, ageing or facility agreements."),
+        "R24": (REVIEW, "Capex 0.32x of D&A in FY25: under-investment or a rental fleet outside capex? Needs the "
+                        "fixed asset note."),
+        "R28": (TRUE, "Other current liabilities, net of tax, are 21.5% of revenue: content unknown without the "
+                      "trial balance."),
+    },
+    "Corticeira_Amorim_2025_published.xlsx": {
+        "R04": (REVIEW, "Other income is 12.4% of FY25 EBITDA: worth a breakdown, not a problem in itself."),
+        "R11": (REVIEW, "56.3% of debt due within a year in FY24, 28.7% in FY25: refinanced during 2025."),
+        "R18": (TRUE, "Published accounts carry no customer listing, ageing or facility agreements."),
+        "R24": (REVIEW, "Capex 0.71x of D&A in FY25 (0.72x in FY24): two years below depreciation."),
+    },
     "TAP_2025_published.xlsx": {
         "R07": (REVIEW, "Customers (note 10, gross of impairment) grew 21.7% against revenue +1.2%; DSO 26.5 to 31.8 "
                         "days. Needs the AR ageing: the note gives the impairment for the whole caption only."),

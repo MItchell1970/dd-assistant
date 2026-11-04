@@ -141,9 +141,48 @@ class TapTest(RealCompany, unittest.TestCase):
         self.assertEqual(self.ids, list(FINDINGS[self.FILE]))
 
 
+class ToyotaCaetano2025Test(RealCompany, unittest.TestCase):
+    """2025 annual report (official ESEF XHTML, printed text): operating result 47,570,492 (FY25), 46,509,139 (FY24)."""
+    FILE = "Toyota_Caetano_2025_published.xlsx"
+
+    def test_operating_result_rebuilt(self):
+        self.assertAlmostEqual(self.m["ebitda"][2025] - 18616.527, 47570.492, places=3)
+        self.assertAlmostEqual(self.m["ebitda"][2024] - 28125.353, 46509.139, places=3)
+
+    def test_reconciles(self):
+        self.assertReconciles()
+
+    def test_findings(self):
+        self.assertEqual(self.ids, list(FINDINGS[self.FILE]))
+
+
+class CorticeiraAmorim2025Test(RealCompany, unittest.TestCase):
+    """2025 annual report (official ESEF XHTML, Portuguese, printed text): EBITDA 140,985 and operating result 82,090
+    in FY25. The ten printed lines add up to 140,983: €2k of rounding in the report, within half a unit per line."""
+    FILE = "Corticeira_Amorim_2025_published.xlsx"
+
+    def test_ebitda_rebuilt_within_the_printed_rounding(self):
+        self.assertEqual(self.m["ebitda"][2025], 140983)
+        self.assertEqual(self.m["ebitda"][2024], 157566)
+        self.assertTrue(all(c["OK"] for c in reading_checks(self.d)))
+
+    def test_cash_reconciles_through_note_19(self):
+        self.assertEqual((self.d.v("desc", 2025), self.m["cash_diff_unexpl"][2025]), (29451, 0))   # overdrafts
+
+    def test_portuguese_subtotals_split_current_from_non_current(self):
+        self.assertEqual(self.d.v("oac", 2024), 74234)        # the same as the English FY2024 accounts
+        self.assertEqual(self.d.v("oac", 2025), 686388 - 388297 - 175804 - 64997)
+
+    def test_reconciles(self):
+        self.assertReconciles()
+
+    def test_findings(self):
+        self.assertEqual(self.ids, list(FINDINGS[self.FILE]))
+
+
 class ClassificationTest(unittest.TestCase):
     def test_every_expected_finding_is_classified(self):
-        self.assertEqual(counts(), {"true positive": 9, "known false alarm": 0, "to review": 7})
+        self.assertEqual(counts(), {"true positive": 15, "known false alarm": 0, "to review": 12})
 
 
 if __name__ == "__main__":

@@ -737,7 +737,7 @@ def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price
         _put(ws, r, 3, c["Rebuilt from the lines"], _INPUT, _NUM)
         _put(ws, r, 4, c["As published"], _INPUT, _NUM)
         _put(ws, r, 5, c["Difference"], fmt=_NUM)
-        _put(ws, r, 6, 1, fmt=_NUM)
+        _put(ws, r, 6, c.get("Tolerance", 1), fmt="#,##0.0")
         _put(ws, r, 7, "OK" if c["OK"] else "FAILED")
     r += 2
     _put(ws, r, 1, "Consistency rules of the statements (R12–R17)", _BOLD)
