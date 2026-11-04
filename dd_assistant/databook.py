@@ -300,6 +300,13 @@ def _qoe(ws, a, fin_rows: dict[str, int]) -> dict:
                             bold=kind != "upside")
             cell.border = _TOTAL_LINE
     r += 1
+    if "lease_pay" in fin_rows:
+        r += 1
+        _put(ws, r, 2, "Memo: reported EBITDA before IFRS 16 (less lease payments in the cash flow statement)")
+        for y, c in cols.items():
+            fc = get_column_letter(fin_col[y])
+            _formula(ws, r, c, f'=IF(ISBLANK(Financials!{fc}{fin_rows["lease_pay"]}),"n/a",'
+                               f'{get_column_letter(c)}{reported_row}+Financials!{fc}{fin_rows["lease_pay"]})', link=True)
     _put(ws, r, 2, "Diligence-adjusted EBITDA margin")
     for y, c in cols.items():
         col = get_column_letter(c)
@@ -372,6 +379,11 @@ def _net_debt(ws, a, fin_rows: dict[str, int]) -> dict:
         cell = _formula(ws, r, c, f'=IF(ISNUMBER({col}{reported_row}),{col}{reported_row}{items},{col}{reported_row})',
                         bold=True)
         cell.border = _TOTAL_LINE
+    if "lease_pay" in d.lines and not any(b.category == "Lease liabilities" for b in d.balance_items):
+        r += 2
+        _put(ws, r, 1, "IFRS 16: the cash flow statement shows lease payments, but the balance sheet shows no separate "
+                       "lease liability (it may sit in borrowings). Ask for the IFRS 16 note: keep EBITDA and net debt "
+                       "on the same basis (see the QoE memo line, EBITDA before IFRS 16).")
     if any(b.category == "Lease liabilities" for b in d.balance_items):
         r += 2
         _put(ws, r, 1, "IFRS 16: EBITDA is after IFRS 16 (lease costs sit in D&A and interest). Lease liabilities in "

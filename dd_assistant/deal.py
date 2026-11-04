@@ -110,6 +110,10 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
     if len(qoe) == header + 1:
         qoe[header] = Line("Diligence adjustments: none identified from the data provided", style="header")
     qoe.append(Line("Diligence-adjusted EBITDA", dd, "total"))
+    if any(m["ebitda_pre16"].get(y) is not None for y in Y):
+        qoe.append(Line("Memo: reported EBITDA before IFRS 16 (less lease payments in the cash flow statement)",
+                        {y: m["ebitda_pre16"].get(y) for y in Y}, "memo", src("lease_pay", ""),
+                        "for comparison with lease liabilities kept out of net debt"))
     qoe.append(Line("Diligence-adjusted EBITDA margin", {y: div(dd[y], v("vendas", y)) for y in Y}, "memo",
                     unit="pct"))
     if any(upside.values()):

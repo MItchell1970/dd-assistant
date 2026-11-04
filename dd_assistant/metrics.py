@@ -80,14 +80,18 @@ EXTENDED_LABELS = {
     "own_share": "Own work capitalised (% of EBITDA)",
     "cash_diff_unexpl": "CFS closing cash − balance sheet cash, not explained by an identified line",
     "cash_recon": "Cash difference explained by",
+    "da_gap": "D&A growth − PP&E growth (pp)",
+    "other_wc": "Largest 'other' working capital line (% of revenue)",
+    "acq_share": "Acquisitions of businesses paid (% of revenue)",
+    "ebitda_pre16": "EBITDA before IFRS 16 (EBITDA less lease payments)",
 }
 ALL_LABELS = LABELS | EXTENDED_LABELS
 
 # Key -> unit, used only to display the values (pct = decimal shown as %; eur = EUR k).
 _UNIT_GROUPS = {
     "pct": "g_vendas new_share g_ex_new top_share g_ex_top_new gm ebitda_m or_share or_ebitda or_var gain_pct "
-           "adj_pct g_cli g_inv g_cmv conv conv_cum capex_pct st_share cov_head etr own_share",
-    "pp": "gm_pp cli_gap inv_gap etr_gap",
+           "adj_pct g_cli g_inv g_cmv conv conv_cum capex_pct other_wc acq_share st_share cov_head etr own_share",
+    "pp": "gm_pp cli_gap inv_gap etr_gap da_gap",
     "days": "dso dso_var dio dpo dpo_var",
     "x": "nd_ebitda nd_ebitda_ex cov_lim int_cover capex_da capex_da_2y",
     "count": "adj_rec docs_miss",
@@ -339,6 +343,17 @@ def compute_metrics(d: CompanyData) -> Metrics:
     rate = (europe.get(d.country) or europe.COUNTRY_BY_CODE["EU"]).tax_rate
     put("etr_gap", P, lambda y: None if rate is None or m["etr"][y] is None else (m["etr"][y] - rate) * 100)
     put("own_share", P, lambda y: None if m["ebitda"][y] <= 0 else N(v("own", y)) / m["ebitda"][y])
+    # beyond the template, seen by a reviewer on real accounts: D&A far ahead of fixed assets, large 'other'
+    # working capital lines, acquisitions inside growth, EBITDA before IFRS 16
+    put("da_gap", Pp, lambda y: None if not need(v("da", y), v("da", prev[y]), v("aft", y), v("aft", prev[y]))
+        or not v("da", prev[y]) or not v("aft", prev[y])
+        else (growth(-v("da", y), -v("da", prev[y])) - growth(v("aft", y), v("aft", prev[y]))) * 100)
+    put("other_wc", P, lambda y: None if not v("vendas", y) or not (v("oac", y) is not None or v("opc", y) is not None)
+        else max(abs(N(v("oac", y))), abs(N(v("opc", y)))) / v("vendas", y))
+    # no acquisitions line in a cash flow statement that exists: none presented, so nil (as the optional lines)
+    put("acq_share", P, lambda y: None if not v("vendas", y) or (v("acq", y) is None and v("fco", y) is None)
+        else 0.0 - N(v("acq", y)) / v("vendas", y))
+    put("ebitda_pre16", P, lambda y: None if v("lease_pay", y) is None else m["ebitda"][y] + v("lease_pay", y))
     return m
 
 

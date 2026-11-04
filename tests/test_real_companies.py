@@ -68,6 +68,19 @@ class ToyotaCaetanoTest(RealCompany, unittest.TestCase):
         # years together converted 39%
         self.assertEqual((self.severity["R04"], self.severity["R10"]), ("High", "High"))
 
+    def test_what_a_reviewer_found(self):
+        """Hand-computed from the published statements (DRE, Balanço, DFC): D&A 16,992 → 28,125 (+65.5%) against
+        PP&E 114,840 → 125,776 (+9.5%); other current liabilities 145,573 of revenue 658,170 (22.1%); lease
+        payments 6,683 (EBITDA 74,634 before IFRS 16: 67,951); financial investments paid 12,388 in FY23."""
+        m = self.m
+        self.assertAlmostEqual(m["da_gap"][2024], 65.5 - 9.5, delta=0.1)
+        self.assertAlmostEqual(m["other_wc"][2024], 145573 / 658170, places=3)
+        self.assertAlmostEqual(m["ebitda_pre16"][2024], 74634 - 6683, delta=1)
+        self.assertAlmostEqual(-self.d.v("acq", 2023), 12388, delta=1)
+        assess = [b for b in self.d.balance_items if b.category.startswith("Material 'other' line")]
+        self.assertEqual([(b.label, b.include, b.in_nwc) for b in assess],
+                         [("Other current liabilities", False, True)])     # listed to assess, still in NWC
+
 
 class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
     FILE = "Corticeira_Amorim_2024_published.xlsx"
@@ -99,7 +112,7 @@ class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
 
 class ClassificationTest(unittest.TestCase):
     def test_every_expected_finding_is_classified(self):
-        self.assertEqual(counts(), {"true positive": 5, "known false alarm": 0, "to review": 4})
+        self.assertEqual(counts(), {"true positive": 7, "known false alarm": 0, "to review": 5})
 
 
 if __name__ == "__main__":

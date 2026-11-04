@@ -424,6 +424,20 @@ FIELDS = [
        patterns=(r"^cash\b(?!.*\b(?:beginning|opening)\b).*\b(?:end|ending|closing)\b", r"^caixa\b.*\bfim\b",
                  r"^efectivo\b.*\bfinal\b", r"\btresorerie\b.*\bcloture\b", r"^finanzmittel\w*\b.*\bende\b",
                  r"^disponibilita liquide\b.*\bfine\b")),
+    # lease payments (IFRS 16: outside EBITDA, inside financing): give an EBITDA before IFRS 16
+    _f("lease_pay", "Lease payments (cash flow statement)", "cf",
+       ["rendas de passivos de locacao", "pagamentos de passivos de locacao", "pagamentos de locacoes",
+        "pagamentos relativos a locacoes", "payments of lease liabilities", "repayment of lease liabilities",
+        "principal elements of lease payments", "lease payments", "pagos por arrendamientos",
+        "remboursement des dettes locatives", "tilgung von leasingverbindlichkeiten",
+        "rimborso di passivita per leasing", "leasing"], -1, optional=True),
+    # businesses bought (growth that is not like-for-like); SNC shows them as payments for financial investments
+    _f("acq", "Acquisitions of businesses (cash flow statement)", "cf",
+       ["acquisition of subsidiaries", "acquisitions of subsidiaries", "acquisition of businesses",
+        "purchase of subsidiaries", "aquisicao de subsidiarias", "aquisicoes de subsidiarias",
+        "pagamentos respeitantes a investimentos financeiros", "investimentos financeiros",
+        "adquisicion de empresas del grupo", "acquisitions de filiales", "erwerb von tochterunternehmen",
+        "acquisizione di partecipazioni"], -1, optional=True, exclude=r"recebimentos|disposal|alienac|cession"),
     # bank overdrafts netted from cash in the cash flow statement (IAS 7.8): in the cash flow statement or the
     # cash note; they explain a difference between the two closing cash figures (R13)
     _f("desc", "Bank overdrafts in cash (cash flow statement)", "cf",
@@ -438,6 +452,8 @@ STATEMENTS = {"pl": "Income statement", "bs": "Balance sheet", "cf": "Cash flow 
 # 'Other' balance sheet lines derived from the published totals: total less the lines identified.
 RESIDUALS = {"oanc": ("tot_anc", ["aft"]), "oac": ("tot_ac", ["inv", "cli", "caixa"]),
              "opnc": ("tot_pnc", ["fin_lp"]), "opc": ("tot_pc", ["forn", "fin_cp"])}
+
+MATERIAL_OTHER = 0.10   # an 'other' current line above this share of revenue is listed in net debt to assess
 
 # Balance sheet lines that may belong in net debt. Included by default: a prudent buy-side view (debt-like
 # items clearly owed; cash-like items only when current); 'to assess' items are shown but not included.
@@ -1007,6 +1023,9 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
         raise ExtractionError("No revenue line found. Is this a financial statements file (P&L, balance sheet, "
                               "cash flow)?")
     lines = _combine(parts_by_key)
+    # a payment row found among receipts (Toyota shows both): keep only the payments
+    if "acq" in lines:
+        lines["acq"] = {y: None if x is None else min(x, 0.0) for y, x in lines["acq"].items()}
     scaled = lambda vals: {y: None if v is None else v * scale for y, v in vals.items()}
     if scale != 1.0:
         lines = {k: scaled(vals) for k, vals in lines.items()}
@@ -1028,6 +1047,12 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             else:
                 unmapped.append({"Statement": STATEMENTS[st], "Line in the file": r.label, "Source": r.source,
                                  **{f"FY{str(y)[2:]}": v for y, v in sorted(scaled(r.values).items())}})
+    # an 'other' current line above a tenth of revenue: its content is unknown, it may hold debt-like items (R28)
+    for key, nature in (("opc", "debt"), ("oac", "cash")):
+        vals, rev = lines.get(key, {}), lines["vendas"]
+        if any(rev.get(y) and x is not None and abs(x) / rev[y] > MATERIAL_OTHER for y, x in vals.items()):
+            data.balance_items.append(BalanceItem(f"Material 'other' line (R28): break it down", FIELD_BY_KEY[key].label,
+                                                  nature, "current", dict(vals), sources.get(key, ""), False, True))
 
     for ws, header, cols in sheets.get("customers", []):
         if not cols:

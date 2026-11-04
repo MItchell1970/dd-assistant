@@ -20,6 +20,12 @@ FINDINGS = {
         "R18": (TRUE, "Published accounts carry no customer listing, ageing or facility agreements."),
         "R24": (REVIEW, "Capex 0.62x and 0.42x of D&A: under-investment, or a rental fleet depreciated in D&A but "
                         "bought outside capex? Needs the fixed asset note."),
+        "R27": (TRUE, "D&A grew 65.5% (€16,992k to €28,125k) against 9.5% for PP&E: found by a reviewer before the "
+                      "rule existed (useful lives, right-of-use assets or the rental fleet)."),
+        "R28": (TRUE, "Other current liabilities are €145,573k, 22% of revenue and seven times trade payables: "
+                      "found by a reviewer; content unknown without the trial balance."),
+        "R29": (REVIEW, "€12,388k paid for 'financial investments' in FY23 (SNC line): may be acquisitions, but the "
+                        "line also holds other financial investments; needs the note."),
     },
     "Corticeira_Amorim_2024_published.xlsx": {
         "R04": (REVIEW, "Other income is 11% of EBITDA: worth a breakdown, not a problem in itself."),

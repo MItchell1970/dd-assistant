@@ -33,7 +33,8 @@ class RuleLogicTest(unittest.TestCase):
         self.assertEqual(R["R24"].fires(0.79), "Yes")      # capex below 80% of D&A in both years
         self.assertEqual(R["R25"].fires(-10.5), "Yes")     # effective tax rate 10.5 pp below the statutory rate
         self.assertEqual(R["R26"].fires(0.05), "No")
-        self.assertEqual([r.id for r in RULES if not r.in_template], ["R21", "R22", "R23", "R24", "R25", "R26"])
+        self.assertEqual([r.id for r in RULES if not r.in_template],
+                         ["R21", "R22", "R23", "R24", "R25", "R26", "R27", "R28", "R29"])
 
     def test_every_rule_is_explained(self):
         for r in RULES:

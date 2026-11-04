@@ -9,8 +9,9 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 - **Módulo:** M2, databook.
 - **M0 concluído:** M0.1 (o verificador do memo liga cada número ao ano citado), M0.2 (ausência ≠ zero), M0.3 (R13 com descobertos; a Amorim ficou fechada com a nota 19 do relatório publicado, conferida no PDF descarregado com autorização do Bernardo), M0.4 (alertas das empresas reais classificados; contagem em `docs/VALIDATION.md`).
 - **M2 feito até agora:** databook com as 12 folhas (`dd_assistant/databook.py`), fórmulas nos totais e pontes, recálculo pelo Excel e comparação com o Python; na app (botão "Download databook") e na linha de comandos (`--databook`).
-- **Próximo passo:** M2e, as regras novas vindas da Toyota (D&A vs. imobilizado, rubricas "outras" materiais, IFRS 16, crescimento não like-for-like); depois M3.
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 148 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
+- **M2e feito:** R27 (D&A muito acima do imobilizado), R28 (rubrica "outra" acima de 10% da receita, listada "a avaliar" no net debt), R29 (crescimento com aquisições), EBITDA antes da IFRS 16 (QoE) e nota IFRS 16 (Net Debt). Dividendos como possível leakage ficam para o M3.
+- **Próximo passo:** M3, EV → equity, completion accounts, locked box e leakage.
+- **Comando para retomar:** `python -m unittest -v` (tem de dar 149 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
 
 ## Diagnóstico (4 de novembro de 2026)
 
@@ -53,6 +54,7 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
+| M2e | Regras R27–R29, item "a avaliar" para rubricas "outras" materiais, EBITDA antes da IFRS 16 | Sim | 149 testes OK; Velmora continua com zero alertas analíticos | Toyota: esperados calculados à mão a partir da DRE, Balanço e DFC publicados (`test_what_a_reviewer_found`) | Pendente |
 | M2a–d | Databook: Read Me, Executive Summary, Source Register (com SHA-256), Financials, QoE (registo de ajustes com estado), NWC (política de inclusão), Net Debt (classificação e inclusão), Issues & Requests (pedidos fundidos), Checks; EV to Equity, Leakage e Monthly & LTM dizem que ainda não existem | Sim | 148 testes OK (10 novos em `tests/test_databook.py`, 2 recalculam no Excel); app headless com o botão nas 4 amostras | Totais do Excel = Python na Duriva e na Toyota (11 e 6 controlos) | Pendente (inspeção visual tua) |
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
 | M0.4 | Alertas das empresas reais classificados (5 verdadeiros positivos, 4 por rever; o alarme falso da Amorim foi resolvido no M0.3); `scripts/validation_report.py` escreve `docs/VALIDATION.md` | Sim | 138 testes OK | Classificação feita a partir dos números publicados (Toyota DRE/DFC, Amorim DR/DFC) | Pendente: a classificação é uma proposta |

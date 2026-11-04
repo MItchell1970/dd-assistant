@@ -416,6 +416,51 @@ NEW_RULES = [
        practice="Quality of earnings: capitalised own work (trabalhos para a própria entidade, trabajos realizados "
                 "para el activo, aktivierte Eigenleistungen) is reviewed and often reversed.",
        in_template=False),
+    _r("R27", "Quality of earnings", "D&A growing far ahead of fixed assets", "D&A growth − PP&E growth (pp)",
+       ">", 20, "pp", "da_gap", "Medium",
+       "A change of useful lives, impairments booked in D&A, a rental fleet or acquisitions: EBITDA and EBIT stop "
+       "being comparable across years.",
+       "Why did D&A grow so much faster than fixed assets: useful lives, impairments, right-of-use assets, a "
+       "rental fleet or acquisitions?",
+       "Fixed asset and right-of-use roll-forward; depreciation policy and useful lives; impairment tests",
+       "D&A sits below EBITDA: if costs moved into it, EBITDA looks better than the business it measures.",
+       ev=lambda c: "D&A — " + "; ".join(f"{fy(y)}: {c.cur(-c.d.v('da', y))}" for y in c.Y)
+                    + "; PP&E — " + "; ".join(f"{fy(y)}: {c.cur(c.d.v('aft', y))}" for y in c.Y)
+                    + f" ({d1(c.g('da_gap', c.L))} pp gap in {fy(c.L)}). Source: {c.src('da')}; {c.src('aft')}",
+       plain="D&A grew more than 20 points faster than fixed assets: lives, impairments or acquisitions changed.",
+       practice="Quality of earnings: D&A is reconciled to the fixed asset roll-forward before EBITDA and EBIT are "
+                "compared across years.",
+       in_template=False),
+    _r("R28", "Net working capital", "Large 'other' working capital line",
+       "Largest of other current assets and other current liabilities / revenue", ">", 0.10, "pct", "other_wc",
+       "Medium",
+       "'Other' lines may hold tax, related-party balances, customer advances, accruals or debt-like items.",
+       "Please break down other current assets and liabilities: tax, related parties, advances, accruals, "
+       "deferred income, other payables?",
+       "Breakdown of other current assets and liabilities (trial balance)",
+       "Inside NWC they move the peg; some may be debt-like and belong in net debt.",
+       ev=lambda c: "Other current assets — " + "; ".join(f"{fy(y)}: {c.cur(c.d.v('oac', y))}" for y in c.Y)
+                    + "; other current liabilities — " + "; ".join(f"{fy(y)}: {c.cur(c.d.v('opc', y))}" for y in c.Y)
+                    + f" (largest: {pct(c.g('other_wc', c.L))} of {fy(c.L)} revenue). Source: "
+                    + "; ".join(s for s in (c.src('oac'), c.src('opc')) if s),
+       plain="An 'other' current line is over a tenth of revenue: its content is unknown and may be debt-like.",
+       practice="Net working capital and net debt: residual balances are broken down before setting the peg and "
+                "the debt-like items.",
+       in_template=False),
+    _r("R29", "Revenue", "Growth may include acquisitions", "Acquisitions of businesses paid / revenue",
+       ">", 0.01, "pct", "acq_share", "Low",
+       "Revenue growth that is not like-for-like (organic): part of it was bought.",
+       "Which businesses were acquired, when, and what revenue and EBITDA did they add? What is like-for-like "
+       "growth?",
+       "Acquisition agreements; revenue and EBITDA of acquired businesses since acquisition",
+       "A buyer prices organic growth; acquired growth is paid for once already.",
+       ev=lambda c: "Acquisitions paid — " + "; ".join(f"{fy(y)}: {c.cur(-c.d.v('acq', y)) if c.d.v('acq', y) is not None else 'n/a'}"
+                                                       for y in c.Y)
+                    + f" ({pct(c.g('acq_share', c.L))} of {fy(c.L)} revenue); revenue growth {spct(c.g('g_vendas', c.L))}. "
+                    f"Source: {c.src('acq')}",
+       plain="The company paid for acquisitions: part of its growth may not be organic (like-for-like).",
+       practice="Revenue quality: growth is split into like-for-like and acquired before it is extrapolated.",
+       in_template=False),
 ]
 
 # Every template rule in plain words, and where the practice comes from.
