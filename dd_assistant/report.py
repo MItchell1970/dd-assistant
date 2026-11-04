@@ -179,6 +179,8 @@ def _deal_sheet(ws, a, head, fill) -> None:
     v = a.view
     ws.append([f"Deal view — {a.ext.company} · {a.money.unit_long} unless stated (percentages in %, days, x)"])
     ws["A1"].font = Font(name="Arial", bold=True, size=12)
+    for note in v.incomplete:
+        ws.append([f"Incomplete: {note}"])
     _block(ws, "Quality of earnings", v.qoe, v.pl_years, a.money, head, fill)
     _block(ws, "Net debt", v.net_debt, v.bs_years, a.money, head, fill)
     _block(ws, "Net working capital", v.nwc, v.bs_years, a.money, head, fill)

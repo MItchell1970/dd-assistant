@@ -20,7 +20,8 @@ from dataclasses import dataclass, field
 
 from . import sectors
 from .input_loader import CompanyData, Named
-from .metrics import Metrics, N, div
+from .metrics import Metrics, N, div, need
+from .rules import fy
 
 ADJUSTMENT_STATES = ["Under review", "Accepted", "Rejected"]
 _DISPOSAL = re.compile(r"aliena|disposal|gain on sale|mais.valia", re.I)
@@ -47,10 +48,11 @@ class DealView:
     ebitda_mgmt: dict[int, float] | None     # as presented by management (None if not presented)
     ebitda_dd: dict[int, float]              # diligence-adjusted
     upside: dict[int, float]                 # management adjustments still under review (not included)
-    net_debt_reported: dict[int, float]
-    net_debt_adjusted: dict[int, float]
-    nwc_values: dict[int, float]
+    net_debt_reported: dict[int, float | None]   # None: a figure it depends on is unknown
+    net_debt_adjusted: dict[int, float | None]
+    nwc_values: dict[int, float | None]
     nwc_average: float | None
+    incomplete: list[str] = field(default_factory=list)   # what is missing, and which result it blocks
 
 
 def _neg(values: dict) -> dict:
@@ -124,6 +126,9 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
           Line("Gross financial debt", debt, "subtotal"),
           Line("Cash and cash equivalents", _neg({y: v("caixa", y) for y in B}), source=src("caixa", "")),
           Line("Reported net debt", reported, "subtotal")]
+    incomplete = [f"{fy(y)} net debt: {', '.join(what)} not found — net debt is not computed (no zero assumed)"
+                  for y in B if reported[y] is None and (what := [label for key, label in (
+                      ("caixa", "cash and cash equivalents"), ("fin_lp", "borrowings")) if v(key, y) is None])]
     adjusted = dict(reported)
     included = [(i, b) for i, b in enumerate(d.balance_items) if include.get(i, b.include)]
     assess = [(i, b) for i, b in enumerate(d.balance_items) if not include.get(i, b.include)]
@@ -136,10 +141,11 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
             nd.append(Line(f"{b.label} ({b.kind.replace('noncurrent', 'non-current') or 'balance sheet'})", vals,
                            source=b.source, note=b.category))
             for y in B:
-                adjusted[y] += vals[y]
+                adjusted[y] = None if adjusted[y] is None else adjusted[y] + vals[y]
     nd.append(Line("Adjusted net debt", adjusted, "total"))
     nd.append(Line("Adjusted net debt / diligence-adjusted EBITDA",
-                   {y: div(adjusted[y], dd[y]) if dd.get(y, 0) > 0 else None for y in B if y in dd}, "memo", unit="x"))
+                   {y: div(adjusted[y], dd[y]) if dd.get(y, 0) > 0 and adjusted[y] is not None else None
+                    for y in B if y in dd}, "memo", unit="x"))
     if assess:
         nd.append(Line("To assess (not included)", style="header"))
         for _, b in assess:
@@ -149,8 +155,14 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
                            b.source, b.category))
 
     # ---------------- net working capital
-    trade = {y: N(v("inv", y)) + N(v("cli", y)) - N(v("forn", y)) for y in B}
-    nwc = {y: trade[y] + N(v("oac", y)) - N(v("opc", y)) for y in B}
+    # receivables, payables and the other current lines are needed; inventories may simply not exist (services)
+    known = {y: need(v("cli", y), v("forn", y), v("oac", y), v("opc", y)) for y in B}
+    trade = {y: N(v("inv", y)) + v("cli", y) - v("forn", y) if need(v("cli", y), v("forn", y)) else None for y in B}
+    nwc = {y: trade[y] + v("oac", y) - v("opc", y) if known[y] else None for y in B}
+    labels = {"cli": "trade receivables", "forn": "trade payables", "oac": "other current assets",
+              "opc": "other current liabilities"}
+    incomplete += [f"{fy(y)} working capital: {', '.join(t for k, t in labels.items() if v(k, y) is None)} not found "
+                   f"— NWC is not computed (no zero assumed)" for y in B if not known[y]]
     wc = [Line("Inventories", {y: v("inv", y) for y in B}, source=src("inv", "")),
           Line("Trade receivables", {y: v("cli", y) for y in B}, source=src("cli", "")),
           Line("Trade payables", _neg({y: v("forn", y) for y in B}), source=src("forn", "")),
@@ -162,21 +174,22 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
             vals = {y: N(b.values.get(y)) * (1 if b.nature == "debt" else -1) for y in B}
             wc.append(Line(f"Excluded: {b.label} (in net debt)", vals, source=b.source))
             for y in B:
-                nwc[y] += vals[y]
+                nwc[y] = None if nwc[y] is None else nwc[y] + vals[y]
     wc.append(Line("Net working capital", nwc, "total"))
     wc.append(Line("NWC as % of revenue", {y: div(nwc[y], v("vendas", y)) for y in B}, "memo", unit="pct"))
     wc.append(Line("NWC in days of revenue", {y: None if (r := div(nwc[y], v("vendas", y))) is None else r * 365
                                               for y in B}, "memo", unit="days"))
-    average = sum(nwc.values()) / len(nwc) if nwc else None
+    valid = [x for x in nwc.values() if x is not None]
+    average = sum(valid) / len(valid) if valid and len(valid) == len(nwc) else None
     L = B[-1]
-    if len(B) >= 2:
+    if len(B) >= 2 and average is not None:
         wc.append(Line(f"Average of the {len(B)} year-ends (indicative peg reference)", {L: average}, "memo",
                        note="a peg is set on 12–24 monthly balances: request them"))
         gap = nwc[L] - average
         wc.append(Line("Latest year-end less the average", {L: gap}, "memo",
                        note="below the average: check whether working capital was run down before the sale" if gap < 0
                        else "above the average: structural (growth) or a temporary build-up of receivables or stock?"))
-    return DealView(Y, B, qoe, nd, wc, rep, mgmt, dd, upside, reported, adjusted, nwc, average)
+    return DealView(Y, B, qoe, nd, wc, rep, mgmt, dd, upside, reported, adjusted, nwc, average, incomplete)
 
 
 # ---------------------------------------------------------------- sector benchmarks
@@ -227,8 +240,9 @@ def value_at_stake(view: DealView, multiple: float) -> list[tuple[str, float | N
     L, B = view.pl_years[-1], view.bs_years[-1]
     base = (view.ebitda_mgmt or view.ebitda)[L]
     ebitda_gap = view.ebitda_dd[L] - base
-    debt_gap = -(view.net_debt_adjusted[B] - view.net_debt_reported[B])
+    debt_gap = None if not need(view.net_debt_adjusted[B], view.net_debt_reported[B]) else \
+        -(view.net_debt_adjusted[B] - view.net_debt_reported[B])
     return [("EBITDA presented by the seller", base), ("Diligence-adjusted EBITDA", view.ebitda_dd[L]),
             (f"EBITDA difference × {multiple:g}x", ebitda_gap * multiple),
             ("Debt-like items less cash-like items (one for one)", debt_gap),
-            ("Equity value at stake", ebitda_gap * multiple + debt_gap)]
+            ("Equity value at stake", None if debt_gap is None else ebitda_gap * multiple + debt_gap)]

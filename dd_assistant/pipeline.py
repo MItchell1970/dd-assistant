@@ -155,7 +155,7 @@ def to_dict(a: Analysis) -> dict:
                          "values": {fy(y): v for y, v in r.values.items()}} for r in a.results if not r.alert
                         and any(isinstance(v, (int, float)) for v in r.values.values())],
         "deal_view": {"quality_of_earnings": lines(a.view.qoe), "net_debt": lines(a.view.net_debt),
-                      "net_working_capital": lines(a.view.nwc)},
+                      "net_working_capital": lines(a.view.nwc), "incomplete": a.view.incomplete},
         "management_adjustments": [{"name": x.name, "values": years(x.values),
                                     "status": a.decisions.get(x.name, "Under review")} for x in d.adjustments],
         "balance_sheet_items": [{"category": b.category, "label": b.label, "nature": b.nature, "kind": b.kind,

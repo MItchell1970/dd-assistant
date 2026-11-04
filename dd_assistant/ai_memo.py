@@ -136,6 +136,7 @@ def _input_section(d: CompanyData) -> list[str]:
 
 def _deal_section(a) -> list[str]:
     out = ["## 5. Deal view (calculated by the code; reviewer decisions included)"]
+    out += [f"- Incomplete (say so; do not estimate the missing figure): {note}" for note in a.view.incomplete]
     for title, block, years in (("Quality of earnings", a.view.qoe, a.view.pl_years),
                                 ("Net debt", a.view.net_debt, a.view.bs_years),
                                 ("Net working capital", a.view.nwc, a.view.bs_years)):

@@ -98,7 +98,8 @@ Metrics = dict[str, dict[int, object]]
 
 
 def N(x) -> float:
-    """Like Excel's N(): blank counts as 0."""
+    """Like Excel's N(): blank counts as 0. Only for lines a statement may simply not present (impairment, own
+    work capitalised, a second borrowings line); a figure a result depends on goes through need() instead."""
     return x if isinstance(x, (int, float)) else 0.0
 
 
@@ -112,6 +113,11 @@ def div(a, b):
 def growth(cur, prev):
     r = div(cur, prev)
     return None if r is None else r - 1
+
+
+def need(*values) -> bool:
+    """All the figures a result depends on are known: a missing one makes the result unknown, never zero."""
+    return all(x is not None for x in values)
 
 
 def sub(a, b):
@@ -239,28 +245,33 @@ def compute_metrics(d: CompanyData) -> Metrics:
 
     put("conv_cum", P, conv_cum)
     put("fco", P, lambda y: v("fco", y))
-    put("fcf", P, lambda y: N(v("fco", y)) + N(v("capex", y)) + N(v("alien", y)))
-    put("capex_pct", P, lambda y: div(-N(v("capex", y)), v("vendas", y)))
+    put("fcf", P, lambda y: None if not need(v("fco", y), v("capex", y))
+        else v("fco", y) + v("capex", y) + N(v("alien", y)))
+    put("capex_pct", P, lambda y: None if v("capex", y) is None else div(-v("capex", y), v("vendas", y)))
 
     # ---------------- Debt
-    put("debt", B, lambda y: N(v("fin_lp", y)) + N(v("fin_cp", y)))
-    put("st_share", B, lambda y: div(N(v("fin_cp", y)), m["debt"][y]))
-    put("net_debt", B, lambda y: m["debt"][y] - N(v("caixa", y)))
-    put("nd_ebitda", P, lambda y: None if m["ebitda"][y] <= 0 or y not in m["net_debt"]
+    # no borrowings line at all: debt unknown; one of the two lines not presented: nil
+    put("debt", B, lambda y: None if v("fin_lp", y) is None and v("fin_cp", y) is None
+        else N(v("fin_lp", y)) + N(v("fin_cp", y)))
+    put("st_share", B, lambda y: None if m["debt"][y] is None else div(N(v("fin_cp", y)), m["debt"][y]))
+    put("net_debt", B, lambda y: None if not need(m["debt"][y], v("caixa", y)) else m["debt"][y] - v("caixa", y))
+    put("nd_ebitda", P, lambda y: None if m["ebitda"][y] <= 0 or m["net_debt"].get(y) is None
         else m["net_debt"][y] / m["ebitda"][y])
-    put("nd_ebitda_ex", P, lambda y: None if m["ebitda_ex_gain"][y] <= 0 or y not in m["net_debt"]
+    put("nd_ebitda_ex", P, lambda y: None if m["ebitda_ex_gain"][y] <= 0 or m["net_debt"].get(y) is None
         else m["net_debt"][y] / m["ebitda_ex_gain"][y])
     lim = v("cov_lim", L)
     if lim:
         m["cov_lim"][L] = lim
         nd = m["nd_ebitda"].get(L)
         m["cov_head"][L] = None if nd is None else 1 - nd / lim
-        m["ebitda_min"][L] = None if L not in m["net_debt"] else m["net_debt"][L] / lim
+        m["ebitda_min"][L] = None if m["net_debt"].get(L) is None else m["net_debt"][L] / lim
 
     # ---------------- Consistency (0 = everything reconciles)
     assets = ["aft", "oanc", "inv", "cli", "oac", "caixa"]
     liabs = ["cp", "fin_lp", "opnc", "forn", "fin_cp", "opc"]
-    put("bs_diff", B, lambda y: sum(N(v(k, y)) for k in assets) - sum(N(v(k, y)) for k in liabs))
+    # without cash or equity the difference would be the missing figure itself, not an error of the company
+    put("bs_diff", B, lambda y: None if not need(v("caixa", y), v("cp", y))
+        else sum(N(v(k, y)) for k in assets) - sum(N(v(k, y)) for k in liabs))
     put("cash_diff", P, lambda y: sub(v("cx_fim", y), v("caixa", y)))
 
     def wc(y):
@@ -268,10 +279,11 @@ def compute_metrics(d: CompanyData) -> Metrics:
             return None   # direct-method cash flow statement: no working capital movements to compare
         p = prev_bs[y]
         delta = lambda k: N(v(k, y)) - N(v(k, p))
-        # assets: the CFS movement has the opposite sign to the balance sheet increase
-        return (abs(N(v("d_cli", y)) + delta("cli")) + abs(N(v("d_inv", y)) + delta("inv"))
-                + abs(N(v("d_forn", y)) - delta("forn")) + abs(N(v("d_oac", y)) + delta("oac"))
-                + abs(N(v("d_opc", y)) - delta("opc")))
+        # assets: the CFS movement has the opposite sign to the balance sheet increase; a movement the cash flow
+        # statement does not present is compared with nothing (not with zero)
+        pairs = [("d_cli", "cli", 1), ("d_inv", "inv", 1), ("d_forn", "forn", -1), ("d_oac", "oac", 1),
+                 ("d_opc", "opc", -1)]
+        return sum(abs(v(cf, y) + sign * delta(bs)) for cf, bs, sign in pairs if v(cf, y) is not None)
 
     put("wc_diff", Pb, wc)
     def ni(y):
@@ -284,7 +296,7 @@ def compute_metrics(d: CompanyData) -> Metrics:
     if d.clients:
         put("cl_diff", P, lambda y: sum(N(c.values.get(y)) for c in d.clients) + N(d.other_clients.get(y)) - v("vendas", y))
     if v("map_tot", L) is not None:
-        m["map_diff"][L] = abs(N(v("map_tot", L)) - m["debt"][L]) + abs(N(v("map_cur", L)) - N(v("fin_cp", L)))
+        m["map_diff"][L] = None if m["debt"][L] is None else             abs(v("map_tot", L) - m["debt"][L]) + abs(N(v("map_cur", L)) - N(v("fin_cp", L)))
 
     # ---------------- Information
     missing = [name for name, ok in d.documents if not ok]

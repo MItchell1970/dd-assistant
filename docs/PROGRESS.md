@@ -7,9 +7,9 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 ## Agora
 
 - **Módulo:** M0, correções de confiança.
-- **Feito:** M0.1 (o verificador do memo liga cada número ao ano citado).
-- **Próximo passo:** M0.2, ausência ≠ zero, a começar pelas pontes (`deal.py`) e pelas regras de consistência (R12–R17).
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 127 testes OK); depois ler a secção "Próximo passo" acima.
+- **Feito:** M0.1 (o verificador do memo liga cada número ao ano citado); M0.2 (ausência ≠ zero nas pontes e nas regras de consistência).
+- **Próximo passo:** M0.3, R13 com caixa restrita e descobertos bancários (Amorim).
+- **Comando para retomar:** `python -m unittest -v` (tem de dar 133 testes OK); depois ler a secção "Próximo passo" acima.
 
 ## Diagnóstico (4 de novembro de 2026)
 
@@ -37,8 +37,12 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 - **M0.1, rótulo como aviso e não como erro.** Um número só passa se existir no material para o ano citado na mesma oração; um ano trocado é erro. Se o número existe para esse ano mas noutra linha, é aviso, porque a prosa do memo não usa os rótulos do material ("operating cash" por "cash generated from operations"); um erro aqui daria alarmes falsos. Sem ano na oração, vale a regra antiga (o número existe no material).
 - **M0.1, ano citado:** o ano logo a seguir ao número sem outro número pelo meio ("67.6% in FY23"), senão o mais próximo antes ("FY23: €27,739k"), senão o mais próximo depois. No material, as células do data room recebem o ano do cabeçalho da folha.
 
+- **M0.2, o que conta como "não apresentado".** Um resultado fica desconhecido (não zero) quando falta um dado de que depende: net debt sem caixa ou sem nenhuma linha de financiamentos; NWC sem clientes, fornecedores ou as outras linhas correntes; FCF sem fluxo operacional ou capex; R12 sem caixa ou capital próprio. Continuam a contar como nulas as linhas que uma demonstração pode simplesmente não ter: imparidades, trabalhos para a própria entidade, inventários (serviços), a segunda linha de financiamentos quando a primeira existe. A R14 compara só os movimentos que a DFC apresenta. A paridade não muda: a Duriva e a Velmora têm todos os dados, e a planilha dá os mesmos resultados.
+- **M0.2, o que ainda usa N():** o EBITDA (soma das linhas operacionais apresentadas), as listas de clientes e os ajustes da gestão (um ano vazio de um ajuste é zero). Um EBITDA sem uma linha de custo principal é apanhado pelas reading checks, não por N().
+
 ## Incrementos
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
+| M0.2 | Ausência ≠ zero: net debt, NWC, FCF, R12, R14, mapa da dívida; avisos "incompleto" na app, no Excel, no memo e no JSON | Sim | 133 testes OK (6 novos em `tests/test_absence.py`); app headless sem erros nas 4 amostras | Não aplicável (casos construídos a partir da Velmora) | Pendente |

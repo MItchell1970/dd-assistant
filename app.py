@@ -304,7 +304,7 @@ tab_ov, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(
 # ---------------------------------------------------------------- overview
 with tab_ov:
     g = lambda key, year=L: metrics[key].get(year)
-    nwc_pct = None if not data.v("vendas", B) else view.nwc_values[B] / data.v("vendas", B)
+    nwc_pct = None if not data.v("vendas", B) or view.nwc_values[B] is None else view.nwc_values[B] / data.v("vendas", B)
     kpis = [
         ("Revenue", money.fmt(g("vendas")), f"{fmt_metric('g_vendas', g('g_vendas'))} growth vs {fy(data.pl_years[-2])}"),
         ("Diligence-adjusted EBITDA", money.fmt(view.ebitda_dd[L]),
@@ -313,7 +313,8 @@ with tab_ov:
         ("Cash conversion", fmt_metric("conv", g("conv")), "Operating cash / reported EBITDA"),
         ("Adjusted net debt", money.fmt(view.net_debt_adjusted[B]),
          f"Reported {money.fmt(view.net_debt_reported[B])}"
-         + (f" · {view.net_debt_adjusted[B] / view.ebitda_dd[L]:.2f}x EBITDA" if view.ebitda_dd[L] > 0 else "")),
+         + (f" · {view.net_debt_adjusted[B] / view.ebitda_dd[L]:.2f}x EBITDA"
+            if view.ebitda_dd[L] > 0 and view.net_debt_adjusted[B] is not None else "")),
         ("Net working capital", money.fmt(view.nwc_values[B]),
          f"{fmt_unit('pct', nwc_pct)} of revenue" + (f" · average {money.fmt(view.nwc_average)}"
                                                     if len(view.bs_years) > 1 else "")),
@@ -387,6 +388,8 @@ with tab_ov:
 with tab_deal:
     st.caption("The three numbers a deal team asks for first, calculated by the code from the lines in Data room. "
                "Your decisions below flow into the Excel download and the AI memo. Hover a line to see its source.")
+    for note in view.incomplete:
+        st.warning(note)
     st.markdown("<div class='dd-section'>Quality of earnings</div>", unsafe_allow_html=True)
     st.markdown(bridge(view.qoe, view.pl_years, money), unsafe_allow_html=True)
     c1, c2 = st.columns([3, 2], gap="large")
