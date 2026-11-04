@@ -1,4 +1,31 @@
-# Example — Corticeira Amorim, FY2024
+# Examples
+
+## The demo companies, FY2025
+
+The online demo (`DD_DEMO=1`) reads these folders. Each holds what Claude Code produced with the `due-diligence` skill on the published consolidated accounts, with no API key:
+
+| Folder | Company | Memo check |
+| --- | --- | --- |
+| `tap/` | TAP Air Portugal | passed: 89 figures, none without a source, no warning |
+| `toyota-caetano/` | Toyota Caetano Portugal | passed: 78 figures, none without a source, no warning |
+| `corticeira-amorim/` | Corticeira Amorim | passed: 85 figures, none without a source, no warning |
+
+In each folder:
+
+- `memo.md`: the two-page memo, the request list and the notes to improve the template;
+- `memo_check.md`: the result of the automatic checker (`memo_check.py`, no AI);
+- `databook.xlsx`: the databook, recalculated by Excel, whose totals equal the engine;
+- `case_note.md`: one page to read before an interview — context, three talking points, limits.
+
+`tests/test_demo.py` checks that the stored memo still passes the checker, that the stored check is current, and that the memo, the databook and the app quote the same figures. To regenerate the databooks and the checks after a change to the engine:
+
+```powershell
+python scripts\demo_examples.py
+```
+
+The memos are illustrations on public figures, not advice on the companies' securities.
+
+## Earlier example — Corticeira Amorim, FY2024
 
 `Corticeira_Amorim_FY2024_memo.md` was written by Claude Code running the `due-diligence` skill on `data/Corticeira_Amorim_2024_published.xlsx`, the consolidated statements the group published in its 2024 annual report. It used no API key and no prompt beyond `docs/ai_memo_prompt.md`.
 

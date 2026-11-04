@@ -42,6 +42,8 @@ class Case:
     headline: str         # the most interesting finding, in one sentence (figures from the engine; tested)
     accounts: str         # what the accounts are and where they come from
     purpose: str = "buy"
+    context: str = ""     # one sentence of outside context for the visitor, never given to the engine or the memo
+    context_source: tuple[str, str] = ("", "")   # (publication and date, URL)
 
     @property
     def path(self) -> Path:
@@ -71,7 +73,12 @@ class Case:
 CASES = (
     Case("tap", "TAP Air Portugal", "TAP_2025_published.xlsx", "PT", "transport",
          "Reported net debt of -€43m becomes €2,293m once the aircraft leases (IFRS 16) are counted.",
-         "Consolidated accounts FY2025, 2025 Integrated Report"),
+         "Consolidated accounts FY2025, 2025 Integrated Report",
+         context="The privatisation is under way: Air France-KLM and Lufthansa submitted binding offers, and the "
+                 "Government extended the deadline to complete it to the end of 2026.",
+         context_source=("Jornal de Notícias, 6 September 2026",
+                         "https://www.jn.pt/economia/artigo/governo-prorroga-ate-final-do-ano-prazo-para-concluir-"
+                         "privatizacao-da-tap/18123884")),
     Case("toyota-caetano", "Toyota Caetano Portugal", "Toyota_Caetano_2025_published.xlsx", "PT", "automotive",
          "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (-€3,987k).",
          "Consolidated accounts FY2025, 2025 annual report (ESEF)"),

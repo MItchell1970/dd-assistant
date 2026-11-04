@@ -417,6 +417,9 @@ st.markdown(f"<div class='dd-eyebrow'>{html.escape(PURPOSES[a.purpose])} · {htm
 if DEMO:
     st.markdown(f"<div class='dd-banner'>{html.escape(demo.WARNING)} {html.escape(case.accounts)}, figures as "
                 "published: see Data room for the source of each line.</div>", unsafe_allow_html=True)
+    if case.context:
+        source, url = case.context_source
+        st.caption(f"Context, not used in the analysis or the memo: {case.context} Source: [{source}]({url}).")
     downloads = st.container()   # filled after Deal view, so the databook carries the visitor's price inputs
 if not a.checks_ok:
     st.warning("Reading check failed: a subtotal rebuilt from the lines read does not match the published one. "

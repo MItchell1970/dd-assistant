@@ -124,6 +124,25 @@ class SameNumbersTest(unittest.TestCase):
                 self.assertGreater(checked, 0)
                 self.assertEqual((unmatched, misdated), ([], []))
 
+    def test_case_note_figures_are_in_the_material(self):
+        """The talking points of each case note quote only figures the engine produced, for the right year."""
+        from dd_assistant.memo_check import _check_numbers
+        for c in demo.CASES:
+            with self.subTest(c.slug):
+                note = c.case_note_path.read_text(encoding="utf-8")
+                points = note[note.index("## Three talking points"):]
+                checked, unmatched, misdated, _ = _check_numbers(points, demo.material(c))
+                self.assertGreater(checked, 5)
+                self.assertEqual((unmatched, misdated), ([], []))
+
+    def test_outside_context_stays_out_of_the_memo(self):
+        """The privatisation is context for the visitor only: the memo and its material use the accounts alone."""
+        tap = demo.CASE_BY_SLUG["tap"]
+        self.assertTrue(tap.context and tap.context_source[1].startswith("https://"))
+        for text in (demo.memo(tap), demo.material(tap)):
+            for word in ("privatis", "Lufthansa", "Air France"):
+                self.assertNotIn(word, text)
+
     def test_request_list_comes_from_the_memo(self):
         for c in demo.CASES:
             text = demo.request_list(c)
