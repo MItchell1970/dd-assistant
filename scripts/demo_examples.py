@@ -1,0 +1,40 @@
+"""Regenerate the stored outputs of the demo: for each company, the databook (recalculated by Excel when this PC has
+it) and the result of the memo check, in docs/examples/<company>/. The memos themselves are written by Claude Code
+(the due-diligence skill, no API) and are not touched here.
+
+Run from the project folder:  python scripts\\demo_examples.py
+"""
+from __future__ import annotations
+
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from dd_assistant.__main__ import main  # noqa: E402
+from dd_assistant.demo import CASES  # noqa: E402
+
+
+def run() -> int:
+    worst = 0
+    for case in CASES:
+        print(f"\n=== {case.company}")
+        with tempfile.TemporaryDirectory() as tmp:
+            args = [str(case.path), "--country", case.country, "--sector", case.sector, "--purpose", case.purpose,
+                    "--databook", "--out", tmp]
+            if case.memo_path.exists():
+                args += ["--check-memo", str(case.memo_path)]
+            rc = main(args)
+            worst = max(worst, rc)
+            case.folder.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(Path(tmp) / f"{case.path.stem}_databook.xlsx", case.databook_path)
+            if case.memo_path.exists():
+                shutil.copyfile(Path(tmp) / f"{case.memo_path.stem}_check.md", case.check_path)
+    return worst
+
+
+if __name__ == "__main__":
+    sys.exit(run())

@@ -222,7 +222,7 @@ def _qoe(ws, a, fin_rows: dict[str, int]) -> dict:
     years = v.pl_years
     cols = {y: 5 + i for i, y in enumerate(years)}
     fin_col = {y: 4 + i for i, y in enumerate(d.years)}
-    _title(ws, "QoE — quality of earnings", "Reported EBITDA → adjustments → diligence-adjusted EBITDA (scenario: "
+    _title(ws, "QoE — quality of earnings", "EUR thousands. Reported EBITDA → adjustments → diligence-adjusted EBITDA (scenario: "
                                             "only adjustments approved by the analyst or applied by rule). Change a "
                                             "status in yellow and the totals follow. 'One-off' in a description "
                                             "proves nothing: each adjustment needs its document.")
@@ -322,7 +322,7 @@ def _net_debt(ws, a, fin_rows: dict[str, int]) -> dict:
     years = v.bs_years
     cols = {y: 5 + i for i, y in enumerate(years)}
     fin_col = {y: 4 + i for i, y in enumerate(d.years)}
-    _title(ws, "Net Debt", "Financial debt − cash, then the debt-like and cash-like items, each with its "
+    _title(ws, "Net Debt", "EUR thousands. Financial debt − cash, then the debt-like and cash-like items, each with its "
                            "classification. Include 'Yes' adds it to adjusted net debt. An item included here is taken "
                            "out of NWC (no double count). Subordinated to the definitions of the SPA.")
     _header(ws, 4, ["Line", "Classification", "Include", "Why"] + [fy(y) for y in years] + ["Source"])
@@ -398,7 +398,7 @@ def _nwc(ws, a, fin_rows: dict[str, int], nd: dict) -> dict:
     years = v.bs_years
     cols = {y: 4 + i for i, y in enumerate(years)}
     fin_col = {y: 4 + i for i, y in enumerate(d.years)}
-    _title(ws, "NWC — net working capital", "Operating NWC = operating assets included − operating liabilities "
+    _title(ws, "NWC — net working capital", "EUR thousands. Operating NWC = operating assets included − operating liabilities "
                                              "included (never current assets − current liabilities unfiltered). "
                                              "Include in yellow. Excluded by policy: cash, financial debt, and any "
                                              "item classified in Net Debt.")
@@ -586,7 +586,7 @@ def _leakage(ws, a, price) -> None:
     from .price import INSUFFICIENT, LEAKAGE_STATES, leakage_candidates
     lb = price.locked_box if price else None
     items = (lb.leakage if lb and lb.leakage else leakage_candidates(a.data))
-    _title(ws, "Leakage", "Screening register, not a legal verdict. Only 'Confirmed after review' counts in EV to "
+    _title(ws, "Leakage", "EUR thousands. Screening register, not a legal verdict. Only 'Confirmed after review' counts in EV to "
                           "Equity. A payment to a related party does not prove prohibited leakage; finding no candidate "
                           "does not prove there is none.")
     head = ["ID", "Date", "Beneficiary", "Relation to the seller", "Amount", "Description", "Document", "Clause",

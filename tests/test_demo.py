@@ -81,6 +81,8 @@ class DemoAppTest(unittest.TestCase):
                 text = page_text(at)
                 self.assertIn(demo.WARNING, text)
                 self.assertNotIn("Claude API: not configured", text)
+                self.assertTrue(any("passed" in s.value and "without a source: 0" in s.value for s in at.success),
+                                "the Memo tab shows the checker result")
 
     def test_runs_without_the_anthropic_library(self):
         """The public demo needs no API library: block the import and run the app."""
@@ -97,6 +99,73 @@ class DemoAppTest(unittest.TestCase):
         r = subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True,
                            encoding="utf-8", timeout=300)
         self.assertIn("OK", r.stdout, r.stderr[-2000:])
+
+
+class SameNumbersTest(unittest.TestCase):
+    """The memo, the databook and the app show the figures the engine computes, for each company."""
+
+    def test_stored_memo_passes_the_checker_now(self):
+        from dd_assistant.memo_check import report
+        for c in demo.CASES:
+            with self.subTest(c.slug):
+                check = demo.check(c)
+                self.assertIsNotNone(check, "memo not stored")
+                self.assertTrue(check.ok, report(check))
+                self.assertFalse(check.warnings, report(check))
+                self.assertGreater(check.numbers_checked, 50)
+                self.assertEqual(c.check_path.read_text(encoding="utf-8").strip(), report(check).strip(),
+                                 "stored check is stale: run python scripts\\demo_examples.py")
+
+    def test_card_headline_figures_are_in_the_material(self):
+        from dd_assistant.memo_check import _check_numbers
+        for c in demo.CASES:
+            with self.subTest(c.slug):
+                checked, unmatched, misdated, _ = _check_numbers(c.headline, demo.material(c))
+                self.assertGreater(checked, 0)
+                self.assertEqual((unmatched, misdated), ([], []))
+
+    def test_request_list_comes_from_the_memo(self):
+        for c in demo.CASES:
+            text = demo.request_list(c)
+            self.assertTrue(text.startswith("## Information request list"), c.slug)
+            self.assertIn("| Related question |", text)
+            self.assertNotIn("Notes to improve the template", text)
+
+    def test_stored_databook_equals_the_engine(self):
+        """The databook in docs/examples, as recalculated by Excel, gives the engine's EBITDA, net debt and NWC."""
+        from openpyxl import load_workbook
+        from dd_assistant.databook import control_results
+        for c in demo.CASES:
+            with self.subTest(c.slug):
+                a = demo.analysis(c)
+                expected = {"Diligence-adjusted EBITDA": a.view.ebitda_dd, "Adjusted net debt": a.view.net_debt_adjusted,
+                            "Net working capital": a.view.nwc_values}
+                controls = control_results(c.databook_path)
+                self.assertEqual(len(controls), 6)
+                for name, year, workbook, _python, status in controls:
+                    self.assertTrue(str(status).startswith("OK"), (name, year, status))
+                    self.assertAlmostEqual(workbook, expected[name][2000 + int(year[2:])], delta=1, msg=(name, year))
+                wb = load_workbook(c.databook_path, data_only=True)
+                errors = [(ws.title, x.coordinate) for ws in wb for row in ws.iter_rows() for x in row
+                          if isinstance(x.value, str) and x.value.startswith("#") and x.value[-1] in "!?A0"]
+                self.assertEqual(errors, [])
+                for sheet in ("Financials", "QoE", "NWC", "Net Debt"):
+                    self.assertTrue(wb[sheet].freeze_panes, sheet)
+                    self.assertIn("EUR thousands", " ".join(str(x.value) for row in wb[sheet].iter_rows(max_row=2)
+                                                            for x in row if x.value))
+
+    def test_app_shows_the_memo_figures(self):
+        """The headline cards of the app and the stored memo quote the same EBITDA and adjusted net debt."""
+        for c in demo.CASES:
+            with self.subTest(c.slug):
+                a = demo.analysis(c)
+                L, B = a.view.pl_years[-1], a.view.bs_years[-1]
+                figures = [a.money.fmt(a.view.ebitda_dd[L]), a.money.fmt(a.view.net_debt_adjusted[B])]
+                memo = demo.memo(c)
+                app = page_text(app_test(c.slug))
+                for f in figures:
+                    self.assertIn(f, memo)
+                    self.assertIn(f, app)
 
 
 if __name__ == "__main__":
