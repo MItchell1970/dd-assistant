@@ -22,6 +22,10 @@ from dd_assistant import europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.deal import ADJUSTMENT_STATES, Line, value_at_stake
 from dd_assistant.databook import write_databook
+from dd_assistant.price import (LEAKAGE_STATES, LEAKAGE_TREATMENTS, MECHANISMS, EnterpriseValue,
+                               LeakageItem, LockedBox, PriceInputs, completion_equity,
+                               completion_from_analysis, leakage_candidates, locked_box_equity,
+                               sensitivity)
 from dd_assistant.dataroom import DOCUMENTS, ESEF, SPREADSHEETS, NeedsPdfReading, files_in, read_data_room
 from dd_assistant.extract import ExtractionError, data_room_text
 from dd_assistant.input_loader import Named
@@ -39,13 +43,14 @@ SAMPLES = {"Duriva — data room in 5 documents, planted issues": DATA / "Duriva
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 SEVERITY_COLOR = {"High": "#d03b3b", "Medium": "#fab219", "Low": "#8a8f98"}   # status palette; always with a label
 # Overview: which findings colour each headline figure, and where to look for the detail.
-KPI_RULES = {"Revenue": ["R01", "R02", "R16"], "Diligence-adjusted EBITDA": ["R03", "R04", "R05", "R06", "R19", "R26"],
+KPI_RULES = {"Revenue": ["R01", "R02", "R16", "R29"],
+             "Diligence-adjusted EBITDA": ["R03", "R04", "R05", "R06", "R19", "R26", "R27"],
              "Cash conversion": ["R10", "R14", "R24"],
              "Adjusted net debt": ["R11", "R13", "R17", "R20", "R21", "R22"],
-             "Net working capital": ["R07", "R08", "R09", "R23"]}
+             "Net working capital": ["R07", "R08", "R09", "R23", "R28"]}
 # Within a severity, what moves the price first: EBITDA quality, cash, debt, then revenue, working capital, data.
-IMPACT = ["R19", "R05", "R04", "R26", "R10", "R20", "R21", "R11", "R13", "R22", "R01", "R02", "R03", "R07", "R09",
-          "R08", "R24", "R06", "R23", "R17", "R12", "R15", "R14", "R16", "R25", "R18"]
+IMPACT = ["R19", "R05", "R04", "R26", "R27", "R10", "R20", "R21", "R11", "R13", "R22", "R28", "R01", "R02", "R29",
+          "R03", "R07", "R09", "R08", "R24", "R06", "R23", "R17", "R12", "R15", "R14", "R16", "R25", "R18"]
 WHERE = {"Quality of earnings": "Deal view", "Net working capital": "Deal view", "Debt": "Deal view",
          "Consistency": "Data room", "Information": "Data room"}
 SUMMARY_ROWS = ["vendas", "g_vendas", "gm", "ebitda", "ebitda_m", "ebitda_adj", "ebitda_ex_gain", "cgo", "conv",
@@ -362,7 +367,8 @@ with tab_ov:
                            for k in SEVERITIES), unsafe_allow_html=True)
     if not al:
         st.success("No rule fired: no red flags on the data provided.")
-    ordered = sorted(al, key=lambda r: (SEVERITIES.index(r.rule.severity), IMPACT.index(r.rule.id)))
+    impact = lambda rid: IMPACT.index(rid) if rid in IMPACT else len(IMPACT)   # a new rule goes last, never fails
+    ordered = sorted(al, key=lambda r: (SEVERITIES.index(r.rule.severity), impact(r.rule.id)))
     issues = []
     for r in ordered[:6]:
         big, vs = headline(r, money)
@@ -386,6 +392,7 @@ with tab_ov:
                "standard line items identified" + (f". Not found: {', '.join(ext.missing)}." if ext.missing else "."))
 
 # ---------------------------------------------------------------- deal view
+price = None   # the price mechanism the analyst sets in Deal view (carried into the databook)
 with tab_deal:
     st.caption("The three numbers a deal team asks for first, calculated by the code from the lines in Data room. "
                "Your decisions below flow into the Excel download and the AI memo. Hover a line to see its source.")
@@ -445,6 +452,100 @@ with tab_deal:
         st.caption("What the diligence adjustments represent in equity value at the multiple you chose. Arithmetic, "
                    "not a valuation or a view on price.")
 
+    if a.purpose in ("buy", "sell"):
+        st.markdown("<div class='dd-section'>Price: enterprise value to equity</div>", unsafe_allow_html=True)
+        mech = st.radio("Price mechanism of the SPA", MECHANISMS, index=None, horizontal=True, key=f"mech-{file_key}",
+                        help="Completion accounts fix the price on the balance sheet at closing (NWC against a peg). "
+                             "A locked box fixes it on a past balance sheet; the buyer is protected by the leakage "
+                             "covenant, with no true-up.")
+        if mech is None:
+            st.info("Choose the price mechanism first: nothing is computed, and nothing is assumed, until you do.")
+        elif mech == "Completion accounts":
+            st.caption("EUR thousands. A model configuration subordinated to the SPA definitions, not a clause.")
+            e1, e2, e3 = st.columns(3)
+            how = e1.radio("Enterprise value", ["Entered directly", "Multiple × EBITDA"], key=f"evhow-{file_key}")
+            if how == "Entered directly":
+                ev = EnterpriseValue(e2.number_input("EV (EUR thousands)", min_value=0.0, value=None, step=100.0,
+                                                     key=f"ev-{file_key}"))
+            else:
+                choices = {"Diligence-adjusted": view.ebitda_dd[L], "Reported": view.ebitda[L]}
+                if view.ebitda_mgmt:
+                    choices["Management-adjusted"] = view.ebitda_mgmt[L]
+                pick = e2.selectbox(f"EBITDA ({fy(L)})", list(choices), key=f"evb-{file_key}")
+                ev = EnterpriseValue(multiple=e3.number_input("Your multiple (x)", min_value=0.0, value=None,
+                                                              step=0.5, key=f"evm-{file_key}",
+                                                              help="Your assumption: no market multiple is supplied."),
+                                     ebitda=choices[pick], ebitda_label=pick)
+            n1, n2 = st.columns(2)
+            nwc_close = n1.number_input(f"NWC at closing (estimate; default {fy(B)} year-end)", value=view.nwc_values[B],
+                                        step=10.0, key=f"nwcc-{file_key}")
+            peg = n2.number_input("Peg (target NWC in the SPA)", value=view.nwc_average, step=10.0, key=f"peg-{file_key}",
+                                  help="Default: the average of the year-ends, an indicative reference only, not a "
+                                       "negotiated peg (that needs 12 to 24 monthly balances).")
+            other = st.data_editor(pd.DataFrame({"Contractual adjustment": pd.Series(dtype="str"),
+                                                 "Amount (sign explicit)": pd.Series(dtype="float")}),
+                                   key=f"other-{file_key}", num_rows="dynamic", hide_index=True, width="stretch")
+            others = [(str(r["Contractual adjustment"]), float(r["Amount (sign explicit)"]))
+                      for _, r in other.iterrows() if pd.notna(r["Amount (sign explicit)"])]
+            price = PriceInputs(mech, ev, nwc_close, peg, others)
+            res = completion_equity(completion_from_analysis(a, price))
+            st.dataframe(pd.DataFrame([[label, money.fmt(x)] for label, x in res["lines"]]
+                                      + [["= Equity value at closing (estimate)", money.fmt(res["equity"])]],
+                                      columns=["", fy(B)]), hide_index=True, width="stretch")
+            for missing in res["incomplete"]:
+                st.warning(f"Enter or find: {missing}. Equity is not computed without it.")
+            st.caption(f"Net debt with the debt-like items: {money.fmt(res['net_debt_with_debt_like'])}, counted once. "
+                       "Equity value is not what the seller receives: escrow, retentions, earn-out and deferrals are "
+                       "separate, from the SPA.")
+            if res["equity"] is not None:
+                grid = sensitivity(ev, res["net_debt_with_debt_like"], res["lines"][4][1] + sum(x for _, x in others))
+                if grid:
+                    st.markdown("**Sensitivity of equity to the multiple and EBITDA** (EV derived)")
+                    st.dataframe(pd.DataFrame([[money.fmt(r[0])] + [money.fmt(x) for x in r[1:]] for r in grid[1:]],
+                                              columns=["EBITDA"] + [f"{m:g}x" for m in grid[0][1:]]), hide_index=True)
+        else:
+            st.caption("EUR thousands. No true-up of NWC or net debt at closing: the buyer relies on the leakage "
+                       "covenant.")
+            l1, l2, l3 = st.columns(3)
+            agreed = l1.number_input("Equity price agreed at the locked box date", min_value=0.0, value=None,
+                                     step=100.0, key=f"lbp-{file_key}")
+            lb_date = l2.date_input("Locked box date", value=None, key=f"lbd-{file_key}")
+            close = l3.date_input("Closing date", value=None, key=f"lbc-{file_key}")
+            a1, a2, a3 = st.columns(3)
+            accrual = a1.number_input("Value accrual fixed in the SPA", value=None, step=10.0, key=f"lba-{file_key}")
+            rate = a2.number_input("Or ticking fee, annual rate (%)", min_value=0.0, value=None, step=0.5,
+                                   key=f"lbr-{file_key}")
+            base_tf = a3.number_input("Ticking fee base", min_value=0.0, value=None, step=100.0, key=f"lbb-{file_key}")
+            st.markdown("**Leakage register** (screening, not a legal verdict)")
+            cands = leakage_candidates(data)
+            rows = [{"ID": x.id, "Description": x.description, "Amount": x.amount, "Status": x.status,
+                     "Justification": x.justification} for x in cands]
+            reg = st.data_editor(pd.DataFrame(rows or [{"ID": "LK-01", "Description": "", "Amount": None,
+                                                        "Status": "Candidate", "Justification": ""}]),
+                                 key=f"leak-{file_key}", num_rows="dynamic", hide_index=True, width="stretch",
+                                 column_config={"Status": st.column_config.SelectboxColumn(options=LEAKAGE_STATES,
+                                                                                           required=True)})
+            treat = st.radio("Confirmed leakage", LEAKAGE_TREATMENTS, horizontal=True, key=f"lbt-{file_key}")
+            items = [LeakageItem(str(r["ID"]), str(r["Description"]), float(r["Amount"]), status=str(r["Status"]),
+                                 justification=str(r["Justification"] or "")) for _, r in reg.iterrows()
+                     if pd.notna(r["Amount"])]
+            if agreed is None:
+                st.info("Enter the equity price agreed at the locked box date.")
+            else:
+                lb = LockedBox(agreed, lb_date, close, accrual, None if rate is None else rate / 100, base_tf, items,
+                               treat)
+                price = PriceInputs(mech, locked_box=lb)
+                res = locked_box_equity(lb)
+                st.dataframe(pd.DataFrame([["Equity price agreed", money.fmt(agreed)],
+                                           ["+ value accrual or ticking fee", money.fmt(res["accrual"])],
+                                           ["- confirmed leakage deducted at closing",
+                                            money.fmt(-res["leakage_deducted"])],
+                                           ["= Equity value at closing", money.fmt(res["equity"])],
+                                           ["Leakage claim, separate from the price", money.fmt(res["leakage_claim"])]],
+                                          columns=["", " "]), hide_index=True, width="stretch")
+                if res["conclusion"]:
+                    st.warning(res["conclusion"])
+
 # ---------------------------------------------------------------- red flags and review
 with tab_rf:
     if al:
@@ -473,7 +574,7 @@ with tab_rf:
     buf = io.BytesIO()
     write_excel(results, metrics, data.years, buf, reviews, items=ext.items, analysis=a)
     book = io.BytesIO()
-    write_databook(a, book, reviews)
+    write_databook(a, book, reviews, price=price)
     d1, d2, d3, _ = st.columns([1, 1, 1, 2])
     d1.download_button("Download databook", book.getvalue(), f"{stem}_databook.xlsx", mime=XLSX_MIME, type="primary",
                        help="The Excel a transaction team works in: QoE, NWC and net debt with formulas, the source "

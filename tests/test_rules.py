@@ -42,6 +42,14 @@ class RuleLogicTest(unittest.TestCase):
                 self.assertTrue(r.plain.endswith(".") and len(r.plain.split()) <= 25, r.plain)
                 self.assertTrue(r.practice)
 
+    def test_the_app_orders_every_rule(self):
+        """The overview orders findings by IMPACT and colours figures by KPI_RULES: a new rule must be in both."""
+        import ast
+        import re
+        app = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+        impact = ast.literal_eval(re.search(r"^IMPACT = (\[.*?\])", app, re.S | re.M).group(1))
+        self.assertEqual(sorted(impact), sorted(r.id for r in RULES))
+
     def test_graded_rules_say_when_they_are_high(self):
         self.assertIn("High above 25%", R["R04"].rule_text())
         self.assertEqual([r.id for r in RULES if r.grade], ["R04", "R10"])

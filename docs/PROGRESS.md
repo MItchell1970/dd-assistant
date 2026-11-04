@@ -10,8 +10,9 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 - **M0 concluído:** M0.1 (o verificador do memo liga cada número ao ano citado), M0.2 (ausência ≠ zero), M0.3 (R13 com descobertos; a Amorim ficou fechada com a nota 19 do relatório publicado, conferida no PDF descarregado com autorização do Bernardo), M0.4 (alertas das empresas reais classificados; contagem em `docs/VALIDATION.md`).
 - **M2 feito até agora:** databook com as 12 folhas (`dd_assistant/databook.py`), fórmulas nos totais e pontes, recálculo pelo Excel e comparação com o Python; na app (botão "Download databook") e na linha de comandos (`--databook`).
 - **M2e feito:** R27 (D&A muito acima do imobilizado), R28 (rubrica "outra" acima de 10% da receita, listada "a avaliar" no net debt), R29 (crescimento com aquisições), EBITDA antes da IFRS 16 (QoE) e nota IFRS 16 (Net Debt). Dividendos como possível leakage ficam para o M3.
-- **Próximo passo:** M3, EV → equity, completion accounts, locked box e leakage.
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 149 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
+- **M3 feito:** `dd_assistant/price.py` (completion accounts, locked box, leakage, sensibilidade), candidatos a leakage lidos da DFC (dividendos pagos), folhas EV to Equity e Leakage no databook, secção "Price" na app (mecanismo obrigatório, sem escolha por defeito).
+- **Parado aqui, como pede a especificação:** fim do M3, à espera do resumo revisto pelo Bernardo. Depois, com aprovação: versão simples do M6.
+- **Comando para retomar:** `python -m unittest -v` (tem de dar 166 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
 
 ## Diagnóstico (4 de novembro de 2026)
 
@@ -48,12 +49,17 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 - **M2, ajuste por regra (R19) entra no EBITDA ajustado.** O ganho de alienação que a DFC identifica fica com o estado "Applied by rule" e conta no cenário base, como na app, para os números baterem entre app, databook e relatório. O analista pode pô-lo em "Rejected" no databook. Os ajustes da gestão começam como "Proposed" e só entram quando o analista os aprova. **Decisão a confirmar pelo Bernardo.**
 - **M2, ligações que ficam vazias.** No Excel, uma ligação a uma célula vazia dá 0. Cada ligação do databook usa `IF(ISBLANK(...),"",...)`: um dado em falta continua em falta e o total diz "incomplete", como no Python (M0.2).
 - **M2, recálculo.** O openpyxl escreve fórmulas sem as calcular. `databook.recalculate()` pede ao Excel deste PC (via COM) que calcule e grave; a folha Checks compara cada total com o valor do Python. Sem Excel, a folha diz PENDING e o Excel calcula ao abrir (`fullCalcOnLoad`). Não há LibreOffice neste PC.
+- **M3, o que entra no preço.** Completion accounts: Equity = EV + caixa − dívida financeira − itens debt-like incluídos (+ cash-like incluídos) + (NWC ao closing − peg) + ajustes contratuais com sinal. Os itens são os que o analista incluiu no Net Debt, contados uma vez; o peg por defeito é a média indicativa dos fechos, sempre rotulada como "não é um peg". Locked box: preço acordado + accrual fixo ou ticking fee (ACT/365) − leakage confirmado, deduzido no closing ou como reclamação separada, nunca os dois. Sem true-up de NWC.
+- **M3, leakage.** Os dividendos pagos da DFC entram como "Candidate", nunca como leakage: as contas anuais não dizem a data do pagamento nem o que o SPA permite. Sem nenhum item revisto, a conclusão é "evidência insuficiente".
+- **M3, verificação independente.** A especificação pede um subagente sem acesso à implementação para os casos difíceis. Para o preço usei os esperados escritos na própria especificação (secção 6) e uma conta à mão da Duriva; não usei um subagente. Fica como pendente se quiseres essa revisão.
+- **M3, falha apanhada tarde.** As regras R27–R29 do M2e não estavam na lista de ordenação da app e a Toyota rebentava no Overview; só a vi no M3, ao abrir a app. Corrigido e com um teste que obriga todas as regras a estar na lista.
 - **M2, inspeção visual: pendente.** Não consigo ver imagens do Excel neste PC. Exportei o PDF pelo Excel e conferi o texto (28 páginas, sem `####` nem erros de fórmula). Falta abrires o ficheiro.
 
 ## Incrementos
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
+| M3 | EV → equity (completion accounts, locked box), registo de leakage, sensibilidade só com EV derivado; folhas no databook; secção na app | Sim | 166 testes OK (14 em `tests/test_price.py` com os casos da secção 6; 1 no databook recalculado); app headless: sem mecanismo não calcula, CA €7,099k e LB €9,050k na Duriva | Casos da especificação (esperados escritos na especificação); Duriva conferida à mão (EV 10,000 + 603 − 4,350 + 846) | Pendente |
 | M2e | Regras R27–R29, item "a avaliar" para rubricas "outras" materiais, EBITDA antes da IFRS 16 | Sim | 149 testes OK; Velmora continua com zero alertas analíticos | Toyota: esperados calculados à mão a partir da DRE, Balanço e DFC publicados (`test_what_a_reviewer_found`) | Pendente |
 | M2a–d | Databook: Read Me, Executive Summary, Source Register (com SHA-256), Financials, QoE (registo de ajustes com estado), NWC (política de inclusão), Net Debt (classificação e inclusão), Issues & Requests (pedidos fundidos), Checks; EV to Equity, Leakage e Monthly & LTM dizem que ainda não existem | Sim | 148 testes OK (10 novos em `tests/test_databook.py`, 2 recalculam no Excel); app headless com o botão nas 4 amostras | Totais do Excel = Python na Duriva e na Toyota (11 e 6 controlos) | Pendente (inspeção visual tua) |
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
