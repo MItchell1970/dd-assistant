@@ -8,8 +8,9 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 
 - **Módulo:** M0, correções de confiança.
 - **Feito:** M0.1 (o verificador do memo liga cada número ao ano citado); M0.2 (ausência ≠ zero nas pontes e nas regras de consistência).
-- **Próximo passo:** M0.3, R13 com caixa restrita e descobertos bancários (Amorim).
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 133 testes OK); depois ler a secção "Próximo passo" acima.
+- **Em curso:** M0.3. Mecanismo feito; falta aplicá-lo à Amorim, que precisa da linha dos descobertos da nota de caixa do relatório (PDF de mais de 10 MB, à espera de autorização para descarregar).
+- **Próximo passo:** M0.4, classificar os alertas das empresas reais; depois fechar a Amorim no M0.3.
+- **Comando para retomar:** `python -m unittest -v` (tem de dar 137 testes OK); depois ler a secção "Próximo passo" acima.
 
 ## Diagnóstico (4 de novembro de 2026)
 
@@ -40,9 +41,13 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 - **M0.2, o que conta como "não apresentado".** Um resultado fica desconhecido (não zero) quando falta um dado de que depende: net debt sem caixa ou sem nenhuma linha de financiamentos; NWC sem clientes, fornecedores ou as outras linhas correntes; FCF sem fluxo operacional ou capex; R12 sem caixa ou capital próprio. Continuam a contar como nulas as linhas que uma demonstração pode simplesmente não ter: imparidades, trabalhos para a própria entidade, inventários (serviços), a segunda linha de financiamentos quando a primeira existe. A R14 compara só os movimentos que a DFC apresenta. A paridade não muda: a Duriva e a Velmora têm todos os dados, e a planilha dá os mesmos resultados.
 - **M0.2, o que ainda usa N():** o EBITDA (soma das linhas operacionais apresentadas), as listas de clientes e os ajustes da gestão (um ano vazio de um ajuste é zero). Um EBITDA sem uma linha de custo principal é apanhado pelas reading checks, não por N().
 
+- **M0.3, "explicada" quer dizer igual, ao milhar.** A diferença de caixa só passa a reconciliação quando uma linha identificada a explica dentro da tolerância da R13 (€1k): descobertos bancários (IAS 7.8, caixa da DFC líquida de descobertos) ou caixa restrita (US GAAP, incluída na DFC). Uma explicação parcial continua a disparar. Os descobertos são lidos da DFC ou de uma folha de nota (por exemplo, a nota de caixa).
+- **M0.3, Amorim:** a diferença (FY24 −€48,672k; FY23 −€86,263k) tem a forma de descobertos netados, mas o ficheiro da Amorim só tem as demonstrações. Não acrescento uma linha calculada pela diferença: seria um número inventado. Fecho-a quando a nota de caixa do relatório publicado estiver conferida.
+
 ## Incrementos
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
+| M0.3 | R13: diferença explicada por descobertos ou caixa restrita passa a reconciliação (memo no net debt) | Sim | 137 testes OK (4 novos em `tests/test_cash_reconciliation.py`); paridade igual | Amorim pendente (nota de caixa) | Pendente |
 | M0.2 | Ausência ≠ zero: net debt, NWC, FCF, R12, R14, mapa da dívida; avisos "incompleto" na app, no Excel, no memo e no JSON | Sim | 133 testes OK (6 novos em `tests/test_absence.py`); app headless sem erros nas 4 amostras | Não aplicável (casos construídos a partir da Velmora) | Pendente |

@@ -270,7 +270,8 @@ RULES: list[Rule] = [
        "A balance sheet that does not balance invalidates every analysis that relies on it.",
        ev=lambda c: f"Balance sheet difference — {c.yrs('bs_diff', c.cur)}. Source: balance sheet"),
     _r("R13", "Consistency", "Cash flow statement does not reconcile to balance sheet cash",
-       "CFS closing cash − balance sheet cash", "abs>", 1, "eur", "cash_diff", "Medium",
+       "CFS closing cash − balance sheet cash, less the lines that explain it (overdrafts, restricted cash)",
+       "abs>", 1, "eur", "cash_diff_unexpl", "Medium",
        "An error in the statements, or cash defined differently in the cash flow statement: net of bank "
        "overdrafts (IFRS) or including restricted cash (US GAAP).",
        "Please reconcile cash in the cash flow statement to the balance sheet: does it net bank overdrafts or "
@@ -280,8 +281,9 @@ RULES: list[Rule] = [
        "audit report",
        "Overdrafts are debt and restricted cash is not freely available: both change net debt. An unexplained "
        "difference casts doubt on all the financial information.",
-       ev=lambda c: f"CFS closing cash − balance sheet cash — {c.yrs('cash_diff', c.cur)}. "
-                    f"Source: {c.src('cx_fim')}; {c.src('caixa')}"),
+       ev=lambda c: f"CFS closing cash − balance sheet cash — {c.yrs('cash_diff', c.cur)}"
+                    + "".join(f"; {fy(y)} explained: {c.g('cash_recon', y)}" for y in c.Y if c.g('cash_recon', y))
+                    + f". Source: {c.src('cx_fim')}; {c.src('caixa')}" + (f"; {c.src('desc')}" if c.src('desc') else "")),
     _r("R14", "Consistency", "CFS working capital movements do not reconcile to the balance sheet",
        "Sum of differences across the 5 working capital lines", "abs>", 1, "eur", "wc_diff", "Medium",
        "A cash flow line populated with an incorrect figure.",

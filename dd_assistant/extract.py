@@ -424,6 +424,12 @@ FIELDS = [
        patterns=(r"^cash\b(?!.*\b(?:beginning|opening)\b).*\b(?:end|ending|closing)\b", r"^caixa\b.*\bfim\b",
                  r"^efectivo\b.*\bfinal\b", r"\btresorerie\b.*\bcloture\b", r"^finanzmittel\w*\b.*\bende\b",
                  r"^disponibilita liquide\b.*\bfine\b")),
+    # bank overdrafts netted from cash in the cash flow statement (IAS 7.8): in the cash flow statement or the
+    # cash note; they explain a difference between the two closing cash figures (R13)
+    _f("desc", "Bank overdrafts in cash (cash flow statement)", "cf",
+       ["bank overdrafts", "overdrafts", "descobertos bancarios", "descobertos", "descubiertos bancarios",
+        "decouverts bancaires", "concours bancaires courants", "kontokorrentverbindlichkeiten", "scoperti bancari"],
+       optional=True),
 ]
 FIELD_BY_KEY = {f.key: f for f in FIELDS}
 _INCOME_LIKE = tuple(_norm(x) for x in _PRODUCTION_CHANGE)
@@ -990,6 +996,13 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             parts_by_key[f.key] = [(r.norm, r.values) for r in parts]
             sources[f.key] = " + ".join(r.source for r in parts)
             found_as[f.key] = " + ".join(r.label for r in parts)
+    if "desc" not in parts_by_key:   # overdrafts are often only in the cash note, a sheet of its own
+        notes = [r for ws, header, cols in sheets.get("other", []) if cols for r in _rows(ws, header, cols)]
+        hit = _find(notes, FIELD_BY_KEY["desc"].synonyms, used)[:1]
+        if hit:
+            used.add((hit[0].sheet, hit[0].row))
+            parts_by_key["desc"] = [(hit[0].norm, {y: None if x is None else abs(x) for y, x in hit[0].values.items()})]
+            sources["desc"], found_as["desc"] = hit[0].source, hit[0].label
     if "vendas" not in parts_by_key:
         raise ExtractionError("No revenue line found. Is this a financial statements file (P&L, balance sheet, "
                               "cash flow)?")

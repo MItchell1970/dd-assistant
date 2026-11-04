@@ -142,6 +142,10 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
                            source=b.source, note=b.category))
             for y in B:
                 adjusted[y] = None if adjusted[y] is None else adjusted[y] + vals[y]
+    if any(m["cash_recon"].get(y) for y in B):    # R13: the two closing cash figures reconciled, not a finding
+        nd.append(Line("Memo: cash flow statement closing cash less balance sheet cash (reconciled)",
+                       {y: m["cash_diff"].get(y) for y in B if m["cash_recon"].get(y)}, "memo", src("desc", ""),
+                       "; ".join(sorted({m["cash_recon"][y] for y in B if m["cash_recon"].get(y)}))))
     nd.append(Line("Adjusted net debt", adjusted, "total"))
     nd.append(Line("Adjusted net debt / diligence-adjusted EBITDA",
                    {y: div(adjusted[y], dd[y]) if dd.get(y, 0) > 0 and adjusted[y] is not None else None

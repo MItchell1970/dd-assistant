@@ -78,6 +78,8 @@ EXTENDED_LABELS = {
     "etr": "Effective tax rate",
     "etr_gap": "Effective tax rate − statutory rate",
     "own_share": "Own work capitalised (% of EBITDA)",
+    "cash_diff_unexpl": "CFS closing cash − balance sheet cash, not explained by an identified line",
+    "cash_recon": "Cash difference explained by",
 }
 ALL_LABELS = LABELS | EXTENDED_LABELS
 
@@ -89,7 +91,7 @@ _UNIT_GROUPS = {
     "days": "dso dso_var dio dpo dpo_var",
     "x": "nd_ebitda nd_ebitda_ex cov_lim int_cover capex_da capex_da_2y",
     "count": "adj_rec docs_miss",
-    "text": "new_name top_name adj_rec_name docs_list",
+    "text": "new_name top_name adj_rec_name docs_list cash_recon",
 }
 UNITS = {k: unit for unit, keys in _UNIT_GROUPS.items() for k in keys.split()}
 UNITS.update({k: "eur" for k in ALL_LABELS if k not in UNITS})
@@ -273,6 +275,25 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("bs_diff", B, lambda y: None if not need(v("caixa", y), v("cp", y))
         else sum(N(v(k, y)) for k in assets) - sum(N(v(k, y)) for k in liabs))
     put("cash_diff", P, lambda y: sub(v("cx_fim", y), v("caixa", y)))
+
+    def cash_unexplained(y):
+        """The cash difference left once identified lines explain it: overdrafts netted in the cash flow statement
+        (IAS 7.8: CFS cash = balance sheet cash − overdrafts) or restricted cash included in it (US GAAP)."""
+        diff = m["cash_diff"][y]
+        if diff is None:
+            return None
+        restricted = sum(N(b.values.get(y)) for b in d.balance_items if b.category == "Restricted cash")
+        od = abs(N(v("desc", y)))
+        options = [(od, "bank overdrafts netted in the cash flow statement"),
+                   (-restricted, "restricted cash included in the cash flow statement"),
+                   (od - restricted, "bank overdrafts netted and restricted cash included")]
+        for adj, why in options:
+            if adj and abs(diff + adj) <= 1:
+                m["cash_recon"][y] = why
+                return diff + adj
+        return diff
+
+    put("cash_diff_unexpl", P, cash_unexplained)
 
     def wc(y):
         if all(v(k, y) is None for k in ("d_cli", "d_inv", "d_forn", "d_oac", "d_opc")):
