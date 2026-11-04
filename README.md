@@ -1,6 +1,6 @@
 # DD Assistant — preliminary financial due diligence for European companies
 
-**At a glance.** DD Assistant reads a company's data room (Excel, PDF, Word or an ESEF filing) and returns the first pass of a financial due diligence: quality of earnings, net debt, working capital and 26 red-flag rules, each finding with its source. I tested it on the published accounts of EDP, Corticeira Amorim and Toyota Caetano Portugal, and it rebuilds their reported profit figures exactly. Deterministic code produces every number; Claude only writes the memo and the request list, and a checker with no AI confirms each figure it writes.
+**At a glance.** DD Assistant reads a company's data room (Excel, PDF, Word or an ESEF filing) and returns the first pass of a financial due diligence: quality of earnings, net debt, working capital and 29 red-flag rules, each finding with its source, plus a databook with live formulas and the bridge from enterprise value to equity value (completion accounts or locked box). I tested it on the published accounts of EDP, Corticeira Amorim and Toyota Caetano Portugal, and it rebuilds their reported profit figures exactly. Deterministic code produces every number; Claude only writes the memo and the request list, and a checker with no AI confirms each figure it writes, for the year it is cited.
 
 ![Reading checks and red flags for Corticeira Amorim, FY2024](docs/images/report-red-flags.png)
 
@@ -14,8 +14,8 @@
 
 I am Bernardo Espinola, a final-year Economics student at FEP (University of Porto). I built this as a personal project after an internship in International Tax and Transaction Services at EY in Porto, where I supported buy-side and sell-side due diligence work.
 
-- **My part:** the scope and the method, the 26 rules and their thresholds, the deal view bridges, the choice of test companies, and checking every result against the published accounts.
-- **AI's part:** I wrote the code with AI coding tools (Claude Code), working from my specifications. Every change runs against 124 tests that compare the Python with a hand-built Excel template and with real published accounts.
+- **My part:** the scope and the method, the 29 rules and their thresholds, the deal view bridges, the choice of test companies, and checking every result against the published accounts.
+- **AI's part:** I wrote the code with AI coding tools (Claude Code), working from my specifications. Every change runs against 165 tests that compare the Python with a hand-built Excel template and with real published accounts.
 
 Contact: [LinkedIn](https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/)
 
@@ -38,7 +38,9 @@ What the agent does:
   - quality of earnings: reported → management-adjusted → diligence-adjusted EBITDA;
   - net debt, with the debt-like and cash-like items it finds: pensions, TFR, tax payable, leases, shareholder loans, marketable securities;
   - net working capital, with an indicative peg reference.
-- **Runs 26 rules**, each explained in plain words with the practice it comes from. Each finding gives evidence with its source, what to investigate, the question for management and the document to request.
+- **Bridges to the price.** You choose the mechanism of the SPA first; nothing is computed before. Completion accounts: EV + eligible cash − financial debt − debt-like items + (NWC at closing − peg). Locked box: the agreed equity price + value accrual or ticking fee − leakage confirmed after review. Dividends paid in the cash flow statement are listed as leakage candidates, never as a verdict. Sensitivity to the multiple and EBITDA only when EV is derived from a multiple you enter.
+- **Exports a databook**, the Excel a transaction team works in: Read Me, Executive Summary, Source Register (every file with its SHA-256), Financials, QoE, NWC, Net Debt, EV to Equity, Leakage, Issues & Requests and Checks. Figures from the data room in blue, formulas in black, links in green; you decide only in the yellow cells (adjustment status, items in net debt, lines in NWC) and the totals follow. On this PC Excel recalculates it and every total equals the Python value.
+- **Runs 29 rules**, each explained in plain words with the practice it comes from. Each finding gives evidence with its source, what to investigate, the question for management and the document to request.
   - Thresholds are calibrated for 15 sectors, always with the reason shown.
   - Severity follows size and persistence where it matters: other income inside EBITDA (R04) is measured against EBITDA and is High above a quarter of it; weak cash conversion (R10) is High only when the years analysed together convert less than 70%, since one weak year is often working capital timing.
   - The country of the target, suggested from its legal form (S.G.P.S., S.L., SAS, GmbH, S.p.A.…), sets the accounting framework and the statutory tax rate.
@@ -70,14 +72,15 @@ The full rulebook is in the app (Rulebook tab) and in `python -m dd_assistant --
 | Workstream | Rules | What they check, in plain words |
 |---|---|---|
 | Revenue quality | R01, R02, R16 | One customer too big; growth from customers who may not stay; a customer listing that does not add up |
-| Quality of earnings | R03–R06, R19, R26 | Margin shifts; one-off income inside EBITDA; management add-backs; "non-recurring" costs that recur; disposal gains; own work capitalised |
-| Net working capital | R07–R09, R23 | Customers paying later; stock building up; suppliers paid later at year-end |
+| Revenue, acquisitions | R29 | Growth that may come from businesses bought, not like-for-like |
+| Quality of earnings | R03–R06, R19, R26, R27 | Margin shifts; other income inside EBITDA; management add-backs; "non-recurring" costs that recur; disposal gains; own work capitalised; D&A growing far ahead of fixed assets |
+| Net working capital | R07–R09, R23, R28 | Customers paying later; stock building up; suppliers paid later at year-end; a large "other" line of unknown content |
 | Cash flow | R10, R24 | EBITDA not turning into cash; investment below depreciation |
 | Net debt and credit | R11, R13, R17, R20, R21, R22 | Debt due soon; cash defined differently; debt missing from the schedule; covenant headroom; high leverage; low interest cover |
 | Information quality | R12, R14, R15, R18 | Statements that do not tie; missing documents |
 | Tax | R25 | Effective tax rate far from the country's statutory rate |
 
-These are the standard checks of financial due diligence (the Big Four transaction services workstreams), private equity and bank credit. R01–R20 match the reference Excel template exactly; R21–R26 go beyond it.
+These are the standard checks of financial due diligence (the Big Four transaction services workstreams), private equity and bank credit. R01–R20 match the reference Excel template exactly; R21–R29 go beyond it (R27–R29 came from what a reviewer found on Toyota Caetano and the rules missed). On the two real companies in the project, the 12 findings are classified as 7 true positives, 5 to review and no known false alarm (`docs/VALIDATION.md`: a classification proposed by the agent, not yet reviewed by me).
 
 ## How it works
 
@@ -87,9 +90,11 @@ These are the standard checks of financial due diligence (the Big Four transacti
 | ESEF | `esef.py` | Reads an ESEF report package: tagged facts of the consolidated statements, in the company's order, own lines through their anchoring, euros only |
 | Read | `extract.py` | Maps the statements to a standard model with a six-language dictionary. Detects the unit (euros only), the European formats and the P&L presentation; stops at operating profit; flags debt-like and cash-like lines |
 | Metrics | `metrics.py` | Growth, concentration, margins, quality of earnings, DSO/DIO/DPO, cash conversion, net debt, leverage, interest cover, capex/D&A, effective tax rate, consistency checks and reading checks |
-| Rules | `rules.py` | 26 rules with explicit thresholds, plain-language explanations and their practice |
+| Rules | `rules.py` | 29 rules with explicit thresholds, graded severity where size matters, plain-language explanations and their practice |
 | Context | `europe.py`, `sectors.py` | 10 European countries (framework, tax rate, legal forms) and 15 sectors (calibration, Damodaran Europe benchmarks, sector lens) |
 | Deal view | `deal.py` | Quality of earnings, net debt and working capital bridges; benchmarks; illustrative value at stake |
+| Price | `price.py` | Enterprise value to equity: completion accounts, locked box with accrual or ticking fee, leakage register, sensitivity |
+| Databook | `databook.py` | The Excel a deal team works in, with formulas, inputs and decisions apart, recalculated by Excel and checked against Python |
 | Report | `report.py` | Excel (red flags, deal view, sector, reading checks, metrics, source data) and CSV, with the reviewer's status |
 | AI memo | `ai_memo.py` + `docs/ai_memo_prompt.md` | Writes the memo and request list for the chosen purpose; no calculations, no new findings |
 | Check | `memo_check.py` | Verifies, without AI, every figure, every finding, every question and the absence of investment recommendations |
@@ -102,7 +107,11 @@ The calculations are deterministic and auditable. The tests (`python -m unittest
 - the agent rebuilds the published EBITDA of two real groups exactly;
 - it reads Spanish, French, German and Italian statutory accounts correctly;
 - it reads an ESEF report package from its tags: precise figures over rounded ones, no segment or half-year figure, the company's own lines through their anchors;
-- it raises no false alarm on a clean company.
+- it raises no false alarm on a clean company;
+- a missing figure makes the results that depend on it unknown, never zero;
+- the memo checker rejects a figure cited for the wrong year;
+- the price cases of the specification (completion accounts, locked box, leakage deducted or claimed) give the expected values;
+- the databook recalculated by Excel gives the same totals as Python.
 
 ## The agent (Claude Code skill)
 
@@ -149,6 +158,7 @@ python -m dd_assistant data\Duriva_data_room --adjustment "Custos de arranque=Ac
 # the rulebook, the sectors, JSON and the AI material (free), the memo with the API (paid), the memo check
 python -m dd_assistant --rules
 python -m dd_assistant --sectors
+python -m dd_assistant data\Duriva_data_room --databook
 python -m dd_assistant data\Duriva_data_room --json --material
 python -m dd_assistant data\Duriva_data_room --memo
 python -m dd_assistant data\Duriva_data_room --check-memo memo.md
@@ -182,11 +192,11 @@ The deal view finds pensions and income tax payable as debt-like items in both g
 - cash conversion of 20.5%;
 - 55% of debt due within 12 months.
 
-**Velmora (clean company):** no analytical findings, with the general thresholds, with its sector's and with the 26 rules.
+**Velmora (clean company):** no analytical findings, with the general thresholds, with its sector's and with the 29 rules.
 
-**EDP (ESEF FY2025, read from the tags):** operating profit rebuilt to the thousand euros in both years (€2,999,414k in FY25, €2,261,983k in FY24), with the share of joint ventures inside it as EDP presents it. The country (Portugal) comes from the report itself and the sector is suggested as energy & utilities. Six findings: material other income (EDP's gains on asset rotation sit there), cash conversion of 67% in FY25, leverage of 3.6x, interest cover of 2.6x, an effective tax rate of 36.7% in FY24 and the documents a listed report does not contain. Tax equity partnerships in North America and collateral deposits are shown as items to assess in net debt.
+**EDP (ESEF FY2025, read from the tags):** operating profit rebuilt to the thousand euros in both years (€2,999,414k in FY25, €2,261,983k in FY24), with the share of joint ventures inside it as EDP presents it. The country (Portugal) comes from the report itself and the sector is suggested as energy & utilities. Seven findings: other income at 17% of EBITDA (EDP's gains on asset rotation sit there), cash conversion of 67% in FY25 (Medium: 81% over the two years), leverage of 3.6x, interest cover of 2.6x, an effective tax rate of 36.7% in FY24, large "other" working capital lines, and the documents a listed report does not contain. Tax equity partnerships in North America and collateral deposits are shown as items to assess in net debt.
 
-**Spanish, French, German and Italian accounts:** each format is read correctly, operating profit is rebuilt exactly, the balance sheet balances and no false alarm is raised (`tests/test_europe.py`).
+**Spanish, French, German and Italian accounts:** synthetic statements in each national layout are read correctly, operating profit is rebuilt exactly, the balance sheet balances and no false alarm is raised (`tests/test_europe.py`). Real statutory accounts in these formats have not been tested yet.
 
 ## Scope
 
@@ -194,10 +204,10 @@ This is a preliminary **financial** due diligence on annual statements in euros.
 
 - legal, tax, commercial, IT or HR due diligence;
 - contract review;
-- valuation;
+- valuation (the price bridge takes the EV or the multiple you enter; it never suggests one);
 - statements in other currencies (an ESEF report in another currency is refused too).
 
-Monthly, LTM and budget figures are not in annual accounts. The request list asks for them, and the working capital peg reference is labelled indicative for that reason. Sector benchmarks come from European listed groups and are orientation, never a finding on their own. Every threshold, calibration and benchmark is visible in the app, the Excel and `--rules` / `--sectors`.
+Monthly, LTM and budget figures are not in annual accounts. The request list asks for them, and the working capital peg reference is labelled indicative for that reason. Leakage is a screening register: without the SPA and a register of payments the conclusion is "evidence insufficient". The price bridge is a model configuration subordinated to the SPA definitions. Open gaps are listed in `docs/GAPS.md`. A three-minute demo script is in `docs/DEMO.md`. Sector benchmarks come from European listed groups and are orientation, never a finding on their own. Every threshold, calibration and benchmark is visible in the app, the Excel and `--rules` / `--sectors`.
 
 ## Sources
 
