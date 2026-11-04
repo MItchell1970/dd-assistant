@@ -112,7 +112,7 @@ _PRODUCTION_CHANGE = ["variacao da producao", "variacao nos inventarios da produ
                       "variazioni delle rimanenze di prodotti"]
 # grand totals ('Summe Aktiva', 'TOTAL ACTIF') are never a current / non-current subtotal, whatever section they close
 _GRAND_TOTAL = r"aktiva|passiva|bilanzsumme|^total (?:do |del |de l )?(?:ativo|activo|actif|assets)|^totale attivo|^total passif"
-_BEFORE_TAX = r"antes de impostos|antes de impuestos|before tax|avant impot|vor steuern|prima delle imposte"
+_BEFORE_TAX = r"antes de impostos|antes de impuestos|before tax|before income tax|avant impot|vor steuern|prima delle imposte"
 
 FIELDS = [
     # ---- income statement (PT SNC, ES PGC, FR PCG, DE HGB, IT OIC, IFRS in English)
@@ -122,10 +122,11 @@ FIELDS = [
         "cifra de negocios", "chiffre d affaires net", "montant net du chiffre d affaires", "chiffre d affaires",
         "umsatzerlose", "umsatzerloese", "umsatz", "ricavi delle vendite e delle prestazioni", "ricavi delle vendite",
         "totale ricavi", "ricavi", "fatturato", "netto omzet", "omzet", "vendas", "ventas netas", "ventas", "reditos",
-        "redito", "revenue", "revenues", "net revenues", "net revenue", "turnover", "net sales", "sales"],
+        "redito", "revenue", "revenues", "net revenues", "net revenue", "turnover", "net sales", "sales",
+        "passenger revenue", "passenger"],   # airlines: passenger revenue first, then maintenance and cargo
        adds=["prestacoes de servicos", "prestacao de servicos", "servicos prestados", "rendering of services",
-             "services rendered", "prestaciones de servicios"],
-       adds_when=["vendas", "ventas", "sales"], above_ebit=True),
+             "services rendered", "prestaciones de servicios", "maintenance", "cargo and mail", "cargo"],
+       adds_when=["vendas", "ventas", "sales", "passenger", "passenger revenue"], above_ebit=True),
     _f("cmv", "Cost of goods sold", "pl",
        ["total cost of sales", "total cost of revenue", "total cost of revenues",
         "custo das mercadorias vendidas e das materias consumidas", "custo das mercadorias vendidas",
@@ -148,9 +149,11 @@ FIELDS = [
        ["fornecimentos e servicos externos", "fse", "otros gastos de explotacion", "servicios exteriores",
         "autres achats et charges externes", "charges externes", "costi per servizi", "per servizi",
         "external supplies and services",
-        "external services", "third party supplies and services", "supplies and services"], -1,
-       adds=["costi per godimento di beni di terzi", "per godimento di beni di terzi"],
-       adds_when=["costi per servizi", "per servizi"], above_ebit=True),
+        "external services", "third party supplies and services", "supplies and services", "aircraft fuel"], -1,
+       adds=["costi per godimento di beni di terzi", "per godimento di beni di terzi", "traffic operating costs",
+             "aircraft maintenance costs", "comercial communication and marketing costs",
+             "commercial communication and marketing costs"],
+       adds_when=["costi per servizi", "per servizi", "aircraft fuel"], above_ebit=True),
     _f("pess", "Staff costs", "pl",
        ["gastos com o pessoal", "gastos com pessoal", "custos com o pessoal", "custos com pessoal", "gastos de personal",
         "charges de personnel", "salaires et traitements", "personalaufwand", "costi per il personale", "per il personale",
@@ -164,7 +167,8 @@ FIELDS = [
     _f("imp", "Impairment of receivables", "pl",
        ["imparidade de dividas a receber", "imparidades de dividas a receber", "imparidade de clientes",
         "perdidas deterioro y variacion de provisiones por operaciones comerciales", "svalutazioni dei crediti",
-        "impairment of trade receivables", "impairment of receivables", "expected credit losses", "bad debt expense"],
+        "impairment of trade receivables", "impairment of receivables", "expected credit losses", "bad debt expense",
+        "impairment losses in receivables"],
        -1, optional=True, above_ebit=True),   # often presented within a wider impairment line
     _f("orend", "Other income", "pl",
        ["outros rendimentos e ganhos", "outros rendimentos", "otros ingresos de explotacion", "ingresos accesorios",
@@ -184,13 +188,15 @@ FIELDS = [
        adds=["imparidade de inventarios", "imparidades de inventarios", "perdas por imparidade em inventarios",
              "provisoes", "inventory write downs", "provisions", "impairments of assets", "impairment of assets",
              "impairment losses", "impots taxes et versements assimiles", "accantonamenti per rischi",
-             "altri accantonamenti"], above_ebit=True),
+             "altri accantonamenti", "restructuring", "other non recurrent items", "other non recurring items"],
+       above_ebit=True),
     _f("assoc", "Share of profit of associates and JVs (above operating profit)", "pl",
        ["share of profit of associates and joint ventures", "share of profit loss of associates and joint ventures",
         "share of results of associates and joint ventures", "share of profit of associates",
         "share of profit loss of associates", "share of results of associates",
         "ganhos perdas imputados de subsidiarias associadas e empreendimentos conjuntos",
         "ganhos perdas imputados de associadas e empreendimentos conjuntos", "resultados relativos a associadas",
+        "gains and losses in associates",
         "participacion en beneficios perdidas de sociedades puestas en equivalencia",
         "resultado de entidades valoradas por el metodo de la participacion",
         "quote part de resultat des societes mises en equivalence", "quote part dans les resultats des mises en equivalence",
@@ -228,11 +234,13 @@ FIELDS = [
         "gastos financeiros", "custos financeiros", "encargos financeiros", "gastos financieros",
         "interets et charges assimilees", "charges financieres", "zinsen und ahnliche aufwendungen",
         "interessi e altri oneri finanziari", "interest expense", "finance costs", "financial costs",
+        "interests and similar expenses", "interest and similar expenses",
         "financial expenses"], -1),
     _f("pbt", "Profit before tax", "pl",
        ["resultado antes de impostos", "resultados antes de impostos", "resultado antes de impuestos",
         "resultat avant impots", "resultat courant avant impots", "ergebnis vor steuern", "risultato prima delle imposte",
         "profit before tax", "profit loss before tax", "profit before taxation", "profit before income tax",
+        "net income loss before income tax", "profit loss before income tax",
         "income before income taxes",
         "income before provision for income taxes", "earnings before taxes"], optional=True),
     _f("irc", "Income tax", "pl",
@@ -252,6 +260,7 @@ FIELDS = [
         "part du groupe", "anteil der aktionare", "di pertinenza del gruppo", "owners of the parent",
         "attributable to owners of the parent", "equity holders of the parent",
         "net income attributable to the equity holders", "net income attributable to equity holders",
+        "net income loss attributable to owners of",
         "profit attributable to owners"], optional=True),
     # ---- balance sheet
     _f("aft", "Property, plant and equipment", "bs",
@@ -267,6 +276,7 @@ FIELDS = [
         "deudores comerciales y otras cuentas a cobrar", "creances clients et comptes rattaches",
         "clients et comptes rattaches", "creances clients", "forderungen aus lieferungen und leistungen",
         "crediti verso clienti", "handelsdebiteuren", "trade receivables", "accounts receivable", "trade debtors",
+        "customers",
         "trade and other receivables"], section="current"),
     _f("oac", "Other current assets", "bs",
        ["outros ativos correntes", "outras contas a receber", "other current assets", "other receivables"],
@@ -301,7 +311,8 @@ FIELDS = [
        ["fornecedores", "proveedores", "acreedores comerciales y otras cuentas a pagar",
         "dettes fournisseurs et comptes rattaches", "dettes fournisseurs", "fournisseurs",
         "verbindlichkeiten aus lieferungen und leistungen", "debiti verso fornitori", "handelscrediteuren",
-        "trade payables", "accounts payable", "trade creditors", "trade and other payables"], section="current"),
+        "trade payables", "accounts payable", "trade creditors", "trade and other payables", "suppliers"],
+       section="current"),
     _f("fin_cp", "Current borrowings", "bs",
        ["financiamentos obtidos corrente", "financiamentos obtidos correntes", "current borrowings",
         "short term borrowings", "short term debt", "financiamentos obtidos", "emprestimos obtidos",
@@ -398,7 +409,8 @@ FIELDS = [
         "purchase of property plant and equipment", "purchases of property plant and equipment",
         "purchases of property and equipment", "payments for acquisition of property plant and equipment",
         "acquisition of property plant and equipment", "additions to property plant and equipment",
-        "payments due to tangible assets", "payments relating to tangible assets", "capex"], -1,
+        "payments due to tangible assets", "payments relating to tangible assets",
+        "payments relating to tangible fixed assets", "capex"], -1,
        adds=["pagamentos respeitantes a ativos intangiveis", "pagamentos de ativos intangiveis",
              "pagos por inversiones inmovilizado intangible",
              "auszahlungen fur investitionen in das immaterielle anlagevermogen",
@@ -410,7 +422,8 @@ FIELDS = [
         "recebimentos provenientes de ativos fixos tangiveis", "collections due to tangible assets",
         "cobros por desinversiones inmovilizado material", "cessions d immobilisations",
         "einzahlungen aus abgangen von gegenstanden des sachanlagevermogens", "immobilizzazioni materiali disinvestimenti",
-        "proceeds from disposal", "proceeds from sale of property plant and equipment"], optional=True),
+        "proceeds from disposal", "proceeds from sale of property plant and equipment",
+        "receipts from tangible fixed assets"], optional=True),
     _f("cx_ini", "Cash at beginning of period", "cf",
        ["caixa no inicio do periodo", "caixa e seus equivalentes no inicio do periodo",
         "caixa e equivalentes no inicio do periodo", "cash and cash equivalents at beginning of",
@@ -430,14 +443,15 @@ FIELDS = [
         "pagamentos relativos a locacoes", "payments of lease liabilities", "repayment of lease liabilities",
         "principal elements of lease payments", "lease payments", "pagos por arrendamientos",
         "remboursement des dettes locatives", "tilgung von leasingverbindlichkeiten",
-        "rimborso di passivita per leasing", "leasing"], -1, optional=True),
+        "rimborso di passivita per leasing", "leasing", "payments relating to lease liabilities"], -1,
+       adds=["payments relating to lease liabilities"], optional=True),
     # businesses bought (growth that is not like-for-like); SNC shows them as payments for financial investments
     _f("acq", "Acquisitions of businesses (cash flow statement)", "cf",
        ["acquisition of subsidiaries", "acquisitions of subsidiaries", "acquisition of businesses",
         "purchase of subsidiaries", "aquisicao de subsidiarias", "aquisicoes de subsidiarias",
         "pagamentos respeitantes a investimentos financeiros", "investimentos financeiros",
         "adquisicion de empresas del grupo", "acquisitions de filiales", "erwerb von tochterunternehmen",
-        "acquisizione di partecipazioni"], -1, optional=True, exclude=r"recebimentos|disposal|alienac|cession"),
+        "acquisizione di partecipazioni", "payments relating to financial investments"], -1, optional=True, exclude=r"recebimentos|disposal|alienac|cession"),
     # bank overdrafts netted from cash in the cash flow statement (IAS 7.8): in the cash flow statement or the
     # cash note; they explain a difference between the two closing cash figures (R13)
     _f("desc", "Bank overdrafts in cash (cash flow statement)", "cf",
@@ -454,6 +468,14 @@ RESIDUALS = {"oanc": ("tot_anc", ["aft"]), "oac": ("tot_ac", ["inv", "cli", "cai
              "opnc": ("tot_pnc", ["fin_lp"]), "opc": ("tot_pc", ["forn", "fin_cp"])}
 
 MATERIAL_OTHER = 0.10   # an 'other' current line above this share of revenue is listed in net debt to assess
+
+
+def _unclassified(values: dict, items: list, nature: str) -> dict:
+    """An 'other' current line less the lines inside it already classified as debt-like or cash-like (leases,
+    tax, customer advances…): what is left is the part of unknown content, and nothing is counted twice."""
+    inside = [b for b in items if b.nature == nature and b.in_nwc and b.kind == "current"
+              and not b.category.startswith("Material 'other'")]
+    return {y: None if x is None else x - sum(b.values.get(y) or 0.0 for b in inside) for y, x in values.items()}
 
 # Balance sheet lines that may belong in net debt. Included by default: a prudent buy-side view (debt-like
 # items clearly owed; cash-like items only when current); 'to assess' items are shown but not included.
@@ -494,6 +516,8 @@ DEBT_LIKE = [
                                    "liabilities held for sale", "liabilities associated with assets held for sale",
                                    "passivos nao correntes detidos para venda", "passivos detidos para venda"], False),
     ("Deferred revenue and customer advances", ["deferred revenue", "contract liabilities", "adiantamentos de clientes",
+                                                "liabilities from unused flight documents", "unused flight documents",
+                                                "air traffic liability",
                                                 "customer advances", "advances from customers", "deferred income",
                                                 "rendimentos diferidos", "anticipos de clientes",
                                                 "avances et acomptes recus", "erhaltene anzahlungen", "acconti"],
@@ -1012,8 +1036,15 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             parts_by_key[f.key] = [(r.norm, r.values) for r in parts]
             sources[f.key] = " + ".join(r.source for r in parts)
             found_as[f.key] = " + ".join(r.label for r in parts)
+    notes = [r for ws, header, cols in sheets.get("other", []) if cols for r in _rows(ws, header, cols)]
+    for key in ("cli", "forn"):      # on the face as 'other receivables / payables', detailed in a note
+        if key not in parts_by_key and "vendas" in parts_by_key and sheets.get("bs"):
+            hit = _find(notes, FIELD_BY_KEY[key].synonyms, used)[:1]
+            if hit:
+                used.add((hit[0].sheet, hit[0].row))
+                parts_by_key[key] = [(hit[0].norm, hit[0].values)]
+                sources[key], found_as[key] = hit[0].source, f"{hit[0].label} (note)"
     if "desc" not in parts_by_key:   # overdrafts are often only in the cash note, a sheet of its own
-        notes = [r for ws, header, cols in sheets.get("other", []) if cols for r in _rows(ws, header, cols)]
         hit = _find(notes, FIELD_BY_KEY["desc"].synonyms, used)[:1]
         if hit:
             used.add((hit[0].sheet, hit[0].row))
@@ -1058,7 +1089,7 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             data.distributions.append((r.label, paid, r.source))
     # an 'other' current line above a tenth of revenue: its content is unknown, it may hold debt-like items (R28)
     for key, nature in (("opc", "debt"), ("oac", "cash")):
-        vals, rev = lines.get(key, {}), lines["vendas"]
+        vals, rev = _unclassified(lines.get(key, {}), data.balance_items, nature), lines["vendas"]
         if any(rev.get(y) and x is not None and abs(x) / rev[y] > MATERIAL_OTHER for y, x in vals.items()):
             data.balance_items.append(BalanceItem(f"Material 'other' line (R28): break it down", FIELD_BY_KEY[key].label,
                                                   nature, "current", dict(vals), sources.get(key, ""), False, True))

@@ -74,7 +74,8 @@ class ToyotaCaetanoTest(RealCompany, unittest.TestCase):
         payments 6,683 (EBITDA 74,634 before IFRS 16: 67,951); financial investments paid 12,388 in FY23."""
         m = self.m
         self.assertAlmostEqual(m["da_gap"][2024], 65.5 - 9.5, delta=0.1)
-        self.assertAlmostEqual(m["other_wc"][2024], 145573 / 658170, places=3)
+        # other current liabilities 145,573 less income tax payable 6,249, classified apart (no double count)
+        self.assertAlmostEqual(m["other_wc"][2024], (145573 - 6249) / 658170, places=3)
         self.assertAlmostEqual(m["ebitda_pre16"][2024], 74634 - 6683, delta=1)
         self.assertAlmostEqual(-self.d.v("acq", 2023), 12388, delta=1)
         assess = [b for b in self.d.balance_items if b.category.startswith("Material 'other' line")]
@@ -110,9 +111,39 @@ class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
         self.assertEqual((self.severity["R04"], self.severity["R10"]), ("Medium", "High"))
 
 
+class TapTest(RealCompany, unittest.TestCase):
+    """TAP 2025 Integrated Report, consolidated statements pp. 152-156 (euros), notes 10 and 20."""
+    FILE = "TAP_2025_published.xlsx"
+
+    def test_company_and_unit(self):
+        self.assertEqual(self.ext.company, "Transportes Aéreos Portugueses, S.A. (TAP Air Portugal)")
+        self.assertIn("euros, converted to EUR thousands", self.ext.method)
+
+    def test_operating_income_rebuilt_from_17_lines(self):
+        # p.153: operating income 226,307,444 (FY25) and 314,394,252 (FY24); EBITDA = operating income + D&A
+        self.assertAlmostEqual(self.m["ebitda"][2025] - 499503.187, 226307.444, places=3)
+        self.assertAlmostEqual(self.m["ebitda"][2024] - 492676.021, 314394.252, places=3)
+        self.assertAlmostEqual(self.d.v("vendas", 2025), 3849317.194 + 261544.603 + 160087.049, places=3)
+
+    def test_reconciles(self):
+        self.assertReconciles()      # held for sale sits outside the subtotals: the published totals balance
+
+    def test_net_debt_is_negative_until_leases(self):
+        """By hand, FY25 (p.152): borrowings 702,554 + 19,991 − cash 765,329 = −42,784; adding leases (2,158,302),
+        post-employment (173,154) and income tax payable (3,873) gives 2,292,545."""
+        from dd_assistant.deal import deal_view
+        view = deal_view(self.d, self.m)
+        self.assertAlmostEqual(view.net_debt_reported[2025], 702554.408 + 19990.796 - 765329.360, places=3)
+        self.assertAlmostEqual(view.net_debt_adjusted[2025], 2292544.633, places=3)
+        self.assertLess(view.nwc_values[2025], 0)                # unused flight documents: negative NWC
+
+    def test_findings(self):
+        self.assertEqual(self.ids, list(FINDINGS[self.FILE]))
+
+
 class ClassificationTest(unittest.TestCase):
     def test_every_expected_finding_is_classified(self):
-        self.assertEqual(counts(), {"true positive": 7, "known false alarm": 0, "to review": 5})
+        self.assertEqual(counts(), {"true positive": 9, "known false alarm": 0, "to review": 7})
 
 
 if __name__ == "__main__":

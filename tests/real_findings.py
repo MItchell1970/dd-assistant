@@ -27,6 +27,14 @@ FINDINGS = {
         "R29": (REVIEW, "€12,388k paid for 'financial investments' in FY23 (SNC line): may be acquisitions, but the "
                         "line also holds other financial investments; needs the note."),
     },
+    "TAP_2025_published.xlsx": {
+        "R07": (REVIEW, "Customers (note 10, gross of impairment) grew 21.7% against revenue +1.2%; DSO 26.5 to 31.8 "
+                        "days. Needs the AR ageing: the note gives the impairment for the whole caption only."),
+        "R18": (TRUE, "Published accounts carry no customer listing, ageing or facility agreements."),
+        "R22": (TRUE, "EBITDA covers interest 3.71x in FY25 and 3.23x in FY24; interest includes lease interest."),
+        "R28": (REVIEW, "Other current liabilities, net of leases, tax and unused flight documents, are €630,699k "
+                        "(14.8% of revenue): mostly accrued expenses and other payables (note 20)."),
+    },
     "Corticeira_Amorim_2024_published.xlsx": {
         "R04": (REVIEW, "Other income is 11% of EBITDA: worth a breakdown, not a problem in itself."),
         "R10": (TRUE, "Cash conversion of 15% in FY23 (cork stock build); the two years together converted 44%."),

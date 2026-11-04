@@ -276,7 +276,10 @@ def compute_metrics(d: CompanyData) -> Metrics:
     assets = ["aft", "oanc", "inv", "cli", "oac", "caixa"]
     liabs = ["cp", "fin_lp", "opnc", "forn", "fin_cp", "opc"]
     # without cash or equity the difference would be the missing figure itself, not an error of the company
-    put("bs_diff", B, lambda y: None if not need(v("caixa", y), v("cp", y))
+    # with both published totals, the test is the company's own: lines outside the current / non-current subtotals
+    # (assets and liabilities held for sale) are inside them; otherwise the lines identified are added up
+    put("bs_diff", B, lambda y: v("tot_at", y) - v("tot_pl", y) if need(v("tot_at", y), v("tot_pl", y))
+        else None if not need(v("caixa", y), v("cp", y))
         else sum(N(v(k, y)) for k in assets) - sum(N(v(k, y)) for k in liabs))
     put("cash_diff", P, lambda y: sub(v("cx_fim", y), v("caixa", y)))
 
@@ -348,8 +351,15 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("da_gap", Pp, lambda y: None if not need(v("da", y), v("da", prev[y]), v("aft", y), v("aft", prev[y]))
         or not v("da", prev[y]) or not v("aft", prev[y])
         else (growth(-v("da", y), -v("da", prev[y])) - growth(v("aft", y), v("aft", prev[y]))) * 100)
-    put("other_wc", P, lambda y: None if not v("vendas", y) or not (v("oac", y) is not None or v("opc", y) is not None)
-        else max(abs(N(v("oac", y))), abs(N(v("opc", y)))) / v("vendas", y))
+    def other_wc(y):   # the 'other' lines less what inside them is already classified (leases, tax, advances…)
+        if not v("vendas", y) or (v("oac", y) is None and v("opc", y) is None):
+            return None
+        left = lambda key, nature: N(v(key, y)) - sum(N(b.values.get(y)) for b in d.balance_items if b.nature == nature
+                                                      and b.in_nwc and b.kind == "current"
+                                                      and not b.category.startswith("Material 'other'"))
+        return max(abs(left("oac", "cash")), abs(left("opc", "debt"))) / v("vendas", y)
+
+    put("other_wc", P, other_wc)
     # no acquisitions line in a cash flow statement that exists: none presented, so nil (as the optional lines)
     put("acq_share", P, lambda y: None if not v("vendas", y) or (v("acq", y) is None and v("fco", y) is None)
         else 0.0 - N(v("acq", y)) / v("vendas", y))

@@ -40,7 +40,7 @@ def main() -> None:
             lines.append(f"| {rid} | {r.rule.severity if r else '—'} | {r.years_text if r else 'does not fire'} | "
                          f"{kind} | {why} |")
         lines.append("")
-    lines += ["Limits: two companies, both Portuguese, both read from Excel copies of the published statements. "
+    lines += ["Limits: three companies, all Portuguese, all read from Excel copies of the published statements. "
               "A true positive means the figures show what the rule says, not that a deal team would treat it as "
               "an issue. EDP (ESEF FY2025) was checked by hand and is not in this table: its 96 MB package is not "
               "in the project."]
