@@ -13,3 +13,7 @@ backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f4f6fa"
 textColor = "#1b2333"
 font = "sans serif"
+
+[client]
+# hide the developer menu and the Deploy button: the app is shown to visitors
+toolbarMode = "viewer"

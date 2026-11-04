@@ -1,23 +1,78 @@
-# DD Assistant — preliminary financial due diligence for European companies
+# DD Assistant
 
-**At a glance.** DD Assistant reads a company's data room (Excel, PDF, Word or an ESEF filing) and returns the first pass of a financial due diligence: quality of earnings, net debt, working capital and 29 red-flag rules, each finding with its source, plus a databook with live formulas and the bridge from enterprise value to equity value (completion accounts or locked box). I tested it on the published accounts of EDP, Corticeira Amorim and Toyota Caetano Portugal, and it rebuilds their reported profit figures exactly. Deterministic code produces every number; Claude only writes the memo and the request list, and a checker with no AI confirms each figure it writes, for the year it is cited.
+**A first-pass financial due diligence on published accounts: every figure traced to its source.**
 
-![Reading checks and red flags for Corticeira Amorim, FY2024](docs/images/report-red-flags.png)
+<!-- Replace the link below with the Streamlit Community Cloud address once the demo is published (docs/DEPLOY.md). -->
+[![Live demo](https://img.shields.io/badge/Live_demo-link_coming_soon-0b3d91?style=for-the-badge)](docs/DEPLOY.md)
 
-*The Excel report for Corticeira Amorim's published FY2024 accounts: the reading checks rebuild EBITDA and operating profit to the euro, and each red flag carries its evidence, source cell and question for management.*
+It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings, net debt with debt-like items, working capital, 29 red-flag rules with their sources, a two-page memo, the request list and an Excel databook with live formulas. European companies, euros only.
 
-![Deal view for Corticeira Amorim, FY2024](docs/images/report-deal-view.png)
+![The demo on TAP Air Portugal's FY2025 accounts](docs/images/demo-overview.png)
 
-*The deal view for the same accounts: quality of earnings and net debt, with the debt-like items found in the balance sheet and the source cell of every line.*
+*The online demo on TAP Air Portugal's published FY2025 accounts: both reading checks pass, adjusted net debt is €2,293m against a reported net cash position, and each card is coloured by the red flags behind it.*
 
-## Who built it, and how
+![The databook's Net Debt sheet in Excel](docs/images/databook-net-debt.png)
 
-I am Bernardo Espinola, a final-year Economics student at FEP (University of Porto). I built this as a personal project after an internship in International Tax and Transaction Services at EY in Porto, where I supported buy-side and sell-side due diligence work.
+*The databook in Excel, as a transaction team receives it: data room figures in blue with their source cell, the analyst's decisions in the yellow cells, and totals that Excel recalculates and the code checks.*
 
-- **My part:** the scope and the method, the 29 rules and their thresholds, the deal view bridges, the choice of test companies, and checking every result against the published accounts.
-- **AI's part:** I wrote the code with AI coding tools (Claude Code), working from my specifications. Every change runs against 165 tests that compare the Python with a hand-built Excel template and with real published accounts.
+## What it found
 
-Contact: [LinkedIn](https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/)
+Three Portuguese companies, on their latest published consolidated accounts (FY2025, with FY2024 comparatives). The engine computed every figure; each is in the stored memo, which passed the automatic checker.
+
+| Company | Finding | Source |
+|---|---|---|
+| **TAP Air Portugal** | Reported net debt is -€43m in FY25, a net cash position. With aircraft leases (IFRS 16) and pensions, adjusted net debt is **€2,293m**, 3.16x EBITDA. | Statement of financial position, 2025 Integrated Report p.152 (four lease liability lines) |
+| | The effective tax rate was **96.9%** in FY25, against 22.5% statutory (R25): income tax of €66m on profit before tax of €68m. | Income statement, p.153 |
+| **Toyota Caetano Portugal** | Other income is **60.5% of FY25 EBITDA**: €40,036k of €66,187k (R04, High). | Income statement, 2025 annual report (ESEF), "Outros rendimentos operacionais" |
+| | Operating cash flow turned negative: **-€3,987k** in FY25 against €62,857k in FY24 (R10), as inventories grew 25.8% against COGS up 4.5% (R09). | Cash flow statement and balance sheet, 2025 annual report |
+| **Corticeira Amorim** | Revenue fell 8.3%, yet operating cash flow was **155.4% of EBITDA** (€219,015k), as inventories fell from €466,545k to €388,297k. No rule fires; the memo asks whether it will repeat. | Cash flow statement and balance sheet, 2025 annual report (ESEF) |
+| | Debt due within 12 months fell from **56.3% to 28.7%** (R11 on FY24), and cash in the cash flow statement is net of €29,451k of bank overdrafts. | Statement of financial position and note 19 |
+
+Each company has a memo, the checker's result, the databook and a one-page case note in [`docs/examples/`](docs/examples/).
+
+## How it works
+
+1. **Read:** every Excel, PDF, Word and ESEF file of the data room, with a six-language dictionary of statement lines; each figure keeps its file and cell, or its XBRL tag.
+2. **Calculate:** margins, cash conversion, working capital days, net debt and leverage, in deterministic Python. A missing figure stays unknown, never zero.
+3. **Rules:** 29 rules from Big Four due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request.
+4. **Deal view:** reported to diligence-adjusted EBITDA, reported to adjusted net debt, and working capital with an indicative peg; then enterprise value to equity, once you enter the price mechanism.
+5. **Verified memo:** Claude writes the memo and the request list from that material only; a checker with no AI confirms every figure, for the year it is cited, and every finding.
+
+```mermaid
+flowchart LR
+    A[Read the data room] --> B[Calculate] --> C[29 rules] --> D[Deal view and databook] --> E[Memo] --> F{Checker, no AI}
+    F -- a figure without a source --> E
+```
+
+## How it is verified
+
+- **192 automated tests** (`python -m unittest`), run on every change.
+- **Parity with a hand-built Excel template:** the Python gives exactly the template's metrics, rule values, thresholds and severities.
+- **Published totals rebuilt:** on each real company, the subtotals rebuilt from the lines read must equal the published ones, and the balance sheet must balance. Operating profit is rebuilt to the euro for TAP and Toyota Caetano; EBITDA is within the report's own €2k rounding for Corticeira Amorim.
+- **No false alarm on a clean company:** a fictitious company designed to pass raises no finding.
+- **Memo checker:** every figure of the memo must be in the material, for the period cited; every finding must appear; every question needs a request; no investment-recommendation language. The three demo memos pass with 89, 78 and 85 figures checked, none without a source.
+- **Databook:** recalculated by Excel, every total equals the Python value.
+- On the five sets of real accounts, the 27 findings are classified as 15 true positives, 12 to review and no known false alarm ([`docs/VALIDATION.md`](docs/VALIDATION.md); a classification proposed by the agent, not yet reviewed by me).
+
+## Limits
+
+- Annual accounts only: no monthly figures, LTM or budget, so the working capital peg is indicative.
+- Euros only: statements in another currency are refused, never converted.
+- Financial due diligence only: no legal, tax, commercial, IT or HR review, and no valuation.
+- A first pass for an analyst to review: it points to what to investigate and never gives an investment recommendation or a view on price.
+- The real accounts tested so far are Portuguese; Spanish, French, German and Italian layouts are tested on synthetic statements.
+
+## Built by
+
+I am Bernardo Espinola, a final-year Economics student at FEP (University of Porto). I built this as a personal project after an internship in International Tax and Transaction Services at EY in Porto, where I supported buy-side and sell-side due diligence work. Contact: [LinkedIn](https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/).
+
+- **My part:** the scope and the method, the rules and their thresholds, the deal view bridges, the choice of companies, and checking the results against the published accounts.
+- **AI's part:** the code was written with Claude Code from my specifications, and every change runs against the tests above. The demo memos were written by Claude Code with this project's skill, then checked by the code.
+- **What I learned:** to turn due diligence practice into explicit rules a machine can test, to trace every number to its source, and to use AI where it helps (reading, drafting) while the calculations stay deterministic and checked.
+
+---
+
+# Details
 
 ## What it does
 
@@ -51,7 +106,7 @@ An AI layer — the Claude API, or Claude Code itself with no API key — then w
 > Sample data:
 > - **Duriva**, a fictitious distributor with planted issues, as a data room of five documents;
 > - **Velmora**, a fictitious clean company, used to measure false alarms;
-> - the published FY2024 accounts of **Toyota Caetano Portugal** and **Corticeira Amorim**;
+> - the published FY2025 accounts of **TAP Air Portugal**, **Toyota Caetano Portugal** and **Corticeira Amorim**, and the FY2024 accounts of the last two;
 > - tested on **EDP**'s FY2025 ESEF filing (not included: 96 MB; download it from filings.xbrl.org).
 
 ## Why
@@ -82,7 +137,7 @@ The full rulebook is in the app (Rulebook tab) and in `python -m dd_assistant --
 
 These are the standard checks of financial due diligence (the Big Four transaction services workstreams), private equity and bank credit. R01–R20 match the reference Excel template exactly; R21–R29 go beyond it (R27–R29 came from what a reviewer found on Toyota Caetano and the rules missed). On the two real companies in the project, the 12 findings are classified as 7 true positives, 5 to review and no known false alarm (`docs/VALIDATION.md`: a classification proposed by the agent, not yet reviewed by me).
 
-## How it works
+## The layers
 
 | Layer | File | What it does |
 |---|---|---|
@@ -142,6 +197,9 @@ On Windows ARM PCs, use the **x64** Python: Streamlit depends on `pyarrow`, whic
 # the app (runs on this computer only): drop the data room's files
 streamlit run app.py
 
+# the online demo, locally: three real companies, no upload, no API
+$env:DD_DEMO=1; streamlit run app.py
+
 # a whole data room folder, or files, saved to output\ (Excel and CSV)
 python -m dd_assistant data\Duriva_data_room
 python -m dd_assistant data\Corticeira_Amorim_2024_published.xlsx --country PT --sector materials
@@ -170,6 +228,8 @@ Costs:
 - every other document is read locally, at no cost.
 
 ## Results
+
+The FY2025 results of the three demo companies are at the top of this page and in docs/examples/.
 
 **Real companies (published FY2024 accounts, copied into Excel as printed):**
 
@@ -211,6 +271,6 @@ Monthly, LTM and budget figures are not in annual accounts. The request list ask
 
 ## Sources
 
-- Toyota Caetano Portugal and Corticeira Amorim statements: each file's *Source* sheet gives the URL and pages.
+- TAP Air Portugal, Toyota Caetano Portugal and Corticeira Amorim statements: each file's *Source* sheet gives the URL, the pages or statement titles, and the date obtained.
 - Sector benchmarks: Damodaran Online (NYU Stern), European industry datasets, January 2026; regenerate them with `scripts/sector_benchmarks.py`.
 - Statutory tax rates: headline 2024 rates with usual local surcharges (`dd_assistant/europe.py`), for a plausibility test only.

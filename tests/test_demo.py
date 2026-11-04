@@ -76,8 +76,8 @@ class DemoAppTest(unittest.TestCase):
                 self.assertFalse([x for x in labels if x in API_LABELS], "no API button in the demo")
                 self.assertEqual([t.label for t in at.tabs][-1], "Memo")
                 downloads = [d.proto.label for d in at.get("download_button")]
-                self.assertEqual(downloads[0], "Download the databook (Excel)")
-                self.assertIn("Request list (.md)", downloads)
+                self.assertEqual(downloads[0], "Databook (Excel)")
+                self.assertIn("Request list", downloads)
                 text = page_text(at)
                 self.assertIn(demo.WARNING, text)
                 self.assertNotIn("Claude API: not configured", text)

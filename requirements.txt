@@ -1,4 +1,8 @@
-openpyxl>=3.1
-streamlit>=1.40
-anthropic>=2.3
-pypdf>=5
+# Pinned versions, tested on this project (Python 3.13). Streamlit Community Cloud installs exactly these.
+openpyxl==3.1.5
+pandas==3.1.0
+pydantic==2.14.1
+pypdf==6.21.3
+streamlit==1.66.1
+# Only to read a PDF's statements and to write the memo with the Claude API; the demo never calls it.
+anthropic==2.3.0

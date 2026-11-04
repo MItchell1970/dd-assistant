@@ -14,6 +14,7 @@ import hashlib
 import html
 import io
 import os
+import re
 import types
 from pathlib import Path
 
@@ -226,10 +227,10 @@ def show_stored_memo(c: demo.Case) -> None:
                "decisions in this session change the Deal view and the databook, not the stored memo.")
     m1, m2, _ = st.columns([1, 1, 3])
     m1.download_button("Download memo (.md)", text.encode("utf-8"), f"{c.slug}_memo.md", mime=MD_MIME)
-    m2.download_button("Material the memo was written from", material.encode("utf-8"), f"{c.slug}_material.md",
-                       mime=MD_MIME)
+    m2.download_button("Material (.md)", material.encode("utf-8"), f"{c.slug}_material.md", mime=MD_MIME,
+                       help="The material the memo was written from and is checked against.")
     st.divider()
-    st.markdown(text)
+    st.markdown(re.sub(r"^(#+) ", lambda h: "#" * min(len(h.group(1)) + 2, 6) + " ", text, flags=re.M))
 
 
 def footer() -> None:
@@ -517,7 +518,9 @@ with tab_ov:
 price = None   # the price mechanism the analyst sets in Deal view (carried into the databook)
 with tab_deal:
     st.caption("The three numbers a deal team asks for first, calculated by the code from the lines in Data room. "
-               "Your decisions below flow into the Excel download and the AI memo. Hover a line to see its source.")
+               + ("Your decisions below flow into the databook download. " if DEMO else
+                  "Your decisions below flow into the Excel download and the AI memo. ")
+               + "Hover a line to see its source.")
     for note in view.incomplete:
         st.warning(note)
     st.markdown("<div class='dd-section'>Quality of earnings</div>", unsafe_allow_html=True)
@@ -671,8 +674,8 @@ with tab_deal:
 # ---------------------------------------------------------------- red flags and review
 with tab_rf:
     if al:
-        st.caption("Double-click Status or Comment to record your review. Your review flows into the downloads "
-                   "and the AI memo.")
+        st.caption("Double-click Status or Comment to record your review. Your review flows into the downloads"
+                   + ("." if DEMO else " and the AI memo."))
         table = pd.DataFrame([{"Severity": r.rule.severity, "Rule": r.rule.id, "Finding": r.rule.name,
                                "Area": r.rule.area, "Years": r.years_text, "Status": "Pending", "Comment": ""}
                               for r in al])
@@ -703,15 +706,16 @@ with tab_rf:
         st.caption("The downloads are at the top of the page.")
         with downloads:
             requests = demo.request_list(case)
-            d1, d2, d3, d4, _ = st.columns([1.3, 1, 1, 1, 1])
-            d1.download_button("Download the databook (Excel)", book.getvalue(), f"{case.slug}_databook.xlsx",
-                               mime=XLSX_MIME, type="primary", help=book_help + " Includes your decisions.")
+            d1, d2, d3, d4 = st.columns(4)
+            d1.download_button("Databook (Excel)", book.getvalue(), f"{case.slug}_databook.xlsx",
+                               mime=XLSX_MIME, type="primary", width="stretch", help=book_help + " Includes your decisions.")
             d2.download_button("Red flags (Excel)", buf.getvalue(), f"{case.slug}_red_flags.xlsx", mime=XLSX_MIME,
+                               width="stretch",
                                help="Every finding with its evidence, source, question and document to request.")
-            d3.download_button("Request list (.md)", requests.encode("utf-8"), f"{case.slug}_request_list.md",
+            d3.download_button("Request list", requests.encode("utf-8"), f"{case.slug}_request_list.md", width="stretch",
                                mime=MD_MIME, disabled=not requests, help="From the stored memo (tab Memo).")
             d4.download_button("Red flags (CSV)", csv_bytes(results, reviews), f"{case.slug}_red_flags.csv",
-                               mime="text/csv")
+                               mime="text/csv", width="stretch")
     else:
         d1, d2, d3, _ = st.columns([1, 1, 1, 2])
         d1.download_button("Download databook", book.getvalue(), f"{stem}_databook.xlsx", mime=XLSX_MIME,
@@ -761,8 +765,8 @@ with tab_sec:
                      hide_index=True, width="stretch",
                      column_config={"Question for management": st.column_config.TextColumn(width="large"),
                                     "Document to request": st.column_config.TextColumn(width="medium")})
-        st.caption("These questions go to the AI memo, which adds them to the request list where the data points "
-                   "to them.")
+        st.caption(("These questions went to the memo, which" if DEMO else "These questions go to the AI memo, which")
+                   + " adds them to the request list where the data points to them.")
 
 # ---------------------------------------------------------------- what the agent read
 with tab_src:
