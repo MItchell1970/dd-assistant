@@ -26,8 +26,6 @@ FINDINGS = {
         "R10": (TRUE, "Cash conversion of 15% in FY23 (cork stock build); the two years together converted 44%."),
         "R11": (REVIEW, "56–68% of debt due within a year: commercial paper programmes are usually rolled; depends "
                         "on the programme terms."),
-        "R13": (FALSE_ALARM, "Cash in the cash flow statement is net of bank overdrafts (IAS 7.8); the file has no "
-                             "cash note to reconcile it yet (see docs/PROGRESS.md, M0.3)."),
         "R18": (TRUE, "Published accounts carry no customer listing, ageing or facility agreements."),
     },
 }

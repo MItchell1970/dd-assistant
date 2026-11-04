@@ -88,8 +88,10 @@ class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
         self.assertReconciles()
 
     def test_findings(self):
-        # R13: cash flow statement cash is net of bank overdrafts; the finding asks for the reconciliation
+        # no R13: cash in the cash flow statement is net of the bank overdrafts of note 19 (p. 426), €48,672k in
+        # FY24 and €86,263k in FY23, exactly the difference: a reconciliation, not a finding
         self.assertEqual(self.ids, list(FINDINGS[self.FILE]))
+        self.assertEqual(self.m["cash_diff_unexpl"], {2023: 0, 2024: 0})
         # other income is 11% of EBITDA: a breakdown to ask for, not a high finding; cash conversion was 15% in
         # FY23 (stock build) and the two years together converted 44%
         self.assertEqual((self.severity["R04"], self.severity["R10"]), ("Medium", "High"))
@@ -97,7 +99,7 @@ class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
 
 class ClassificationTest(unittest.TestCase):
     def test_every_expected_finding_is_classified(self):
-        self.assertEqual(counts(), {"true positive": 5, "known false alarm": 1, "to review": 4})
+        self.assertEqual(counts(), {"true positive": 5, "known false alarm": 0, "to review": 4})
 
 
 if __name__ == "__main__":

@@ -8,9 +8,9 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 
 - **Módulo:** M0, correções de confiança.
 - **Feito:** M0.1 (o verificador do memo liga cada número ao ano citado); M0.2 (ausência ≠ zero nas pontes e nas regras de consistência).
-- **Em curso:** M0.3. Mecanismo feito; falta aplicá-lo à Amorim, que precisa da linha dos descobertos da nota de caixa do relatório (PDF de mais de 10 MB, à espera de autorização para descarregar).
+- **M0 concluído.** A Amorim ficou fechada com a nota 19 do relatório publicado (conferida no PDF descarregado com autorização do Bernardo).
 - **Feito também:** M0.4 (alertas das empresas reais classificados; contagem em `docs/VALIDATION.md`).
-- **Próximo passo:** M2, databook. Antes, se o Bernardo autorizar o download do relatório da Amorim, fechar o M0.3 com a nota de caixa conferida.
+- **Próximo passo:** M2, databook.
 - **Comando para retomar:** `python -m unittest -v` (tem de dar 138 testes OK) e `python scriptsalidation_report.py`.
 
 ## Diagnóstico (4 de novembro de 2026)
@@ -43,13 +43,13 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 - **M0.2, o que ainda usa N():** o EBITDA (soma das linhas operacionais apresentadas), as listas de clientes e os ajustes da gestão (um ano vazio de um ajuste é zero). Um EBITDA sem uma linha de custo principal é apanhado pelas reading checks, não por N().
 
 - **M0.3, "explicada" quer dizer igual, ao milhar.** A diferença de caixa só passa a reconciliação quando uma linha identificada a explica dentro da tolerância da R13 (€1k): descobertos bancários (IAS 7.8, caixa da DFC líquida de descobertos) ou caixa restrita (US GAAP, incluída na DFC). Uma explicação parcial continua a disparar. Os descobertos são lidos da DFC ou de uma folha de nota (por exemplo, a nota de caixa).
-- **M0.3, Amorim:** a diferença (FY24 −€48,672k; FY23 −€86,263k) tem a forma de descobertos netados, mas o ficheiro da Amorim só tem as demonstrações. Não acrescento uma linha calculada pela diferença: seria um número inventado. Fecho-a quando a nota de caixa do relatório publicado estiver conferida.
+- **M0.3, Amorim:** a diferença (FY24 −€48,672k; FY23 −€86,263k) é a dos descobertos da nota 19 do relatório anual de 2024 (página 426: "Overdrafts −48,672 / −86,263"; política na página 399: a caixa da DFC inclui os descobertos que estão em "Bank loans"). PDF: `Amorim_RC24_EN_low.pdf`, amorim.com, obtido a 4 de novembro de 2026, SHA-256 `e743e35dae3f3e431b53f8fa7cd6770c9bf0b9db1346cb196b8cfb1fbcb06ff3`, 12,6 MB (fica fora do projeto). A nota foi copiada tal como impressa para a folha "Note 19 Cash" por `scripts/real_corticeira_amorim.py`. Os descobertos já estão dentro da dívida (em "Bank loans"), por isso não entram outra vez na net debt. O memo de exemplo em `docs/examples/` ainda fala da R13 da Amorim: é um registo histórico da corrida de outubro e fica como estava.
 
 ## Incrementos
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
-| M0.4 | Alertas das empresas reais classificados (5 verdadeiros positivos, 4 por rever, 1 alarme falso conhecido); `scripts/validation_report.py` escreve `docs/VALIDATION.md` | Sim | 138 testes OK | Classificação feita a partir dos números publicados (Toyota DRE/DFC, Amorim DR/DFC) | Pendente: a classificação é uma proposta |
-| M0.3 | R13: diferença explicada por descobertos ou caixa restrita passa a reconciliação (memo no net debt) | Sim | 137 testes OK (4 novos em `tests/test_cash_reconciliation.py`); paridade igual | Amorim pendente (nota de caixa) | Pendente |
+| M0.4 | Alertas das empresas reais classificados (5 verdadeiros positivos, 4 por rever; o alarme falso da Amorim foi resolvido no M0.3); `scripts/validation_report.py` escreve `docs/VALIDATION.md` | Sim | 138 testes OK | Classificação feita a partir dos números publicados (Toyota DRE/DFC, Amorim DR/DFC) | Pendente: a classificação é uma proposta |
+| M0.3 | R13: diferença explicada por descobertos ou caixa restrita passa a reconciliação (memo no net debt) | Sim | 138 testes OK (4 novos em `tests/test_cash_reconciliation.py`); paridade igual | Sim: Amorim, nota 19 (p. 426), igual ao milhar nos dois anos | Pendente |
 | M0.2 | Ausência ≠ zero: net debt, NWC, FCF, R12, R14, mapa da dívida; avisos "incompleto" na app, no Excel, no memo e no JSON | Sim | 133 testes OK (6 novos em `tests/test_absence.py`); app headless sem erros nas 4 amostras | Não aplicável (casos construídos a partir da Velmora) | Pendente |

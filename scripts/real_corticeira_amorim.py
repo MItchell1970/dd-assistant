@@ -98,11 +98,22 @@ CF = [
     [27964, -12869, "Cash and cash equivalents at end of period", 19, 27964, -12869],
 ]
 
+NOTE19 = [  # note 19, page 426: label, 2024, 2023 (bank overdrafts sit in 'Bank loans'; accounting policy, p. 399)
+    ["Cash", 275, 524],
+    ["Bank Balances", 72632, 61046],
+    ["Term deposits", 3689, 11752],
+    ["Others", 41, 72],
+    ["Cash and cash equivalents as for statement of financial position", 76636, 73394],
+    ["Overdrafts", -48672, -86263],
+    ["Cash and cash equivalents as for cash flow statement", 27964, -12869],
+]
+
 wb = Workbook()
 src = wb.active
 src.title = "Source"
 src.append(['Corticeira Amorim, S.G.P.S., S.A. — published consolidated accounts FY2024'])
-src.append(['Copied as printed from the 2024 annual report (English), pages 377–380. Figures in thousand euros.'])
+src.append(['Copied as printed from the 2024 annual report (English), pages 377–380, and note 19 (cash and cash '
+            'equivalents), page 426. Figures in thousand euros.'])
 src.append(["Source: " + 'https://www.amorim.com/xms/files/Investidores/Relatorio_Anual/Amorim_RC24_EN_low.pdf'])
 src.append(["Real, published figures. Used to test the agent on real accounts."])
 src.column_dimensions["A"].width = 110
@@ -125,6 +136,14 @@ for title, heading, rows in [("Income statement", "Consolidated income statement
         ws.append(r)
     ws.append([])
     ws.append([UNIT])
+ws = wb.create_sheet("Note 19 Cash")
+ws.append(["19. Cash and cash equivalents"])
+ws.append([])
+ws.append([None, 2024, 2023])
+for r in NOTE19:
+    ws.append(r)
+ws.append([])
+ws.append([UNIT])
 out = Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parents[1] / 'data/Corticeira_Amorim_2024_published.xlsx')
 wb.save(out)
 print("saved", out)

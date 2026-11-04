@@ -171,7 +171,7 @@ Costs:
 Both balance sheets reconcile and all reading checks pass. The findings are ones a reviewer would recognise:
 
 - Toyota: material other income, negative operating cash flow in FY23, short-term debt, and capex below depreciation in both years;
-- Amorim: cash in the cash flow statement net of bank overdrafts, and short-dated debt.
+- Amorim: weak cash conversion in FY23 and short-dated debt. Cash in the cash flow statement is net of the bank overdrafts of note 19 (€48,672k in FY24): the agent reconciles it instead of flagging it.
 
 The deal view finds pensions and income tax payable as debt-like items in both groups.
 
