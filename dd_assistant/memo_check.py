@@ -201,12 +201,12 @@ def _same(value: float, decimals: int, m: float) -> bool:
     return False
 
 
-_STOP = {"total", "from", "with", "that", "this", "were", "than", "into", "over", "year", "years", "eur", "euros",
+_STOP = {"the", "and", "for", "per", "was", "are", "has", "not", "total", "from", "with", "that", "this", "were", "than", "into", "over", "year", "years", "eur", "euros",
          "thousands", "which", "their", "after", "before", "within", "rule", "source", "evidence"}
 
 
 def _words(text: str) -> set[str]:
-    return {w[:5] for w in re.findall(r"[a-zà-ÿ]{4,}", text.lower()) if w not in _STOP}
+    return {w[:5] for w in re.findall(r"[a-zà-ÿ]{3,}", text.lower()) if w not in _STOP}   # 3: DSO, DPO, DIO
 
 
 def _skip(value: float, decimals: int) -> bool:
