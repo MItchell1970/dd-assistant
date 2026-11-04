@@ -9,8 +9,9 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 - **Módulo:** M0, correções de confiança.
 - **Feito:** M0.1 (o verificador do memo liga cada número ao ano citado); M0.2 (ausência ≠ zero nas pontes e nas regras de consistência).
 - **Em curso:** M0.3. Mecanismo feito; falta aplicá-lo à Amorim, que precisa da linha dos descobertos da nota de caixa do relatório (PDF de mais de 10 MB, à espera de autorização para descarregar).
-- **Próximo passo:** M0.4, classificar os alertas das empresas reais; depois fechar a Amorim no M0.3.
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 137 testes OK); depois ler a secção "Próximo passo" acima.
+- **Feito também:** M0.4 (alertas das empresas reais classificados; contagem em `docs/VALIDATION.md`).
+- **Próximo passo:** M2, databook. Antes, se o Bernardo autorizar o download do relatório da Amorim, fechar o M0.3 com a nota de caixa conferida.
+- **Comando para retomar:** `python -m unittest -v` (tem de dar 138 testes OK) e `python scriptsalidation_report.py`.
 
 ## Diagnóstico (4 de novembro de 2026)
 
@@ -49,5 +50,6 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
+| M0.4 | Alertas das empresas reais classificados (5 verdadeiros positivos, 4 por rever, 1 alarme falso conhecido); `scripts/validation_report.py` escreve `docs/VALIDATION.md` | Sim | 138 testes OK | Classificação feita a partir dos números publicados (Toyota DRE/DFC, Amorim DR/DFC) | Pendente: a classificação é uma proposta |
 | M0.3 | R13: diferença explicada por descobertos ou caixa restrita passa a reconciliação (memo no net debt) | Sim | 137 testes OK (4 novos em `tests/test_cash_reconciliation.py`); paridade igual | Amorim pendente (nota de caixa) | Pendente |
 | M0.2 | Ausência ≠ zero: net debt, NWC, FCF, R12, R14, mapa da dívida; avisos "incompleto" na app, no Excel, no memo e no JSON | Sim | 133 testes OK (6 novos em `tests/test_absence.py`); app headless sem erros nas 4 amostras | Não aplicável (casos construídos a partir da Velmora) | Pendente |

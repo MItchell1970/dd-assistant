@@ -10,6 +10,7 @@ from pathlib import Path
 from dd_assistant.extract import extract_excel
 from dd_assistant.metrics import compute_metrics, reading_checks
 from dd_assistant.rules import alerts, evaluate
+from tests.real_findings import FINDINGS, counts
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 
@@ -62,7 +63,7 @@ class ToyotaCaetanoTest(RealCompany, unittest.TestCase):
     def test_findings(self):
         # R24: capex of €10.5m and €11.9m against D&A of €17.0m and €28.1m (0.62x, 0.42x): deferred maintenance,
         # or a rental fleet depreciated in D&A but bought outside capex? A question for management.
-        self.assertEqual(self.ids, ["R04", "R10", "R11", "R18", "R24"])
+        self.assertEqual(self.ids, list(FINDINGS[self.FILE]))   # each classified in tests/real_findings.py
         # other income is about half of EBITDA (51.5%, 46.6%); operating cash was negative in FY23 and the two
         # years together converted 39%
         self.assertEqual((self.severity["R04"], self.severity["R10"]), ("High", "High"))
@@ -88,10 +89,15 @@ class CorticeiraAmorimTest(RealCompany, unittest.TestCase):
 
     def test_findings(self):
         # R13: cash flow statement cash is net of bank overdrafts; the finding asks for the reconciliation
-        self.assertEqual(self.ids, ["R04", "R10", "R11", "R13", "R18"])
+        self.assertEqual(self.ids, list(FINDINGS[self.FILE]))
         # other income is 11% of EBITDA: a breakdown to ask for, not a high finding; cash conversion was 15% in
         # FY23 (stock build) and the two years together converted 44%
         self.assertEqual((self.severity["R04"], self.severity["R10"]), ("Medium", "High"))
+
+
+class ClassificationTest(unittest.TestCase):
+    def test_every_expected_finding_is_classified(self):
+        self.assertEqual(counts(), {"true positive": 5, "known false alarm": 1, "to review": 4})
 
 
 if __name__ == "__main__":
