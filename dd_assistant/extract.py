@@ -1047,6 +1047,15 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             else:
                 unmapped.append({"Statement": STATEMENTS[st], "Line in the file": r.label, "Source": r.source,
                                  **{f"FY{str(y)[2:]}": v for y, v in sorted(scaled(r.values).items())}})
+    # dividends paid (payments, not dividends received): candidates for the leakage register of a locked box
+    for r in all_rows.get("cf", []):
+        if not re.search(r"dividend|gewinnausschuttung", r.norm):
+            continue
+        paid_section = bool(re.search(r"pagamento|payment|paid|pagos|paiement|auszahlung", r.context))
+        paid = {y: abs(x) * scale for y, x in r.values.items() if x is not None and (x < 0 or (x > 0 and paid_section
+                                                                                             and "receb" not in r.context))}
+        if any(paid.values()):
+            data.distributions.append((r.label, paid, r.source))
     # an 'other' current line above a tenth of revenue: its content is unknown, it may hold debt-like items (R28)
     for key, nature in (("opc", "debt"), ("oac", "cash")):
         vals, rev = lines.get(key, {}), lines["vendas"]

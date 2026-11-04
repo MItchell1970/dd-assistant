@@ -464,6 +464,171 @@ def _nwc(ws, a, fin_rows: dict[str, int], nd: dict) -> dict:
     return {"cols": cols, "total": total}
 
 
+def _ev_to_equity(ws, a, qoe: dict, nd: dict, nwc: dict, price) -> dict:
+    """Enterprise value to equity value. The mechanism cell decides which block is computed; nothing is computed
+    until it is chosen. Links to QoE, Net Debt and NWC; inputs in yellow."""
+    from .price import MECHANISMS, LEAKAGE_TREATMENTS
+    v = a.view
+    L, B = v.pl_years[-1], v.bs_years[-1]
+    ndc, nwcc, qc = (get_column_letter(x["cols"][y]) for x, y in ((nd, B), (nwc, B), (qoe, L)))
+    _title(ws, "EV to Equity", f"Balance sheet {fy(B)}, EUR thousands. Choose the mechanism of the SPA first. A model "
+                               "configuration subordinated to the SPA definitions, not a clause; equity value is not "
+                               "the amount the seller receives (escrow, retentions, earn-out and deferrals apart).")
+    p = price
+    lb = p.locked_box if p else None
+    rows: dict[str, int] = {}
+
+    def line(key, label, value=None, formula=None, decide=False, fmt=_NUM, link=False, bold=False):
+        r = ws.max_row + 1
+        rows[key] = r
+        _put(ws, r, 1, label, _BOLD if bold else _FORMULA)
+        if formula:
+            _formula(ws, r, 2, formula, link=link, fmt=fmt, bold=bold)
+        else:
+            _put(ws, r, 2, value, _INPUT if not decide else _FORMULA, fmt, fill=_DECISION if decide else None,
+                 unlocked=decide)
+        return r
+
+    line("mech", "Price mechanism (choose)", p.mechanism if p and p.mechanism else "", decide=True, fmt="@")
+    _validation(ws, list(MECHANISMS), f"B{rows['mech']}")
+    mech = f"$B${rows['mech']}"
+    ws.append([])
+    line("h1", "Completion accounts", bold=True, value=None)
+    line("ev_direct", "Enterprise value entered directly", p.ev.value if p else None, decide=True)
+    line("multiple", "…or multiple chosen by the user (no market multiple is supplied)", p.ev.multiple if p else None,
+         decide=True, fmt="0.0x")
+    line("ebitda", f"× EBITDA chosen: diligence-adjusted {fy(L)} (QoE)", formula=f"=QoE!{qc}{qoe['dd']}", link=True)
+    line("ev", "Enterprise value used",
+         formula=f'=IF(ISNUMBER(B{rows["ev_direct"]}),B{rows["ev_direct"]},IF(ISNUMBER(B{rows["multiple"]}),'
+                 f'B{rows["multiple"]}*B{rows["ebitda"]},"enter EV"))', bold=True)
+    line("debt", "− financial debt (Net Debt)", formula=f"=-(N('Net Debt'!{ndc}5)+N('Net Debt'!{ndc}6))", link=True)
+    line("cash", "+ eligible cash (Net Debt; restricted cash is assessed there)", formula=f"=-N('Net Debt'!{ndc}7)",
+         link=True)
+    line("items", "− debt-like / + cash-like items included (Net Debt)",
+         formula=f"=-IF(AND(ISNUMBER('Net Debt'!{ndc}{nd['adjusted']}),ISNUMBER('Net Debt'!{ndc}{nd['reported']})),"
+                 f"'Net Debt'!{ndc}{nd['adjusted']}-'Net Debt'!{ndc}{nd['reported']},0)", link=True)
+    nwc_default = p.nwc_closing if p and p.nwc_closing is not None else None
+    line("nwc", f"NWC at closing (estimate; blank = {fy(B)} year-end from NWC)", nwc_default, decide=True)
+    line("nwc_used", "NWC at closing used",
+         formula=f'=IF(ISNUMBER(B{rows["nwc"]}),B{rows["nwc"]},NWC!{nwcc}{nwc["total"]})', link=True)
+    line("peg", "Peg (target NWC of the SPA; blank = indicative average of the year-ends, not a peg)",
+         p.peg if p and p.peg is not None else None, decide=True)
+    line("peg_used", "Peg used", formula=f'=IF(ISNUMBER(B{rows["peg"]}),B{rows["peg"]},NWC!{nwcc}{nwc["total"] + 2})',
+         link=True)
+    line("nwc_adj", "+ NWC at closing − peg",
+         formula=f'=IF(AND(ISNUMBER(B{rows["nwc_used"]}),ISNUMBER(B{rows["peg_used"]})),'
+                 f'B{rows["nwc_used"]}-B{rows["peg_used"]},"incomplete")')
+    others = list(p.other) if p else []
+    first_other = ws.max_row + 1
+    for i in range(max(2, len(others))):
+        label, amount = others[i] if i < len(others) else ("", None)
+        r = ws.max_row + 1
+        _put(ws, r, 1, label or "Other contractual adjustment (label; amount with its sign)", fill=_DECISION,
+             unlocked=True)
+        _put(ws, r, 2, amount, _FORMULA, _NUM, fill=_DECISION, unlocked=True)
+    last_other = ws.max_row
+    line("equity_ca", "Equity value — completion accounts",
+         formula=f'=IF({mech}<>"Completion accounts","",IF(AND(ISNUMBER(B{rows["ev"]}),ISNUMBER(B{rows["nwc_adj"]})),'
+                 f'B{rows["ev"]}+B{rows["debt"]}+B{rows["cash"]}+B{rows["items"]}+B{rows["nwc_adj"]}'
+                 f'+SUM(B{first_other}:B{last_other}),"incomplete"))', bold=True)
+    line("nd_dl", "Memo: net debt with the debt-like items (counted once above)",
+         formula=f"=-(B{rows['debt']}+B{rows['cash']}+B{rows['items']})")
+    _put(ws, ws.max_row + 1, 1, "Escrow, retentions, earn-out, deferred consideration: none in the data room; add them "
+                                "only from the SPA. Estimated price at closing, final completion accounts and true-up "
+                                "are separate steps.")
+    ws.append([])
+    line("h2", "Locked box", bold=True, value=None)
+    line("lb_price", "Equity price agreed at the locked box date", lb.equity_price if lb else None, decide=True)
+    line("lb_date", "Locked box date", lb.locked_box_date if lb else None, decide=True, fmt="yyyy-mm-dd")
+    line("close_date", "Closing date", lb.closing_date if lb else None, decide=True, fmt="yyyy-mm-dd")
+    line("accrual", "Value accrual fixed in the SPA (blank: ticking fee below, or none)",
+         lb.accrual if lb else None, decide=True)
+    line("rate", "Ticking fee: annual rate (ACT/365)", lb.ticking_rate if lb else None, decide=True, fmt="0.00%")
+    line("base", "Ticking fee: base", lb.ticking_base if lb else None, decide=True)
+    line("fee", "Ticking fee",
+         formula=f'=IF(AND(ISNUMBER(B{rows["rate"]}),ISNUMBER(B{rows["base"]}),ISNUMBER(B{rows["lb_date"]}),'
+                 f'ISNUMBER(B{rows["close_date"]})),B{rows["base"]}*B{rows["rate"]}*(B{rows["close_date"]}'
+                 f'-B{rows["lb_date"]})/365,0)')
+    line("acc_used", "Accrual used", formula=f'=IF(ISNUMBER(B{rows["accrual"]}),B{rows["accrual"]},B{rows["fee"]})')
+    line("leak", "Leakage confirmed after review (Leakage)",
+         formula='=SUMIFS(Leakage!E:E,Leakage!J:J,"Confirmed after review")', link=True)
+    line("treat", "Treatment of confirmed leakage", lb.treatment if lb else LEAKAGE_TREATMENTS[0], decide=True, fmt="@")
+    _validation(ws, list(LEAKAGE_TREATMENTS), f"B{rows['treat']}")
+    line("equity_lb", "Equity value — locked box, at closing",
+         formula=f'=IF({mech}<>"Locked box","",IF(ISNUMBER(B{rows["lb_price"]}),B{rows["lb_price"]}+B{rows["acc_used"]}'
+                 f'-IF(B{rows["treat"]}="Deduct at closing",B{rows["leak"]},0),"enter the agreed price"))', bold=True)
+    line("claim", "Leakage claim, separate from the price",
+         formula=f'=IF(B{rows["treat"]}="Separate claim",B{rows["leak"]},0)')
+    _put(ws, ws.max_row + 1, 1, "Locked box: no true-up of NWC or net debt at closing; the buyer relies on the leakage "
+                                "covenant.")
+    ws.append([])
+    line("h3", "Sensitivity (only when EV is derived from a multiple)", bold=True, value=None)
+    r0 = ws.max_row + 1
+    _put(ws, r0, 1, "EBITDA \\ multiple")
+    for j, step in enumerate((-1, 0, 1), 2):
+        _formula(ws, r0, j, f'=IF(ISNUMBER($B${rows["multiple"]}),$B${rows["multiple"]}{step:+d},"")', fmt="0.0x")
+    for i, e in enumerate((-0.1, 0, 0.1), 1):
+        r = r0 + i
+        _formula(ws, r, 1, f'=IF(ISNUMBER($B${rows["multiple"]}),$B${rows["ebitda"]}*{1 + e},"EV fixed: no sensitivity")')
+        for j in range(2, 5):
+            col = get_column_letter(j)
+            _formula(ws, r, j, f'=IF(AND(ISNUMBER({col}${r0}),ISNUMBER($A{r}),ISNUMBER($B${rows["nwc_adj"]})),'
+                               f'{col}${r0}*$A{r}+$B${rows["debt"]}+$B${rows["cash"]}+$B${rows["items"]}'
+                               f'+$B${rows["nwc_adj"]}+SUM($B${first_other}:$B${last_other}),"")')
+    for col, w in zip("ABCD", [78, 16, 16, 16]):
+        ws.column_dimensions[col].width = w
+    ws.print_area = f"A1:D{ws.max_row}"
+    ws.protection.sheet = True
+    return rows
+
+
+def _leakage(ws, a, price) -> None:
+    from .price import INSUFFICIENT, LEAKAGE_STATES, leakage_candidates
+    lb = price.locked_box if price else None
+    items = (lb.leakage if lb and lb.leakage else leakage_candidates(a.data))
+    _title(ws, "Leakage", "Screening register, not a legal verdict. Only 'Confirmed after review' counts in EV to "
+                          "Equity. A payment to a related party does not prove prohibited leakage; finding no candidate "
+                          "does not prove there is none.")
+    head = ["ID", "Date", "Beneficiary", "Relation to the seller", "Amount", "Description", "Document", "Clause",
+            "Evidence", "Status", "Justification", "Treatment"]
+    _header(ws, 4, head)
+    r = 4
+    for x in items:
+        r += 1
+        values = [x.id, x.date, x.beneficiary, x.relation, x.amount, x.description, x.document, x.clause, x.evidence]
+        for c, value in enumerate(values, 1):
+            if c == 5:
+                _put(ws, r, c, value, _INPUT, _NUM)
+            else:
+                _put(ws, r, c, value)
+        _put(ws, r, 10, x.status, fill=_DECISION, unlocked=True)
+        _put(ws, r, 11, x.justification, fill=_DECISION, unlocked=True)
+        _put(ws, r, 12, "", fill=_DECISION, unlocked=True)
+    for _ in range(5):                                   # rows for payments found in the ledger or the SPA review
+        r += 1
+        _put(ws, r, 1, f"LK-{r - 4:02d}")
+        for c in range(2, 13):
+            _put(ws, r, c, None, _FORMULA, _NUM if c == 5 else None, fill=_DECISION, unlocked=True)
+    _validation(ws, LEAKAGE_STATES, f"J5:J{r}")
+    r += 2
+    _put(ws, r, 1, "Conclusion", _BOLD)
+    _formula(ws, r, 2, f'=IF(COUNTIF(J5:J{r - 2},"Confirmed after review")+COUNTIF(J5:J{r - 2},"Permitted by a clause")'
+                       f'+COUNTIF(J5:J{r - 2},"Out of scope")=0,"{INSUFFICIENT}","Reviewed: see each status")', fmt="@")
+    r += 1
+    _put(ws, r, 1, "Coverage", _BOLD)
+    _put(ws, r, 2, f"Documents: {len(a.ext.files) or 1} file(s) of the data room (Source Register); period: "
+                   f"{', '.join(fy(y) for y in a.data.pl_years)} (annual cash flow statements only, no payment dates); "
+                   f"entity: {a.ext.company}, as reported (consolidated where so presented). Not covered: the ledger, "
+                   "related-party payments, management fees, the SPA.")
+    for col, w in zip("ABCDEFGHIJKL", [8, 11, 16, 20, 13, 50, 18, 12, 22, 20, 44, 16]):
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = "B5"
+    ws.auto_filter.ref = f"A4:L{r - 3}"
+    ws.print_area = f"A1:L{ws.max_row}"
+    ws.protection.sheet = True
+    ws.protection.autoFilter = False
+
+
 def _placeholder(ws, title: str, lines: list[str]) -> None:
     _title(ws, title, lines[0])
     for i, line in enumerate(lines[1:], 4):
@@ -524,7 +689,7 @@ def _issues(ws, a, reviews) -> None:
     ws.protection.autoFilter = False
 
 
-def _checks(ws, a, qoe: dict, nd: dict, nwc: dict) -> int:
+def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price=None) -> int:
     """Reconciliations and the databook's own controls; returns the row of the recalculation status."""
     _title(ws, "Checks", "Reading checks, consistency rules and the databook's own controls: each total of this "
                          "workbook against the value computed in Python. Tolerance €1k (rounding of the source).")
@@ -554,6 +719,15 @@ def _checks(ws, a, qoe: dict, nd: dict, nwc: dict) -> int:
         control("Adjusted net debt", y, f"'Net Debt'!{get_column_letter(nd['cols'][y])}{nd['adjusted']}",
                 v.net_debt_adjusted[y])
         control("Net working capital", y, f"NWC!{get_column_letter(nwc['cols'][y])}{nwc['total']}", v.nwc_values[y])
+    if price and price.mechanism:
+        from .price import completion_equity, completion_from_analysis, locked_box_equity
+        if price.mechanism == "Completion accounts":
+            value = completion_equity(completion_from_analysis(a, price))["equity"]
+            ref = f"'EV to Equity'!B{ev['equity_ca']}"
+        else:
+            value = locked_box_equity(price.locked_box)["equity"] if price.locked_box else None
+            ref = f"'EV to Equity'!B{ev['equity_lb']}"
+        control(f"Equity value — {price.mechanism.lower()}", v.bs_years[-1], ref, value)
     r += 2
     _put(ws, r, 1, "Reading checks (subtotals rebuilt from the lines vs as published)", _BOLD)
     for c in a.checks:
@@ -628,7 +802,8 @@ def _read_me(ws, a, stamp: str) -> None:
     _put(ws, r, 1, "Limits", _BOLD)
     for line in ("Annual accounts only: no monthly data, so no LTM and no defensible peg (indicative reference only).",
                  "Adjustments are not invented: without the ledger and contracts, the QoE lists what to request.",
-                 "EV to Equity and Leakage are filled in milestone M3; until then they say so.",
+                 "EV to Equity computes nothing until the price mechanism is chosen; leakage is a screening "
+                 "register, not a legal verdict.",
                  "Thresholds and calibrations are visible in the app's Rulebook and in `python -m dd_assistant --rules`."):
         r += 1
         _put(ws, r, 2, line)
@@ -678,8 +853,9 @@ def _summary(ws, a, fin_rows, qoe, nd, nwc) -> None:
     ws.protection.sheet = True
 
 
-def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None) -> None:
-    """The databook of an analysis (pipeline.Analysis)."""
+def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, price=None) -> None:
+    """The databook of an analysis (pipeline.Analysis). price (price.PriceInputs): what the analyst entered for the
+    price mechanism; without it the EV to Equity sheet waits for the mechanism to be chosen."""
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     wb = Workbook()
     sheets = {name: (wb.active if i == 0 else wb.create_sheet(name)) for i, name in enumerate(
@@ -691,18 +867,15 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None) 
     nd = _net_debt(sheets["Net Debt"], a, fin_rows)
     nwc = _nwc(sheets["NWC"], a, fin_rows, nd)
     _source_register(sheets["Source Register"], a)
-    _placeholder(sheets["EV to Equity"], "EV to Equity", [
-        "Not built yet (milestone M3): enterprise value to equity value, completion accounts or locked box."])
-    _placeholder(sheets["Leakage"], "Leakage", [
-        "Not built yet (milestone M3). Without the SPA and a register of payments: evidence insufficient to assess "
-        "leakage."])
+    ev = _ev_to_equity(sheets["EV to Equity"], a, qoe, nd, nwc, price)
+    _leakage(sheets["Leakage"], a, price)
     _placeholder(sheets["Monthly & LTM"], "Monthly & LTM", [
         "Not available: the data room has no monthly figures.",
         "Without 12–24 monthly balances there is no LTM, no seasonality and no defensible working capital peg.",
         "Request: monthly management accounts (P&L) and month-end balances of receivables, inventories and payables "
         "for the last 24 months."])
     _issues(sheets["Issues & Requests"], a, reviews)
-    _checks(sheets["Checks"], a, qoe, nd, nwc)
+    _checks(sheets["Checks"], a, qoe, nd, nwc, ev, price)
     _read_me(sheets["Read Me"], a, stamp)
     _summary(sheets["Executive Summary"], a, fin_rows, qoe, nd, nwc)
     wb.calculation.fullCalcOnLoad = True     # Excel calculates every formula when the file opens

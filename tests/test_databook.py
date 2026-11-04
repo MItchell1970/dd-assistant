@@ -97,6 +97,22 @@ class RecalculationTest(unittest.TestCase):
                 self.assertEqual([c for c in controls if c[4] != "OK"], [], name)
                 self.assertTrue(load_workbook(path)["Checks"]["B3"].value.startswith("Recalculated by Microsoft Excel"))
 
+    def test_both_price_mechanisms_equal_python(self):
+        """Duriva FY25, by hand: EV 10,000 + cash 603 − debt 4,350 + (NWC 4,588 − average of the four year-ends
+        3,742) = 7,099. Locked box 9,000 + accrual 50 − the FY25 dividend 400 confirmed as leakage = 8,650."""
+        from dataclasses import replace
+        from dd_assistant.price import EnterpriseValue, LockedBox, PriceInputs, leakage_candidates
+        a = analyse(read_data_room(files_in([DATA / "Duriva_data_room"])))
+        leak = [replace(x, status="Confirmed after review") for x in leakage_candidates(a.data)]
+        for price, expected in ((PriceInputs("Completion accounts", EnterpriseValue(10000)), 7099),
+                                (PriceInputs("Locked box", locked_box=LockedBox(9000, accrual=50, leakage=leak)), 8650)):
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "book.xlsx"
+                write_databook(a, path, price=price)
+                recalculate(path)
+                equity = [c for c in control_results(path) if c[0].startswith("Equity")]
+                self.assertEqual([(c[2], c[3], c[4]) for c in equity], [(expected, expected, "OK")], price.mechanism)
+
     def test_a_decision_changed_in_the_workbook_flows_to_the_total(self):
         """Approving every management adjustment in the workbook gives the EBITDA Python computes with the same
         decisions: the formulas follow the yellow cells."""

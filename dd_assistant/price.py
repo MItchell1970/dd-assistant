@@ -85,6 +85,20 @@ class LockedBox:
     treatment: str = "Deduct at closing"
 
 
+def leakage_candidates(d) -> list[LeakageItem]:
+    """Payments to shareholders in the latest cash flow statement, as candidates to review: annual accounts do not
+    say whether they were paid after the locked box date, nor whether the SPA permits them."""
+    L = d.pl_years[-1]
+    out = []
+    for i, (label, paid, source) in enumerate(d.distributions, 1):
+        if paid.get(L):
+            out.append(LeakageItem(f"LK-{i:02d}", f"{label} (FY{str(L)[2:]}, cash flow statement)", paid[L],
+                                   beneficiary="Shareholders", relation="Seller or other shareholders",
+                                   evidence=source, justification="A dividend paid after the locked box date is leakage "
+                                   "unless the SPA permits it; the payment date is not in annual accounts."))
+    return out
+
+
 def completion_equity(c: CompletionAccounts) -> dict:
     """Equity value at closing under completion accounts, line by line; 'incomplete' names what is missing."""
     ev = c.ev.amount()
@@ -133,3 +147,26 @@ def sensitivity(ev: EnterpriseValue, net_debt: float, nwc_adj: float = 0.0, step
         ebitda = ev.ebitda * (1 + e)
         rows.append([ebitda] + [(ev.multiple + s) * ebitda - net_debt + nwc_adj for s in steps])
     return rows
+
+
+@dataclass
+class PriceInputs:
+    """What the analyst entered for the price (the app's Price section). mechanism None: not chosen, no price."""
+    mechanism: str | None = None
+    ev: EnterpriseValue = field(default_factory=EnterpriseValue)
+    nwc_closing: float | None = None        # None: the latest year-end NWC is used as the estimate
+    peg: float | None = None                # None: the indicative average of the year-ends, labelled as such
+    other: list[tuple[str, float]] = field(default_factory=list)
+    locked_box: LockedBox | None = None
+
+
+def completion_from_analysis(a, p: PriceInputs) -> CompletionAccounts:
+    """Completion accounts on the latest balance sheet of the analysis: financial debt, cash and the net debt items
+    the analyst included (debt-like added, cash-like deducted), NWC and peg as entered or as estimated."""
+    v, d = a.view, a.data
+    B = v.bs_years[-1]
+    items = None if v.net_debt_adjusted[B] is None or v.net_debt_reported[B] is None else \
+        v.net_debt_adjusted[B] - v.net_debt_reported[B]
+    return CompletionAccounts(p.ev, cash=d.v("caixa", B), debt=a.metrics["debt"].get(B), debt_like=items or 0.0,
+                              nwc=p.nwc_closing if p.nwc_closing is not None else v.nwc_values[B],
+                              peg=p.peg if p.peg is not None else v.nwc_average, other=list(p.other))

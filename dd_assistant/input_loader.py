@@ -118,6 +118,8 @@ class CompanyData:
     pl_format: str = "nature"          # 'nature' (costs by type, as SNC) or 'function' (cost of sales, SG&A…)
     country: str = ""                  # target's country (europe.py): framework and statutory tax rate
     balance_items: list[BalanceItem] = field(default_factory=list)
+    # payments to shareholders in the cash flow statement (label, EUR k paid per year, source): leakage candidates
+    distributions: list[tuple[str, dict[int, float], str]] = field(default_factory=list)
 
     def v(self, key: str, year: int) -> float | None:
         """Value of a line in a year (None if missing)."""

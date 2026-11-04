@@ -54,6 +54,19 @@ class EnterpriseValueTest(unittest.TestCase):
         self.assertEqual(grid[2][2], 76)                                # base: 8 × 12.5 − 26 + 2
 
 
+class LeakageCandidatesTest(unittest.TestCase):
+    def test_dividends_paid_are_candidates_not_verdicts(self):
+        """Toyota FY24 cash flow statement: dividends paid €10,483k (financing); dividends received €1,277k
+        (investing) are not a payment out and stay out."""
+        from pathlib import Path
+        from dd_assistant.extract import extract_excel
+        from dd_assistant.price import leakage_candidates
+        d = extract_excel(Path(__file__).resolve().parents[1] / "data" / "Toyota_Caetano_2024_published.xlsx").data
+        items = leakage_candidates(d)
+        self.assertEqual([(x.status, round(x.amount)) for x in items], [("Candidate", 10483)])
+        self.assertIn("payment date is not in annual accounts", items[0].justification)
+
+
 class LockedBoxTest(unittest.TestCase):
     def test_spec_case_before_leakage(self):
         """Agreed equity 75; contractual value accrual 1 → 76 before leakage."""
