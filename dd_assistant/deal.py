@@ -129,7 +129,7 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
           Line("Current borrowings", {y: v("fin_cp", y) for y in B}, source=src("fin_cp", "")),
           Line("Gross financial debt", debt, "subtotal"),
           Line("Cash and cash equivalents", _neg({y: v("caixa", y) for y in B}), source=src("caixa", "")),
-          Line("Reported net debt", reported, "subtotal")]
+          Line("Net financial debt (borrowings less cash)", reported, "subtotal")]
     incomplete = [f"{fy(y)} net debt: {', '.join(what)} not found — net debt is not computed (no zero assumed)"
                   for y in B if reported[y] is None and (what := [label for key, label in (
                       ("caixa", "cash and cash equivalents"), ("fin_lp", "borrowings")) if v(key, y) is None])]

@@ -10,7 +10,7 @@ Preliminary buy-side review of TAP, a Portuguese airline group, in the transport
 
 ### Executive summary
 
-1. **Net debt depends on the definition (deal view, R22).** Reported net debt is -€43m in FY25, a net cash position. With aircraft leases and pensions, adjusted net debt is €2,293m, 3.16x EBITDA.
+1. **Net debt depends on the definition (deal view, R22).** Borrowings less cash are -€43m in FY25: cash exceeds bank borrowings. With aircraft leases and pensions, adjusted net debt is €2,293m, 3.16x EBITDA.
 2. **EBITDA fell and almost no profit reached shareholders (R25).** Reported EBITDA fell from €807m in FY24 to €726m in FY25. The effective tax rate was 96.9% in FY25, against 22.5% statutory.
 3. **Working capital is negative and partly unexplained (R07, R28).** Net working capital is -€598m in FY25. Receivables grew 21.7% against revenue growth of 1.2%, and "other" current liabilities total €1,727m.
 4. **Cash generation weakened with higher capex.** Cash conversion fell from 81.8% in FY24 to 76.6% in FY25. Free cash flow fell from €298m in FY24 to €192m in FY25.
@@ -27,17 +27,17 @@ Preliminary buy-side review of TAP, a Portuguese airline group, in the transport
 | EBITDA margin | 19.1% | 17.0% |
 | EBITDA before IFRS 16 (less lease payments) | 238 | 262 |
 | Cash conversion (operating cash / EBITDA) | 81.8% | 76.6% |
-| Reported net debt | -119 | -43 |
+| Net financial debt (borrowings less cash) | -119 | -43 |
 | Adjusted net debt | 2,536 | 2,293 |
 | Net working capital | -366 | -598 |
 
 ## Page 2
 
-### Theme 1 — Leases turn a net cash position into €2,293m of adjusted net debt
+### Theme 1 — Cash exceeds bank borrowings, but leases bring adjusted net debt to €2,293m
 
 | Evidence (finding and source) | What it may indicate | Question for management |
 | --- | --- | --- |
-| Deal view: reported net debt of -€43m in FY25; gross borrowings of €723m against cash of €765m (Financial position!C43, C49, C21). | On the narrow definition, the group holds more cash than borrowings. | How much of the FY25 cash is restricted, pledged or held abroad? |
+| Deal view: net financial debt of -€43m in FY25, borrowings of €723m less cash of €765m (Financial position!C43, C49, C21). | On the narrow definition, the group holds more cash than borrowings. | How much of the FY25 cash is restricted, pledged or held abroad? |
 | Deal view: lease liabilities of €743m and €1,034m non-current, €117m and €265m current, in FY25 (Financial position!C44:C51). | The fleet is largely financed by leases, which a buyer treats as debt. | Which leases have purchase options, and what are the return conditions and maintenance obligations? |
 | Deal view: adjusted net debt of €2,293m in FY25, 3.16x diligence-adjusted EBITDA; pensions of €173m included (Financial position!C40). | Leverage is material once leases and pensions count as debt. | How are the post-employment obligations funded, and what are the actuarial assumptions? |
 | R22: interest cover of 3.23x in FY24 and 3.71x in FY25; FY25 interest of €196m (Income statement!C26:D26). | Little room for an EBITDA fall or higher rates. | What share of borrowings and leases carries a floating rate, and how is it hedged? |

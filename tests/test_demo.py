@@ -81,6 +81,9 @@ class DemoAppTest(unittest.TestCase):
                 text = page_text(at)
                 self.assertIn(demo.WARNING, text)
                 self.assertNotIn("Claude API: not configured", text)
+                # net debt card: the ratio sits next to the adjusted figure; borrowings less cash is not "reported"
+                self.assertIn("x EBITDA · of which borrowings less cash", text)
+                self.assertNotIn("Reported net debt", text)
                 self.assertTrue(any("passed" in s.value and "without a source: 0" in s.value for s in at.success),
                                 "the Memo tab shows the checker result")
 

@@ -9,7 +9,7 @@ TAP is the Portuguese flag carrier, owned by the State after the 2020 rescue. In
 ## Three talking points
 
 **1. Net debt is a definition, not a number.**
-- *The number:* reported net debt is -€43m in FY25, a net cash position. Adjusted net debt is €2,293m, 3.16x EBITDA, once aircraft leases (IFRS 16) and pensions are counted.
+- *The number:* borrowings less cash are -€43m in FY25: cash exceeds bank borrowings. Adjusted net debt is €2,293m, 3.16x EBITDA, once aircraft leases (IFRS 16) and pensions are counted. The 3.16x belongs to the €2,293m; on -€43m there is no meaningful ratio.
 - *Why it matters in a deal:* enterprise value to equity deducts net debt. Which leases, pensions and provisions count is negotiated in the SPA, and a few hundred million move between buyer and seller.
 - *Question for management:* "Which leases have purchase options, and what are the return conditions and maintenance obligations?"
 

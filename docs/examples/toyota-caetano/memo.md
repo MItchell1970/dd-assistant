@@ -26,7 +26,7 @@ Preliminary buy-side review of Toyota Caetano Portugal, a Portuguese automotive 
 | Diligence-adjusted EBITDA | 74,634 | 66,187 |
 | EBITDA margin | 11.3% | 9.9% |
 | Cash conversion (operating cash flow / EBITDA) | 84.2% | -6.0% |
-| Reported net debt | 51,078 | 76,532 |
+| Net financial debt (borrowings less cash) | 51,078 | 76,532 |
 | Adjusted net debt | 57,542 | 78,039 |
 | Net working capital | 61,710 | 101,201 |
 
@@ -64,7 +64,7 @@ Preliminary buy-side review of Toyota Caetano Portugal, a Portuguese automotive 
 | Evidence (finding and source) | What it may indicate | Question for management |
 | --- | --- | --- |
 | R24: capex of 0.42x D&A in FY24 and 0.32x in FY25; FY25 capex of €5,978k against D&A of €18,617k (DFC!C23:D24). | Maintenance capex may have been deferred. | Is capex below depreciation a temporary pause, or has maintenance been deferred? What capex is needed in the next three years? |
-| Deal view: reported net debt of €51,078k in FY24 and €76,532k in FY25; adjusted net debt of €78,039k, 1.18x EBITDA. | Leverage rose with the stock build. | Is vehicle stock financed through floorplan or OEM credit lines, and are these lines included in reported debt? |
+| Deal view: net financial debt (borrowings less cash) of €51,078k in FY24 and €76,532k in FY25; adjusted net debt of €78,039k, 1.18x EBITDA. | Leverage rose with the stock build. | Is vehicle stock financed through floorplan or OEM credit lines, and are these lines included in reported debt? |
 | No rule: 46.4% of gross debt of €93,102k is due within 12 months in FY25 (Balanço!C38, C45). | R11 does not fire: its threshold is 60% for automotive distributors. | Are the short-term facilities committed, and what are their renewal terms? |
 | Sector lens: the distribution agreement with the manufacturer is not in the data room. | The business depends on one brand. | What are the term, renewal and change-of-control provisions of the distribution agreement with the manufacturer? |
 

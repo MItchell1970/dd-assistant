@@ -26,7 +26,7 @@ Preliminary buy-side review of Corticeira Amorim, a Portuguese listed group in m
 | Diligence-adjusted EBITDA | 157,566 | 140,983 |
 | EBITDA margin | 16.8% | 16.4% |
 | Cash conversion (operating cash flow / EBITDA) | 76.7% | 155.4% |
-| Reported net debt | 195,687 | 75,859 |
+| Net financial debt (borrowings less cash) | 195,687 | 75,859 |
 | Adjusted net debt | 198,897 | 79,657 |
 | Net working capital | 538,907 | 439,589 |
 

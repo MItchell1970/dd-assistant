@@ -344,7 +344,7 @@ def _net_debt(ws, a, fin_rows: dict[str, int]) -> dict:
         _put(ws, r, last + 1, d.sources.get(key, "not found"))
     r += 1
     reported_row = r
-    _put(ws, r, 1, "Reported net debt", _BOLD)
+    _put(ws, r, 1, "Net financial debt (borrowings less cash)", _BOLD)
     for y, c in cols.items():
         col = get_column_letter(c)
         lp, cp, cash = (f"{col}{x}" for x in base)

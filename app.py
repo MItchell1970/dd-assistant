@@ -437,13 +437,13 @@ with tab_ov:
     kpis = [
         ("Revenue", money.fmt(g("vendas")), f"{fmt_metric('g_vendas', g('g_vendas'))} growth vs {fy(data.pl_years[-2])}"),
         ("Diligence-adjusted EBITDA", money.fmt(view.ebitda_dd[L]),
-         f"Reported {money.fmt(view.ebitda[L])}" + (f" · mgmt {money.fmt(view.ebitda_mgmt[L])}" if view.ebitda_mgmt
-                                                    else "")),
+         f"Before adjustments {money.fmt(view.ebitda[L])}" + (f" · mgmt {money.fmt(view.ebitda_mgmt[L])}"
+                                                              if view.ebitda_mgmt else "")),
         ("Cash conversion", fmt_metric("conv", g("conv")), "Operating cash / reported EBITDA"),
         ("Adjusted net debt", money.fmt(view.net_debt_adjusted[B]),
-         f"Reported {money.fmt(view.net_debt_reported[B])}"
-         + (f" · {view.net_debt_adjusted[B] / view.ebitda_dd[L]:.2f}x EBITDA"
-            if view.ebitda_dd[L] > 0 and view.net_debt_adjusted[B] is not None else "")),
+         (f"{view.net_debt_adjusted[B] / view.ebitda_dd[L]:.2f}x EBITDA · "
+          if view.ebitda_dd[L] > 0 and view.net_debt_adjusted[B] is not None else "")
+         + f"of which borrowings less cash {money.fmt(view.net_debt_reported[B])}"),
         ("Net working capital", money.fmt(view.nwc_values[B]),
          f"{fmt_unit('pct', nwc_pct)} of revenue" + (f" · average {money.fmt(view.nwc_average)}"
                                                     if len(view.bs_years) > 1 else "")),

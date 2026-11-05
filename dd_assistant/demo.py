@@ -72,7 +72,7 @@ class Case:
 
 CASES = (
     Case("tap", "TAP Air Portugal", "TAP_2025_published.xlsx", "PT", "transport",
-         "Reported net debt of -€43m becomes €2,293m once the aircraft leases (IFRS 16) are counted.",
+         "More cash than bank debt, yet €2,293m of net debt (3.16x EBITDA) once the leased aircraft (IFRS 16) and pensions are counted.",
          "Consolidated accounts FY2025, 2025 Integrated Report",
          context="The privatisation is under way: Air France-KLM and Lufthansa submitted binding offers, and the "
                  "Government extended the deadline to complete it to the end of 2026.",
@@ -80,7 +80,7 @@ CASES = (
                          "https://www.jn.pt/economia/artigo/governo-prorroga-ate-final-do-ano-prazo-para-concluir-"
                          "privatizacao-da-tap/18123884")),
     Case("toyota-caetano", "Toyota Caetano Portugal", "Toyota_Caetano_2025_published.xlsx", "PT", "automotive",
-         "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (-€3,987k).",
+         "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (−€3,987k).",
          "Consolidated accounts FY2025, 2025 annual report (ESEF)"),
     Case("corticeira-amorim", "Corticeira Amorim", "Corticeira_Amorim_2025_published.xlsx", "PT", "materials",
          "Capex runs below depreciation in both years, and short-term debt fell from 56.3% to 28.7% of debt.",

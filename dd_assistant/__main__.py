@@ -183,7 +183,7 @@ def _print(a: Analysis) -> None:
     print(f"\nDeal view ({fy(L)}): reported EBITDA {m.fmt(v.ebitda[L])}"
           + (f" · management-adjusted {m.fmt(v.ebitda_mgmt[L])}" if v.ebitda_mgmt else "")
           + f" · diligence-adjusted {m.fmt(v.ebitda_dd[L])}")
-    print(f"Net debt ({fy(B)}): reported {m.fmt(v.net_debt_reported[B])} · adjusted {m.fmt(v.net_debt_adjusted[B])}"
+    print(f"Net debt ({fy(B)}): borrowings less cash {m.fmt(v.net_debt_reported[B])} · adjusted {m.fmt(v.net_debt_adjusted[B])}"
           f" · NWC {m.fmt(v.nwc_values[B])}" + (f" (average of the year-ends {m.fmt(v.nwc_average)})"
                                                 if len(v.bs_years) > 1 else ""))
 

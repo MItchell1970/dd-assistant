@@ -10,7 +10,7 @@ It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its
 
 ![The demo on TAP Air Portugal's FY2025 accounts](docs/images/demo-overview.png)
 
-*The online demo on TAP Air Portugal's published FY2025 accounts: both reading checks pass, adjusted net debt is €2,293m against a reported net cash position, and each card is coloured by the red flags behind it.*
+*The online demo on TAP Air Portugal's published FY2025 accounts: both reading checks pass, adjusted net debt is €2,293m (3.16x EBITDA) although cash exceeds bank borrowings by €43m, and each card is coloured by the red flags behind it.*
 
 ![The databook's Net Debt sheet in Excel](docs/images/databook-net-debt.png)
 
@@ -22,7 +22,7 @@ Three Portuguese companies, on their latest published consolidated accounts (FY2
 
 | Company | Finding | Source |
 |---|---|---|
-| **TAP Air Portugal** | Reported net debt is -€43m in FY25, a net cash position. With aircraft leases (IFRS 16) and pensions, adjusted net debt is **€2,293m**, 3.16x EBITDA. | Statement of financial position, 2025 Integrated Report p.152 (four lease liability lines) |
+| **TAP Air Portugal** | On the balance sheet TAP holds more cash than bank debt: borrowings less cash are -€43m in FY25. Count the leased aircraft (IFRS 16) and pensions, and net debt is **€2,293m**, 3.16x EBITDA. Leases also make EBITDA look bigger: €726m, but €262m after lease payments. | Statement of financial position, 2025 Integrated Report p.152 (four lease liability lines) |
 | | The effective tax rate was **96.9%** in FY25, against 22.5% statutory (R25): income tax of €66m on profit before tax of €68m. | Income statement, p.153 |
 | **Toyota Caetano Portugal** | Other income is **60.5% of FY25 EBITDA**: €40,036k of €66,187k (R04, High). | Income statement, 2025 annual report (ESEF), "Outros rendimentos operacionais" |
 | | Operating cash flow turned negative: **-€3,987k** in FY25 against €62,857k in FY24 (R10), as inventories grew 25.8% against COGS up 4.5% (R09). | Cash flow statement and balance sheet, 2025 annual report |
