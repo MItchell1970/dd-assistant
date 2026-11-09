@@ -52,6 +52,7 @@ What the cloud needs is already in the repository:
 
 - The "Live demo" badge at the top of `README.md` points to the app; change it there if the address changes.
 - Add the link to LinkedIn and to your CV.
+- **Social preview** (the image shown when the repository link is shared): on GitHub, open the repository → **Settings** → **General** → **Social preview** → **Edit** → **Upload an image**, and choose `docs/images/social-preview.png` (1280×640). `scripts/demo_screenshots.py` regenerates it with the other images.
 
 ## If something goes wrong
 

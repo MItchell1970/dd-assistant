@@ -83,3 +83,17 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 - **Decisão:** na Toyota e na Amorim, a DFC pelo método direto tem o subtotal "Fluxo gerado pelas operações", que o dicionário não lê; a R10 usa o fluxo operacional final. Na Toyota isso é o prudente (os "outros pagamentos" de -€133,493k ficariam de fora e a conversão passaria a 215%). Ficou anotado nos memos, em "Notes to improve the template"; mudar o motor muda os alertas e fica para decidires.
 - **Publicado** pelo Bernardo a 4 de novembro de 2026 em https://dd-assistant-tickmark.streamlit.app; conferido no browser: as três empresas abrem, sem upload, e o memo passa no verificador também na cloud (89, 78 e 85 números). O `server.address = "localhost"` não impediu a cloud de abrir a app.
 - **Pendente:** rever o texto "Built by" do README e as case notes.
+
+## Demo UX (docs/DEMO_UX_SPEC.md, 9 de novembro de 2026)
+
+A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 lições da mensagem foram aplicadas.
+
+- **Credibilidade (secção 2):** contas consolidadas passam a IFRS por defeito (o SNC fica para contas individuais); cartão do working capital com a nota do setor ("normal for airlines"), a cor continua a vir dos achados de NWC (R07 High, limites sem mudança); cabeçalho com nome curto, nome legal, relatório e páginas e uma só unidade; o método de leitura passou para o separador Data room.
+- **Key insights e cascatas:** os três pontos da case note no topo; cascatas de net debt (por categoria: leasings €2,158m na TAP), EBITDA e EBITDA antes da IFRS 16, e NWC com a média. Passos calculados em `deal.py`; o gráfico só desenha.
+- **Página inicial:** frase de valor, autor, para quem, limites, três botões (TAP, Excel, código), nota dos dados, 5 passos, cartões com um número grande, o databook, "How it is verified" calculado na página, Measured / Not measured, How you check it, glossário.
+- **Barra lateral recolhida** com "About this demo"; glossário ao passar o rato; fonte em cada cartão (p.152, p.153, p.156 na TAP); barra do Streamlit em modo minimal.
+- **Visita de 60 segundos** (`st.dialog`, 5 passos, com a página do relatório no red flag).
+- **Imagens:** GIF de 23 s, página inicial, cascata da net debt, Excel e social preview 1280×640, por `scripts/demo_screenshots.py`; verificação a 1440 e 375 px por `scripts/demo_review.py`.
+- **Testes:** 203 OK.
+- **Pendente:** confirmar a linha "Built by … ex-EY Transaction Services intern" (o README diz "International Tax and Transaction Services"); push com aprovação; carregar a social preview no GitHub.
+

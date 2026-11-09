@@ -1,16 +1,25 @@
 # DD Assistant
 
-**A first-pass financial due diligence on published accounts: every figure traced to its source.**
+**A first-pass financial due diligence on published accounts. Every figure traced to its source.**
+<br>*Limits: annual accounts only, euros only, financial due diligence only, a first pass for an analyst to review.*
 
-[![Live demo](https://img.shields.io/badge/Live_demo-open_the_app-0b3d91?style=for-the-badge)](https://dd-assistant-tickmark.streamlit.app)
+[![Open the TAP analysis](https://img.shields.io/badge/Open_the_TAP_analysis-live_demo-0b3d91?style=for-the-badge)](https://dd-assistant-tickmark.streamlit.app/?company=tap)
+[![Download the Excel](https://img.shields.io/badge/Download_the_Excel-TAP_databook-1d6b3e?style=for-the-badge)](https://github.com/MItchell1970/dd-assistant/raw/main/docs/examples/tap/databook.xlsx)
+[![See the code](https://img.shields.io/badge/See_the_code-this_repository-1b2333?style=for-the-badge)](#details)
 
-**Live demo:** <https://dd-assistant-tickmark.streamlit.app> — three real companies on their published FY2025 accounts; no upload, no AI call. Direct links: [TAP Air Portugal](https://dd-assistant-tickmark.streamlit.app/?company=tap) · [Toyota Caetano Portugal](https://dd-assistant-tickmark.streamlit.app/?company=toyota-caetano) · [Corticeira Amorim](https://dd-assistant-tickmark.streamlit.app/?company=corticeira-amorim).
+**For** deal teams, lenders and analysts who need the first pass of a financial due diligence fast, and want to check every number.
 
-It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings, net debt with debt-like items, working capital, 29 red-flag rules with their sources, a two-page memo, the request list and an Excel databook with live formulas. European companies, euros only.
+**Live demo:** <https://dd-assistant-tickmark.streamlit.app> — three real companies on their published FY2025 accounts: [TAP Air Portugal](https://dd-assistant-tickmark.streamlit.app/?company=tap) · [Toyota Caetano Portugal](https://dd-assistant-tickmark.streamlit.app/?company=toyota-caetano) · [Corticeira Amorim](https://dd-assistant-tickmark.streamlit.app/?company=corticeira-amorim). **Nothing is uploaded and no AI is called in the demo:** the engine runs on the published accounts stored here, and the memos were written beforehand and checked by code.
 
-![The demo on TAP Air Portugal's FY2025 accounts](docs/images/demo-overview.png)
+![23 seconds on TAP: net debt, a red flag with its report page, the Excel](docs/images/demo-tour.gif)
 
-*The online demo on TAP Air Portugal's published FY2025 accounts: both reading checks pass, adjusted net debt is €2,293m (3.16x EBITDA) although cash exceeds bank borrowings by €43m, and each card is coloured by the red flags behind it.*
+*23 seconds on TAP Air Portugal: the headline figures with their report pages, the net debt bridge, the most severe red flag with the pages it comes from, and the databook in Excel.*
+
+It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings (QoE), net debt with debt-like items, net working capital (NWC), 29 red-flag rules with their sources, a two-page memo, the request list and an Excel databook with live formulas. European companies, euros only.
+
+![The net debt bridge of TAP Air Portugal, FY25](docs/images/demo-net-debt.png)
+
+*TAP's net debt bridge, FY25, € millions: borrowings less cash are -€43m; the leased aircraft (€2,158m), pensions (€173m) and tax payable (€4m) bring adjusted net debt to €2,293m. Every bar is a value the engine computed.*
 
 ![The databook's Net Debt sheet in Excel](docs/images/databook-net-debt.png)
 
@@ -33,27 +42,64 @@ Each company has a memo, the checker's result, the databook and a one-page case 
 
 ## How it works
 
-1. **Read:** every Excel, PDF, Word and ESEF file of the data room, with a six-language dictionary of statement lines; each figure keeps its file and cell, or its XBRL tag.
-2. **Calculate:** margins, cash conversion, working capital days, net debt and leverage, in deterministic Python. A missing figure stays unknown, never zero.
-3. **Rules:** 29 rules from Big Four due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request.
-4. **Deal view:** reported to diligence-adjusted EBITDA, reported to adjusted net debt, and working capital with an indicative peg; then enterprise value to equity, once you enter the price mechanism.
-5. **Verified memo:** Claude writes the memo and the request list from that material only; a checker with no AI confirms every figure, for the year it is cited, and every finding.
+1. **Read the accounts:** every Excel, PDF, Word and ESEF file of the data room, with a six-language dictionary of statement lines; each figure keeps its file and cell, or its XBRL tag.
+2. **Check the reading:** the subtotals the company published are rebuilt from the lines read before any figure is used. A missing figure stays unknown, never zero.
+3. **Flag what matters:** 29 rules from Big Four due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request.
+4. **Build the bridges:** reported to diligence-adjusted EBITDA, borrowings less cash to adjusted net debt, and working capital with an indicative peg; then enterprise value to equity, once you enter the price mechanism.
+5. **Export and write:** the databook in Excel; Claude writes the memo and the request list from that material only, and a checker with no AI confirms every figure, for the year it is cited.
 
 ```mermaid
 flowchart LR
-    A[Read the data room] --> B[Calculate] --> C[29 rules] --> D[Deal view and databook] --> E[Memo] --> F{Checker, no AI}
+    A[Read the accounts] --> B[Check the reading] --> C[Flag what matters] --> D[Build the bridges] --> E[Excel and memo] --> F{Checker, no AI}
     F -- a figure without a source --> E
 ```
 
+![The home page of the demo](docs/images/demo-home.png)
+
+*The home page of the demo: what it does and for whom, the three companies with one figure each, and how it is verified.*
+
 ## How it is verified
 
-- **192 automated tests** (`python -m unittest`), run on every change.
+**Measured**
+
+- **203 automated tests** (`python -m unittest`), run on every change.
 - **Parity with a hand-built Excel template:** the Python gives exactly the template's metrics, rule values, thresholds and severities.
 - **Published totals rebuilt:** on each real company, the subtotals rebuilt from the lines read must equal the published ones, and the balance sheet must balance. Operating profit is rebuilt to the euro for TAP and Toyota Caetano; EBITDA is within the report's own €2k rounding for Corticeira Amorim.
 - **No false alarm on a clean company:** a fictitious company designed to pass raises no finding.
 - **Memo checker:** every figure of the memo must be in the material, for the period cited; every finding must appear; every question needs a request; no investment-recommendation language. The three demo memos pass with 89, 78 and 85 figures checked, none without a source.
 - **Databook:** recalculated by Excel, every total equals the Python value.
-- On the five sets of real accounts, the 27 findings are classified as 15 true positives, 12 to review and no known false alarm ([`docs/VALIDATION.md`](docs/VALIDATION.md); a classification proposed by the agent, not yet reviewed by me).
+
+**Not measured**
+
+- Time saved against a manual review.
+- Accuracy on companies outside the test set: five sets of real accounts so far. Their 27 findings are classified as 15 true positives, 12 to review and no known false alarm ([`docs/VALIDATION.md`](docs/VALIDATION.md)), a classification proposed by the agent and not yet reviewed by a practitioner.
+
+## How you check it
+
+1. **Data room tab:** every line read, the label it matched and its cell in the published file.
+2. **Reading checks:** the subtotals rebuilt from those lines against the ones the company printed.
+3. **Red flags:** each finding gives its figures, the source cell and the threshold; for TAP, the report page.
+4. **Databook:** open the Excel and follow any total back to its source line; the Checks sheet compares every total with the code.
+5. **Memo tab:** the checker's result, run again on the page.
+
+## Glossary
+
+| Term | In one sentence |
+|---|---|
+| QoE | Quality of earnings: how much of the reported profit is recurring and supported by evidence. |
+| EBITDA | Earnings before interest, tax, depreciation and amortisation: operating profit before the cost of assets and financing. |
+| Diligence-adjusted EBITDA | EBITDA after the adjustments the reviewer accepts: what a buyer would price. |
+| Net debt | What the company owes to lenders, less its cash; a buyer deducts it from the value of the business. |
+| Debt-like item | An obligation that is not a bank loan but behaves like one (leases, pensions, tax due), so it is deducted from the price. |
+| IFRS 16 | The lease standard: future lease payments are shown as debt, and their cost leaves EBITDA. |
+| NWC | Net working capital: stock plus money owed by customers, less money owed to suppliers and similar items. |
+| Peg | The normal level of working capital agreed in the sale contract; a difference at closing changes the price. |
+| Completion accounts | A price fixed on the balance sheet at closing, with net debt and working capital trued up. |
+| Locked box | A price fixed on a past balance sheet; the buyer is protected against value leaving the company (leakage). |
+| Red flag | A finding a rule raised: a figure beyond a threshold that needs an explanation from management. |
+| SPA | Share purchase agreement: the contract for the sale of the company. |
+| DSO / DIO / DPO | Days of sales outstanding, inventory outstanding and payables outstanding: how long customers take to pay, stock stays, and the company takes to pay suppliers. |
+| ESEF | European Single Electronic Format: the tagged annual report EU listed companies must publish. |
 
 ## Limits
 

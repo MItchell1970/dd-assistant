@@ -430,7 +430,7 @@ def landing() -> None:
                 unsafe_allow_html=True)
     tour = Path(__file__).parent / "docs" / "images" / "demo-tour.gif"
     if tour.exists():
-        st.image(str(tour), caption="30 seconds on TAP: net debt, a red flag with its source, the Excel download.")
+        st.image(str(tour), caption="23 seconds on TAP: the headline figures with their pages, the net debt bridge, a red flag with its source, the Excel.")
 
     st.markdown("<div class='dd-section'>How it works</div>", unsafe_allow_html=True)
     for col, (icon, title, text) in zip(st.columns(len(demo.PROCESS)), demo.PROCESS):
