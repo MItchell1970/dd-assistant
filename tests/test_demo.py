@@ -70,6 +70,42 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(a.country.framework.startswith("SNC"))
 
 
+class InsightsAndChartsTest(unittest.TestCase):
+    """The key insights come from the case note; the waterfall steps come from the engine and add up."""
+
+    def test_three_insights_per_company(self):
+        for c in demo.CASES:
+            cards = demo.insights(c)
+            self.assertEqual(len(cards), 3, c.slug)
+            for card in cards:
+                self.assertTrue(all(card.values()), (c.slug, card))
+
+    def test_net_debt_steps_add_up(self):
+        from dd_assistant.deal import net_debt_steps
+        for c in demo.CASES:
+            a = demo.analysis(c)
+            B = a.view.bs_years[-1]
+            steps = net_debt_steps(a.view, B)
+            self.assertEqual(steps[0][1], a.view.net_debt_reported[B])
+            self.assertEqual(steps[-1][1], a.view.net_debt_adjusted[B])
+            self.assertAlmostEqual(steps[0][1] + sum(v for _, v, k in steps if k == "delta"), steps[-1][1], places=3)
+
+    def test_tap_leases_are_one_step(self):
+        from dd_assistant.deal import ifrs16_steps, net_debt_steps
+        a = demo.analysis(demo.CASE_BY_SLUG["tap"])
+        steps = dict((label, value) for label, value, _ in net_debt_steps(a.view, 2025))
+        leases = 742539.672 + 1033575.276 + 117102.021 + 265084.936   # the four lease lines, Financial position
+        self.assertAlmostEqual(steps["Lease liabilities"], leases, places=3)
+        self.assertEqual(a.money.fmt(steps["Lease liabilities"]), "€2,158m")
+        pre16 = ifrs16_steps(a.view, a.data, 2025)
+        self.assertEqual([a.money.fmt(v) for _, v, _ in pre16], ["€726m", "-€464m", "€262m"])
+
+    def test_app_draws_the_charts(self):
+        at = app_test("tap")
+        self.assertGreaterEqual(len(at.get("vega_lite_chart")), 5)
+        self.assertIn("Key insights", page_text(at))
+
+
 class DemoAppTest(unittest.TestCase):
     def test_landing_page(self):
         at = app_test()

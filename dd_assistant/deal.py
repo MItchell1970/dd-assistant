@@ -254,3 +254,53 @@ def value_at_stake(view: DealView, multiple: float) -> list[tuple[str, float | N
             (f"EBITDA difference × {multiple:g}x", ebitda_gap * multiple),
             ("Debt-like items less cash-like items (one for one)", debt_gap),
             ("Equity value at stake", None if debt_gap is None else ebitda_gap * multiple + debt_gap)]
+
+
+# ---------------------------------------------------------------- bridges as steps (for the waterfall charts)
+Step = tuple[str, float, str]   # (label, value, "total" or "delta"); a chart only draws them, it adds nothing
+
+
+def qoe_steps(view: DealView, year: int) -> list[Step]:
+    """Reported EBITDA → each adjustment → (management-adjusted) → diligence-adjusted EBITDA, for one year."""
+    out: list[Step] = []
+    for ln in view.qoe:
+        value = ln.values.get(year)
+        if ln.style in ("total", "subtotal") and value is not None:
+            out.append((ln.label, value, "total"))
+        elif ln.style == "item" and value:
+            out.append((ln.label, value, "delta"))
+        if ln.label == "Diligence-adjusted EBITDA":
+            break
+    return out
+
+
+def ifrs16_steps(view: DealView, d: CompanyData, year: int) -> list[Step]:
+    """Reported EBITDA → lease payments of the cash flow statement → EBITDA before IFRS 16 (empty without leases)."""
+    lease = d.v("lease_pay", year)
+    pre16 = next((ln.values.get(year) for ln in view.qoe if ln.label.startswith("Memo: reported EBITDA before IFRS")),
+                 None)
+    if lease is None or pre16 is None:
+        return []
+    return [("Reported EBITDA", view.ebitda[year], "total"), ("Lease payments (cash flow statement)", lease, "delta"),
+            ("EBITDA before IFRS 16", pre16, "total")]
+
+
+def net_debt_steps(view: DealView, year: int) -> list[Step]:
+    """Borrowings less cash → the included debt-like and cash-like items, one step per category (leases, pensions,
+    tax payable…) → adjusted net debt. The categories are summed here, in the engine, never in the chart."""
+    start = view.net_debt_reported.get(year)
+    end = view.net_debt_adjusted.get(year)
+    if start is None or end is None:
+        return []
+    groups: dict[str, float] = {}
+    included = False
+    for ln in view.net_debt:
+        if ln.style == "header":
+            included = ln.label.endswith("(included)")
+            continue
+        if included and ln.style == "item" and ln.values.get(year):
+            groups[ln.note or ln.label] = groups.get(ln.note or ln.label, 0.0) + ln.values[year]
+    steps: list[Step] = [("Borrowings less cash", start, "total")]
+    steps += [(label, value, "delta") for label, value in groups.items()]
+    steps.append(("Adjusted net debt", end, "total"))
+    return steps

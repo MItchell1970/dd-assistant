@@ -15,6 +15,7 @@ OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "review")
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8599"
 PAGES = {"home": "", "tap": "?company=tap", "toyota": "?company=toyota-caetano", "amorim": "?company=corticeira-amorim"}
 SIZES = {"desktop": (1440, 900), "phone": (375, 812)}
+TALL = 3600   # Streamlit scrolls inside the page: a tall viewport shows the whole page in one capture
 
 
 def main() -> None:
@@ -29,7 +30,11 @@ def main() -> None:
                 page.wait_for_function("!document.querySelector('[data-testid=\"stStatusWidget\"]')", timeout=60_000)
                 page.wait_for_timeout(4000)   # let every element finish drawing
                 wide = page.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
-                page.screenshot(path=OUT / f"{name}-{size}.png", full_page=True)
+                page.screenshot(path=OUT / f"{name}-{size}.png")
+                page.set_viewport_size({"width": w, "height": TALL})
+                page.wait_for_timeout(2500)
+                page.screenshot(path=OUT / f"{name}-{size}-full.png")
+                page.set_viewport_size({"width": w, "height": h})
                 print(f"{name}-{size}.png" + ("  HORIZONTAL SCROLL" if wide else ""))
             page.close()
         browser.close()

@@ -18,12 +18,13 @@ import re
 import types
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
 from dd_assistant import demo, europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
-from dd_assistant.deal import ADJUSTMENT_STATES, Line, value_at_stake
+from dd_assistant.deal import ADJUSTMENT_STATES, Line, ifrs16_steps, net_debt_steps, qoe_steps, value_at_stake
 from dd_assistant.databook import write_databook
 from dd_assistant.price import (LEAKAGE_STATES, LEAKAGE_TREATMENTS, MECHANISMS, EnterpriseValue,
                                LeakageItem, LockedBox, PriceInputs, completion_equity,
@@ -136,6 +137,13 @@ CSS = """
 .dd-card-co {font-weight: 700; font-size: 1.15rem; color: #1b2333;}
 .dd-card-acc {font-size: .8rem; color: #5b6474; margin-bottom: .5rem;}
 .dd-card-find {font-size: .95rem; color: #1b2333; min-height: 4.4em;}
+.dd-insights {display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: .2rem 0 1.2rem;}
+.dd-insight {border: 1px solid #d6e2fb; border-top: 4px solid #0b3d91; border-radius: 12px; padding: 12px 16px; background: #fff;}
+.dd-insight .t {font-weight: 700; color: #1b2333; font-size: 1rem; margin-bottom: 4px;}
+.dd-insight .num {color: #1b2333; font-size: .9rem; margin-bottom: 6px;}
+.dd-insight .why {color: #3b4457; font-size: .84rem; margin-bottom: 6px;}
+.dd-insight .q {color: #0b3d91; font-size: .82rem; font-weight: 600;}
+.dd-chart-title {font-weight: 600; color: #1b2333; font-size: .9rem; margin: .6rem 0 0;}
 .dd-foot {border-top: 1px solid #e3e7ee; margin-top: 2.4rem; padding-top: .8rem; font-size: .8rem; color: #5b6474;}
 .dd-foot a {color: #0b3d91;}
 </style>
@@ -233,6 +241,78 @@ def show_stored_memo(c: demo.Case) -> None:
                        help="The material the memo was written from and is checked against.")
     st.divider()
     st.markdown(re.sub(r"^(#+) ", lambda h: "#" * min(len(h.group(1)) + 2, 6) + " ", text, flags=re.M))
+
+
+NAVY, BLUE, GREY = "#0b3d91", "#5b7fc4", "#a9b6cc"
+
+
+def waterfall(steps: list[tuple[str, float, str]], money, title: str, key: str) -> None:
+    """A bridge as a waterfall: totals in navy, increases in blue, decreases in grey, each bar labelled with its
+    value. The steps come from the engine (deal.py); the chart only places the bars."""
+    if len(steps) < 2:
+        return
+    def wrap(text: str, width: int = 14) -> str:   # axis labels on two or three short lines, joined by '|'
+        lines, cur = [], ""
+        for word in text.split():
+            if cur and len(cur) + 1 + len(word) > width:
+                lines.append(cur)
+                cur = word
+            else:
+                cur = f"{cur} {word}".strip()
+        return "|".join(lines + [cur])
+
+    rows, level = [], 0.0
+    for i, (label, value, kind) in enumerate(steps):
+        start, end = (0.0, value) if kind == "total" else (level, level + value)
+        level = end
+        rows.append({"order": i, "label": wrap(label), "name": label, "start": start, "end": end,
+                     "text": money.fmt(value) if kind == "total" else
+                     ("+" if value > 0 else "") + money.fmt(value),
+                     "colour": NAVY if kind == "total" else BLUE if value > 0 else GREY,
+                     "top": max(start, end)})
+    df = pd.DataFrame(rows)
+    x = alt.X("label:N", sort=list(df["label"]), title=None,
+              axis=alt.Axis(labelAngle=0, labelLimit=160, labelExpr="split(datum.label, '|')", labelFontSize=11))
+    bars = alt.Chart(df).mark_bar(cornerRadius=3).encode(
+        x=x, y=alt.Y("start:Q", axis=None), y2="end:Q", color=alt.Color("colour:N", scale=None),
+        tooltip=[alt.Tooltip("name:N", title=" "), alt.Tooltip("text:N", title="Value")])
+    labels = alt.Chart(df).mark_text(dy=-8, fontSize=12, fontWeight=600, color="#1b2333").encode(
+        x=x, y=alt.Y("top:Q", axis=None), text="text:N")
+    st.markdown(f"<div class='dd-chart-title'>{html.escape(title)}</div>", unsafe_allow_html=True)
+    st.altair_chart((bars + labels).properties(height=260).configure_view(stroke=None), width="stretch", key=key)
+
+
+def nwc_chart(view, money, key: str) -> None:
+    """Net working capital at each year-end, with the average of the year-ends as the indicative peg line."""
+    years = [y for y in view.bs_years if view.nwc_values.get(y) is not None]
+    if len(years) < 2 or view.nwc_average is None:
+        return
+    df = pd.DataFrame([{"year": fy(y), "nwc": view.nwc_values[y], "text": money.fmt(view.nwc_values[y])}
+                       for y in years])
+    base = alt.Chart(df).encode(x=alt.X("year:N", title=None, axis=alt.Axis(labelAngle=0)))
+    bars = base.mark_bar(color=NAVY, cornerRadius=3, size=48).encode(y=alt.Y("nwc:Q", axis=None))
+    text = base.mark_text(dy=-8, fontSize=12, fontWeight=600, color="#1b2333").encode(y="nwc:Q", text="text:N")
+    avg = alt.Chart(pd.DataFrame([{"avg": view.nwc_average}])).mark_rule(color="#fab219", strokeDash=[6, 4],
+                                                                          size=2).encode(y="avg:Q")
+    st.markdown(f"<div class='dd-chart-title'>Net working capital at year-end ({money.unit}); dashed line: "
+                f"average of the year-ends, {html.escape(money.fmt(view.nwc_average))} (indicative peg reference)"
+                "</div>", unsafe_allow_html=True)
+    st.altair_chart((bars + text + avg).properties(height=220).configure_view(stroke=None), width="stretch",
+                    key=key)
+
+
+def key_insights(c: "demo.Case") -> None:
+    """The three talking points of the case note, first thing on the company page."""
+    cards = demo.insights(c)
+    if not cards:
+        return
+    up = lambda t: t[:1].upper() + t[1:]
+    st.markdown("<div class='dd-section'>Key insights</div><div class='dd-insights'>" + "".join(
+        f"<div class='dd-insight'><div class='t'>{html.escape(i['title'])}</div>"
+        f"<div class='num'>{html.escape(up(i['number']))}</div>"
+        f"<div class='why'><b>Why it matters in a deal.</b> {html.escape(up(i['why']))}</div>"
+        f"<div class='q'>Ask management: “{html.escape(i['question'])}”</div></div>" for i in cards)
+        + "</div>", unsafe_allow_html=True)
 
 
 def footer() -> None:
@@ -432,6 +512,9 @@ if not a.checks_ok:
     st.warning("Reading check failed: a subtotal rebuilt from the lines read does not match the published one. "
                "A line may be missing or misclassified — see Data room before relying on the figures.")
 
+if DEMO:
+    key_insights(case)
+
 tab_ov, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(
     ["Overview", "Deal view", f"Red flags ({len(al)})", "Sector", "Data room", "Rulebook", "Metrics",
      "Memo" if DEMO else "AI memo"])
@@ -494,6 +577,16 @@ with tab_ov:
                      f"<div class='s'>{sub}</div>{note}<span class='dd-tag {cls}' title='{html.escape(why)}'>"
                      f"{html.escape(tag)}</span></div>")
     st.markdown("<div class='dd-kpis'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
+    w1, w2 = st.columns(2, gap="large")
+    with w1:
+        waterfall(net_debt_steps(view, B), money, f"Net debt bridge, {fy(B)} ({money.unit})", "ov-nd")
+    with w2:
+        steps = qoe_steps(view, L)
+        if len(steps) <= 2 and ifrs16_steps(view, data, L):   # no adjustment to show: show the lease effect
+            waterfall(ifrs16_steps(view, data, L), money, f"EBITDA and the lease payments, {fy(L)} ({money.unit})",
+                      "ov-16")
+        else:
+            waterfall(steps, money, f"EBITDA bridge, {fy(L)} ({money.unit})", "ov-qoe")
 
     # ---- where it goes wrong: the figure, the threshold, in plain words, and where to look
     st.markdown(f"<div class='dd-section'>Where it goes wrong · {len(al)} red flags</div>"
@@ -535,6 +628,11 @@ with tab_deal:
     for note in view.incomplete:
         st.warning(note)
     st.markdown("<div class='dd-section'>Quality of earnings</div>", unsafe_allow_html=True)
+    q1, q2 = st.columns(2, gap="large")
+    with q1:
+        waterfall(qoe_steps(view, L), money, f"EBITDA bridge, {fy(L)} ({money.unit})", "dv-qoe")
+    with q2:
+        waterfall(ifrs16_steps(view, data, L), money, f"EBITDA before IFRS 16, {fy(L)} ({money.unit})", "dv-16")
     st.markdown(bridge(view.qoe, view.pl_years, money), unsafe_allow_html=True)
     c1, c2 = st.columns([3, 2], gap="large")
     with c1:
@@ -559,6 +657,8 @@ with tab_deal:
                        column_config={"Adjustment": st.column_config.TextColumn(width="medium")})
 
     st.markdown("<div class='dd-section'>Net debt</div>", unsafe_allow_html=True)
+    waterfall(net_debt_steps(view, B), money, f"Net debt bridge, {fy(B)} ({money.unit}): borrowings less cash, "
+              "then the debt-like items included below", "dv-nd")
     st.markdown(bridge(view.net_debt, view.bs_years, money), unsafe_allow_html=True)
     if data.balance_items:
         st.markdown("**Debt-like and cash-like items found in the balance sheet**")
@@ -574,6 +674,7 @@ with tab_deal:
                    "marketable securities…). Check the notes: they are often presented there.")
 
     st.markdown("<div class='dd-section'>Net working capital</div>", unsafe_allow_html=True)
+    nwc_chart(view, money, "dv-nwc")
     st.markdown(bridge(view.nwc, view.bs_years, money), unsafe_allow_html=True)
     st.caption("Year-end balances only. A peg is negotiated on 12–24 monthly balances: request the monthly balance "
                "sheets before relying on the average.")

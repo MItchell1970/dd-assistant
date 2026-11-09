@@ -151,3 +151,19 @@ def section(text: str, title: str) -> str:
 def request_list(case: Case) -> str:
     text = memo(case)
     return section(text, "Information request list") if text else ""
+
+
+def insights(case: Case) -> list[dict[str, str]]:
+    """The three talking points of the case note (title, the number, why it matters, question for management)."""
+    import re
+    if not case.case_note_path.exists():
+        return []
+    text = case.case_note_path.read_text(encoding="utf-8")
+    part = text[text.index("## Three talking points"):text.index("## Limits")]
+    out = []
+    for block in re.split(r"\n\*\*\d+\. ", part)[1:]:
+        field_ = lambda name: (re.search(rf"- \*{name}:\* (.+)", block) or [None, ""])[1].strip()
+        out.append({"title": block.split("**")[0].strip().rstrip("."), "number": field_("The number"),
+                    "why": field_("Why it matters in a deal"),
+                    "question": field_("Question for management").strip('"“”')})
+    return out
