@@ -155,6 +155,15 @@ class DemoAppTest(unittest.TestCase):
         self.assertIn("Negative working capital is normal for airlines", text)
         self.assertNotIn("Negative working capital is normal", page_text(app_test("corticeira-amorim")))
 
+    def test_sources_and_glossary_on_the_company_page(self):
+        at = app_test("tap")
+        text = page_text(at)
+        self.assertIn("Source: p.152", text)            # adjusted net debt card: statement of financial position
+        self.assertIn("Source: p.153", text)            # revenue and EBITDA: income statement
+        self.assertIn("class='dd-term' title='", text)  # glossary on hover
+        self.assertIn("About this demo", text)
+        self.assertTrue(any(e.label.startswith("Glossary") for e in at.expander))
+
     def test_runs_without_the_anthropic_library(self):
         """The public demo needs no API library: block the import and run the app."""
         code = ("import sys; sys.modules['anthropic'] = None\n"

@@ -84,6 +84,7 @@ class Case:
     accounts: str         # what the accounts are and where they come from
     purpose: str = "buy"
     pages: str = ""       # where the statements are in the report
+    page_of: dict = None  # sheet of the data file -> where it is printed in the report (page or statement)
     big: str = ""         # the card's big number (from the engine; tested against the material)
     big_label: str = ""
     context: str = ""     # one sentence of outside context for the visitor, never given to the engine or the memo
@@ -119,6 +120,8 @@ CASES = (
          "More cash than bank debt, yet €2,293m of net debt (3.16x EBITDA) once the leased aircraft (IFRS 16) and pensions are counted.",
          "Consolidated accounts FY2025, 2025 Integrated Report",
          pages="2025 Integrated Report, pp. 152–156, notes 10 and 20",
+         page_of={"Financial position": "p.152", "Income statement": "p.153", "Cash flow": "p.156",
+                  "Note 10 Other receivables": "note 10, p.190", "Note 20 Other payables": "note 20, p.208"},
          big="€2,293m", big_label="adjusted net debt, vs −⁠€43m borrowings less cash",
          context="The privatisation is under way: Air France-KLM and Lufthansa submitted binding offers, and the "
                  "Government extended the deadline to complete it to the end of 2026.",
@@ -129,11 +132,15 @@ CASES = (
          "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (−⁠€3,987k).",
          "Consolidated accounts FY2025, 2025 annual report (ESEF)",
          pages="Relatório Anual 2025 (ESEF), consolidated statements",
+         page_of={"DRE": "income statement", "Balanço": "statement of financial position",
+                  "DFC": "cash flow statement"},
          big="60.5%", big_label="of FY25 EBITDA is other income"),
     Case("corticeira-amorim", "Corticeira Amorim", "Corticeira_Amorim_2025_published.xlsx", "PT", "materials",
          "Capex runs below depreciation in both years, and short-term debt fell from 56.3% to 28.7% of debt.",
          "Consolidated accounts FY2025, 2025 annual report (ESEF)",
          pages="Relatório Anual 2025 (ESEF), consolidated statements and note 19",
+         page_of={"Resultados": "income statement", "Posição financeira": "statement of financial position",
+                  "Fluxos de caixa": "cash flow statement", "Nota 19 Caixa": "note 19"},
          big="155.4%", big_label="cash conversion in FY25, as stock was released"),
 )
 CASE_BY_SLUG = {c.slug: c for c in CASES}

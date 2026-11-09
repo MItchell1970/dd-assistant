@@ -15,5 +15,5 @@ textColor = "#1b2333"
 font = "sans serif"
 
 [client]
-# hide the developer menu and the Deploy button: the app is shown to visitors
-toolbarMode = "viewer"
+# minimal toolbar: no developer menu and no Deploy button; the app is shown to visitors
+toolbarMode = "minimal"

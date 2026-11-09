@@ -154,6 +154,9 @@ CSS = """
 .dd-tiles {display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: .3rem 0 1rem;}
 .dd-tile {border: 1px solid #d6e2fb; border-radius: 12px; padding: 12px 16px; background: #f7f9fe;}
 .dd-tile .v {font-size: 1.7rem; font-weight: 750; color: #0b3d91;} .dd-tile .l {font-size: .84rem; color: #3b4457;}
+abbr.dd-term {text-decoration: underline dotted #8a8f98; text-underline-offset: 3px; cursor: help;}
+.dd-src {display: block; font-size: .72rem; color: #5b6474; margin-top: 4px;}
+.dd-nav {font-size: .85rem; margin-bottom: .6rem;} .dd-nav a {color: #0b3d91; text-decoration: none;}
 .dd-foot {border-top: 1px solid #e3e7ee; margin-top: 2.4rem; padding-top: .8rem; font-size: .8rem; color: #5b6474;}
 .dd-foot a {color: #0b3d91;}
 </style>
@@ -325,6 +328,22 @@ def key_insights(c: "demo.Case") -> None:
         + "</div>", unsafe_allow_html=True)
 
 
+def term(text: str, key: str | None = None) -> str:
+    """A term with its plain-words definition on hover (the glossary at the bottom says the same)."""
+    meaning = demo.GLOSSARY.get(key or text)
+    return (f"<abbr class='dd-term' title='{html.escape(meaning, quote=True)}'>{html.escape(text)}</abbr>"
+            if meaning else html.escape(text))
+
+
+def where(source: str) -> str:
+    """Where a figure comes from, for people: the report page in the demo (TAP), else the statement and cell."""
+    if not source:
+        return ""
+    sheet = source.split("!")[0].strip()
+    label = case.page_of.get(sheet, "") if DEMO and case else ""
+    return f"<span class='dd-src' title='{html.escape(source, quote=True)}'>Source: {html.escape(label or source)}</span>"
+
+
 def footer() -> None:
     st.markdown(f"<div class='dd-foot'>Built by {demo.AUTHOR} · <a href='{demo.GITHUB}'>GitHub</a> · "
                 f"<a href='{demo.LINKEDIN}'>LinkedIn</a><br>Limits: " + " · ".join(demo.LIMITS) + ".</div>",
@@ -426,7 +445,9 @@ def landing() -> None:
     footer()
 
 
-st.set_page_config(page_title="DD Assistant", page_icon=":material/fact_check:", layout="wide")
+st.set_page_config(page_title="DD Assistant · first-pass financial due diligence" if DEMO else "DD Assistant",
+                   page_icon=":material/fact_check:", layout="wide",
+                   initial_sidebar_state="collapsed" if DEMO else "auto")
 st.markdown(CSS, unsafe_allow_html=True)
 if not DEMO:
     load_env()
@@ -442,6 +463,9 @@ with st.sidebar:
     st.caption("Preliminary financial due diligence · European market · EUR")
 if DEMO:   # no upload: the visitor picks one of the three companies
     with st.sidebar:
+        st.markdown("**About this demo**")
+        st.caption("Three real companies, on their published FY2025 accounts. Nothing is uploaded and no AI is "
+                   "called. A first pass for an analyst to review, not an opinion.")
         st.button("← All companies", on_click=open_case, args=(None,), width="stretch")
         slugs = [c.slug for c in demo.CASES]
         st.radio("Company", slugs, index=slugs.index(case.slug), format_func=lambda k: demo.CASE_BY_SLUG[k].company,
@@ -493,9 +517,9 @@ suggested, words = sectors.suggest(ext.source_text, ext.company)
 c_suggested, c_why = europe.suggest(ext.source_text, ext.company)
 keys = [s.key for s in sectors.SECTORS]
 codes = list(europe.COUNTRY_BY_CODE)
-with st.sidebar:
+with (st.sidebar.expander("Settings of this analysis (fixed in the demo)") if DEMO else st.sidebar):
     if DEMO:
-        st.caption("Fixed in the demo: the stored memo was written and checked with these three settings.")
+        st.caption("The stored memo was written and checked with these three settings.")
     purpose = st.selectbox("Purpose", list(PURPOSES), format_func=PURPOSES.get, key=f"purpose-{file_key}",
                            index=list(PURPOSES).index(case.purpose) if DEMO else 0, disabled=DEMO,
                            help="M&A is the focus; the same analysis serves a lender or an owner. Only the way the "
@@ -566,6 +590,10 @@ for box, key in ((purpose_effect, "purpose"), (country_effect, "country"), (sect
 L = data.pl_years[-1]
 B = view.bs_years[-1]
 years3 = data.pl_years[-3:]
+if DEMO:
+    st.markdown("<div class='dd-nav'><a href='./' target='_self'>← All companies</a> · " + " · ".join(
+        f"<a href='?company={c.slug}' target='_self'>{html.escape(c.company)}</a>" for c in demo.CASES if c is not case)
+        + "</div>", unsafe_allow_html=True)
 st.markdown(f"<div class='dd-eyebrow'>{html.escape(PURPOSES[a.purpose])} · {html.escape(a.sector.name)} · "
             f"{html.escape(a.country.name if a.country else 'Europe')}</div>"
             + (f"<div class='dd-title'>{html.escape(case.company)}</div>"
@@ -640,6 +668,10 @@ with tab_ov:
 
     # ---- the headline figures, coloured by the findings behind them
     cards = []
+    sources = {"Revenue": data.sources.get("vendas", ""), "Diligence-adjusted EBITDA": data.sources.get("opinc", "")
+               or data.sources.get("vendas", ""), "Cash conversion": data.sources.get("cgo", "")
+               or data.sources.get("fco", ""), "Adjusted net debt": data.sources.get("fin_lp", ""),
+               "Net working capital": data.sources.get("inv", "") or data.sources.get("cli", "")}
     notes = {"Net working capital": a.sector.negative_nwc_note
              if view.nwc_values[B] is not None and view.nwc_values[B] < 0 else ""}
     for l, v, sub in kpis:
@@ -647,9 +679,11 @@ with tab_ov:
         year = fy(L if "EBITDA" in l or l in ("Revenue", "Cash conversion") else B)
         why = "; ".join(f"{i} {fired[i].rule.name}" for i in KPI_RULES[l] if i in fired)   # what the colour means
         note = f"<div class='n'>{html.escape(notes[l])}</div>" if notes.get(l) else ""
-        cards.append(f"<div class='dd-kpi {cls}'><div class='l'>{l} · {year}</div><div class='v'>{v}</div>"
-                     f"<div class='s'>{sub}</div>{note}<span class='dd-tag {cls}' title='{html.escape(why)}'>"
-                     f"{html.escape(tag)}</span></div>")
+        label = {"Diligence-adjusted EBITDA": term(l), "Adjusted net debt": term(l, "Net debt"),
+                 "Net working capital": term(l, "NWC")}.get(l, html.escape(l))
+        cards.append(f"<div class='dd-kpi {cls}'><div class='l'>{label} · {year}</div><div class='v'>{v}</div>"
+                     f"<div class='s'>{sub}</div>{note}{where(sources.get(l, ''))}"
+                     f"<span class='dd-tag {cls}' title='{html.escape(why)}'>{html.escape(tag)}</span></div>")
     st.markdown("<div class='dd-kpis'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
     w1, w2 = st.columns(2, gap="large")
     with w1:
@@ -663,7 +697,7 @@ with tab_ov:
             waterfall(steps, money, f"EBITDA bridge, {fy(L)} ({money.unit})", "ov-qoe")
 
     # ---- where it goes wrong: the figure, the threshold, in plain words, and where to look
-    st.markdown(f"<div class='dd-section'>Where it goes wrong · {len(al)} red flags</div>"
+    st.markdown(f"<div class='dd-section'>Where it goes wrong · {len(al)} {term('red flags', 'Red flag')}</div>"
                 + " ".join(f"{pill(k)} <span style='color:#5b6474;font-size:.85rem'>{by[k]}</span>&nbsp;&nbsp;"
                            for k in SEVERITIES), unsafe_allow_html=True)
     if not al:
@@ -701,7 +735,7 @@ with tab_deal:
                + "Hover a line to see its source.")
     for note in view.incomplete:
         st.warning(note)
-    st.markdown("<div class='dd-section'>Quality of earnings</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='dd-section'>{term('Quality of earnings', 'QoE')}</div>", unsafe_allow_html=True)
     q1, q2 = st.columns(2, gap="large")
     with q1:
         waterfall(qoe_steps(view, L), money, f"EBITDA bridge, {fy(L)} ({money.unit})", "dv-qoe")
@@ -730,7 +764,7 @@ with tab_deal:
         st.data_editor(own, key=own_key, num_rows="dynamic", hide_index=True, width="stretch",
                        column_config={"Adjustment": st.column_config.TextColumn(width="medium")})
 
-    st.markdown("<div class='dd-section'>Net debt</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='dd-section'>{term('Net debt')}</div>", unsafe_allow_html=True)
     waterfall(net_debt_steps(view, B), money, f"Net debt bridge, {fy(B)} ({money.unit}): borrowings less cash, "
               "then the debt-like items included below", "dv-nd")
     st.markdown(bridge(view.net_debt, view.bs_years, money), unsafe_allow_html=True)
@@ -747,7 +781,7 @@ with tab_deal:
         st.caption("No debt-like or cash-like lines found in the balance sheet (leases, pensions, tax payable, "
                    "marketable securities…). Check the notes: they are often presented there.")
 
-    st.markdown("<div class='dd-section'>Net working capital</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='dd-section'>{term('Net working capital', 'NWC')}</div>", unsafe_allow_html=True)
     nwc_chart(view, money, "dv-nwc")
     st.markdown(bridge(view.nwc, view.bs_years, money), unsafe_allow_html=True)
     st.caption("Year-end balances only. A peg is negotiated on 12–24 monthly balances: request the monthly balance "
@@ -1099,4 +1133,5 @@ with tab_ai:
                 show_check(check_memo(outside.getvalue().decode("utf-8"), material, alert_ids))
 
 if DEMO:
+    glossary()
     footer()
