@@ -328,6 +328,50 @@ def key_insights(c: "demo.Case") -> None:
         + "</div>", unsafe_allow_html=True)
 
 
+def tour_move(step: int) -> None:
+    st.session_state["tour-step"] = step
+
+
+@st.dialog("The 60-second tour", width="large")
+def tour(c: "demo.Case", a) -> None:
+    """Five steps, one sentence each: reading check, key insight, bridge, a red flag with its source, the Excel."""
+    steps = demo.tour_steps(c, a)
+    i = min(st.session_state.get("tour-step", 0), len(steps) - 1)
+    title, text = steps[i]
+    st.progress((i + 1) / len(steps), text=f"Step {i + 1} of {len(steps)} · {title}")
+    st.markdown(text)
+    B, L = a.view.bs_years[-1], a.view.pl_years[-1]
+    if i == 0:
+        st.dataframe(pd.DataFrame([{"Check": x["Check"], "Year": fy(x["Year"]),
+                                    "Rebuilt": a.money.amount(x["Rebuilt from the lines"]),
+                                    "Published": a.money.amount(x["As published"]),
+                                    "Result": "✓ matches" if x["OK"] else "✗ does not match"} for x in a.checks]),
+                     hide_index=True, width="stretch")
+    elif i == 1:
+        first = demo.insights(c)[0]
+        st.info(f"**Why it matters in a deal.** {first['why'][:1].upper() + first['why'][1:]}")
+    elif i == 2:
+        waterfall(net_debt_steps(a.view, B), a.money, f"Net debt bridge, {fy(B)} ({a.money.unit})", "tour-nd")
+    elif i == 3 and a.findings:
+        flag = min(a.findings, key=lambda r: SEVERITIES.index(r.rule.severity))
+        st.markdown(f"**Evidence.** {flag.evidence}")
+        pages = [f"{sheet}: {page}" for sheet, page in (c.page_of or {}).items() if f"{sheet}!" in flag.evidence]
+        if pages:
+            st.markdown("**Where it is in the report.** " + "; ".join(pages) + ".")
+        st.markdown(f"**Question for management.** {flag.rule.question}")
+    elif i == 4 and c.databook_path.exists():
+        st.download_button("Download the databook (Excel)", c.databook_path.read_bytes(), f"{c.slug}_databook.xlsx",
+                           mime=XLSX_MIME, type="primary", key="tour-book")
+    b1, b2, _ = st.columns([1, 1, 3])
+    if i > 0:
+        b1.button("Back", on_click=tour_move, args=(i - 1,), width="stretch", key="tour-back")
+    if i < len(steps) - 1:
+        b2.button("Next", on_click=tour_move, args=(i + 1,), type="primary", width="stretch", key="tour-next")
+    elif b2.button("Finish", type="primary", width="stretch", key="tour-end"):
+        st.session_state["tour-step"] = 0
+        st.rerun()
+
+
 def term(text: str, key: str | None = None) -> str:
     """A term with its plain-words definition on hover (the glossary at the bottom says the same)."""
     meaning = demo.GLOSSARY.get(key or text)
@@ -615,6 +659,9 @@ if not a.checks_ok:
                "A line may be missing or misclassified — see Data room before relying on the figures.")
 
 if DEMO:
+    if st.button("Take the 60-second tour", icon=":material/play_circle:", key="tour-open"):
+        st.session_state["tour-step"] = 0
+        tour(case, a)   # a dialog reruns on its own when its buttons are used
     key_insights(case)
 
 tab_ov, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(

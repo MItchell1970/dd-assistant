@@ -100,6 +100,16 @@ class InsightsAndChartsTest(unittest.TestCase):
         pre16 = ifrs16_steps(a.view, a.data, 2025)
         self.assertEqual([a.money.fmt(v) for _, v, _ in pre16], ["€726m", "-€464m", "€262m"])
 
+    def test_tour_has_five_steps_with_engine_figures(self):
+        from dd_assistant.memo_check import _check_numbers
+        for c in demo.CASES:
+            a = demo.analysis(c)
+            steps = demo.tour_steps(c, a)
+            self.assertEqual(len(steps), 5, c.slug)
+            text = " ".join(t for _, t in steps)
+            _, unmatched, misdated, _ = _check_numbers(text, demo.material(c, a))
+            self.assertEqual((unmatched, misdated), ([], []), c.slug)
+
     def test_app_draws_the_charts(self):
         at = app_test("tap")
         self.assertGreaterEqual(len(at.get("vega_lite_chart")), 5)

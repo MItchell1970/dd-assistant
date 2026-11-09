@@ -240,3 +240,23 @@ def verification() -> dict[str, int]:
             figures += r.numbers_checked
             unmatched += len(r.unmatched_numbers)
     return {"tests": tests, "checks": checks, "checks_passed": passed, "figures": figures, "unmatched": unmatched}
+
+
+def tour_steps(case: Case, a: Analysis) -> list[tuple[str, str]]:
+    """The 60-second tour: (title, one sentence) for each of the five steps; every figure comes from the engine."""
+    passed, total = sum(c["OK"] for c in a.checks), len(a.checks)
+    first = insights(case)[0] if insights(case) else {"title": "", "number": ""}
+    order = ("High", "Medium", "Low")
+    flag = min(a.findings, key=lambda r: order.index(r.rule.severity)) if a.findings else None
+    B = a.view.bs_years[-1]
+    return [
+        ("Check the reading", f"Before trusting any figure, the agent rebuilt {passed} of {total} subtotals the "
+                              "company published from the lines it read."),
+        ("The key insight", f"{first['title']}: {first['number'][:1].upper() + first['number'][1:]}"),
+        ("The bridge", f"Net debt from borrowings less cash ({a.money.fmt(a.view.net_debt_reported[B])}) to adjusted "
+                       f"net debt ({a.money.fmt(a.view.net_debt_adjusted[B])}), one step per debt-like item."),
+        ("A red flag, with its source", f"{flag.rule.id} · {flag.rule.name} ({flag.rule.severity}). {flag.rule.plain}"
+         if flag else "No rule fired on these accounts."),
+        ("Take it to Excel", "The databook holds the same bridges with live formulas, every figure with its source "
+                             "cell, and a Checks sheet that compares each total with the code."),
+    ]
