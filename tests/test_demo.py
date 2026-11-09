@@ -52,6 +52,24 @@ class SwitchTest(unittest.TestCase):
             self.assertTrue(a.checks_ok, c.slug)
 
 
+class FrameworkTest(unittest.TestCase):
+    """Consolidated accounts are IFRS by default; the local GAAP (SNC, PGC…) is for individual accounts."""
+
+    def test_demo_companies_are_ifrs(self):
+        from dd_assistant.pipeline import choice_effects
+        for c in demo.CASES:
+            a = demo.analysis(c)
+            self.assertTrue(a.country.framework.startswith("IFRS as adopted by the EU"), c.slug)
+            self.assertNotIn("Framework named in the memo: SNC", choice_effects(a)["country"])
+            self.assertNotIn("SNC", demo.memo(c).split("## Page 2")[0], "the memo's scope names the framework")
+
+    def test_individual_accounts_keep_the_local_framework(self):
+        from dd_assistant.dataroom import files_in, read_data_room
+        from dd_assistant.pipeline import analyse
+        a = analyse(read_data_room(files_in([ROOT / "data" / "Duriva_data_room"])), country="PT")
+        self.assertTrue(a.country.framework.startswith("SNC"))
+
+
 class DemoAppTest(unittest.TestCase):
     def test_landing_page(self):
         at = app_test()
@@ -84,8 +102,19 @@ class DemoAppTest(unittest.TestCase):
                 # net debt card: the ratio sits next to the adjusted figure; borrowings less cash is not "reported"
                 self.assertIn("x EBITDA · of which borrowings less cash", text)
                 self.assertNotIn("Reported net debt", text)
+                # header: one unit, the report's pages, no reading method (that is in the Data room tab)
+                header = next(m.value for m in at.markdown if "class='dd-title'" in str(m.value))
+                self.assertIn(c.pages, header)
+                self.assertNotIn("converted to", header)
+                self.assertEqual(header.count("EUR "), 1)
+                self.assertIn(c.company, header)
                 self.assertTrue(any("passed" in s.value and "without a source: 0" in s.value for s in at.success),
                                 "the Memo tab shows the checker result")
+
+    def test_negative_working_capital_is_explained_for_the_airline(self):
+        text = page_text(app_test("tap"))
+        self.assertIn("Negative working capital is normal for airlines", text)
+        self.assertNotIn("Negative working capital is normal", page_text(app_test("corticeira-amorim")))
 
     def test_runs_without_the_anthropic_library(self):
         """The public demo needs no API library: block the import and run the app."""

@@ -61,6 +61,19 @@ class Sector:
     def benchmarks(self) -> dict:
         return BENCHMARKS[self.key]
 
+    @property
+    def negative_nwc_note(self) -> str:
+        """Why negative working capital is the business model here, not a finding (empty if it is not)."""
+        return NEGATIVE_NWC.get(self.key, "")
+
+
+# Sectors where customers pay before the service: negative working capital is the model, not a warning sign.
+NEGATIVE_NWC = {
+    "transport": "Negative working capital is normal for airlines: passengers pay before they fly.",
+    "hospitality": "Negative working capital is normal where guests pay in advance (bookings, deposits).",
+    "consumer_retail": "Negative working capital is normal in retail: customers pay at the till, suppliers later.",
+}
+
 
 def _s(key, name, keywords, calibration=None, lens=()):
     return Sector(key, name, tuple(keywords), calibration or {}, tuple(LensItem(*x) for x in lens))

@@ -6,6 +6,7 @@ and traceable. The purpose (M&A buy-side by default) only frames how the memo is
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 
 from . import europe, sectors
@@ -49,6 +50,15 @@ class Analysis:
         return all(c["OK"] for c in self.checks)
 
 
+_CONSOLIDATED = re.compile(r"consolidat|consolidad|consolid[ée]|konzern|consolidato|geconsolideerd", re.I)
+
+
+def consolidated(text: str) -> bool:
+    """The data room presents consolidated (group) accounts: their framework is IFRS by default, not the local GAAP
+    of individual accounts (EU IAS Regulation for listed groups; usual practice for groups with listed debt)."""
+    return bool(_CONSOLIDATED.search(text or ""))
+
+
 def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country: str | None = None,
             edits: dict[str, dict[int, float | None]] | None = None, documents: list[tuple[str, bool]] | None = None,
             decisions: dict[str, str] | None = None, analyst: list[Named] | None = None,
@@ -71,6 +81,10 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
     c = europe.get(data.country)
     if c and ext.method.startswith("ESEF"):         # an ESEF filing is always consolidated IFRS
         c = replace(c, framework="IFRS as adopted by the EU (ESEF annual financial report)")
+    elif c and consolidated(ext.source_text):        # group accounts: IFRS by default (EU IAS Regulation)
+        local = c.framework.split(",")[0].split(" (")[0]
+        c = replace(c, framework=f"IFRS as adopted by the EU (consolidated accounts; {local} is for individual "
+                                 "accounts)")
     m = compute_metrics(data)
     results = evaluate(data, m, sector=s)
     general_years = {r.rule.id: r.years_text for r in alerts(evaluate(data, m))}

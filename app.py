@@ -79,11 +79,13 @@ CSS = """
 .dd-eyebrow {font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: #5b6474; font-weight: 600;}
 .dd-title {font-size: 2.1rem; font-weight: 700; color: #1b2333; margin: .1rem 0 .2rem;}
 .dd-sub {color: #5b6474; font-size: .92rem; margin-bottom: 1rem;}
+.dd-legal {color: #5b6474; font-size: .85rem; margin: -.2rem 0 .3rem;}
 .dd-kpis {display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: .4rem 0 1.4rem;}
 .dd-kpi {border: 1px solid #e3e7ee; border-radius: 12px; padding: 14px 16px; background: #fff;}
 .dd-kpi .l {font-size: .8rem; color: #5b6474;}
 .dd-kpi .v {font-size: 1.5rem; font-weight: 650; color: #1b2333; margin: 2px 0; white-space: nowrap;}
 .dd-kpi .s {font-size: .8rem; color: #5b6474;}
+.dd-kpi .n {font-size: .76rem; color: #1d6b3e; margin-top: 4px;}
 .dd-pill {display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e3e7ee; border-radius: 999px;
           padding: 1px 10px; font-size: .78rem; font-weight: 600; color: #1b2333; background: #fff; white-space: nowrap;}
 .dd-dot {width: 8px; height: 8px; border-radius: 50%; display: inline-block;}
@@ -412,12 +414,16 @@ B = view.bs_years[-1]
 years3 = data.pl_years[-3:]
 st.markdown(f"<div class='dd-eyebrow'>{html.escape(PURPOSES[a.purpose])} · {html.escape(a.sector.name)} · "
             f"{html.escape(a.country.name if a.country else 'Europe')}</div>"
-            f"<div class='dd-title'>{html.escape(ext.company)}</div>"
-            f"<div class='dd-sub'>{html.escape(name)} · {fy(years3[0])}–{fy(L)} · {money.unit_long} · "
-            f"{html.escape(ext.method)}</div>", unsafe_allow_html=True)
+            + (f"<div class='dd-title'>{html.escape(case.company)}</div>"
+               f"<div class='dd-legal'>{html.escape(ext.company)}</div>"
+               f"<div class='dd-sub'>Consolidated accounts {fy(years3[0])}–{fy(L)} · Source: "
+               f"{html.escape(case.pages)} · figures in {money.unit_long}</div>" if DEMO else
+               f"<div class='dd-title'>{html.escape(ext.company)}</div>"
+               f"<div class='dd-sub'>{html.escape(name)} · {fy(years3[0])}–{fy(L)} · figures in {money.unit_long}"
+               "</div>"), unsafe_allow_html=True)
 if DEMO:
-    st.markdown(f"<div class='dd-banner'>{html.escape(demo.WARNING)} {html.escape(case.accounts)}, figures as "
-                "published: see Data room for the source of each line.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='dd-banner'>{html.escape(demo.WARNING)} Figures as published; the Data room tab "
+                "shows the source of each line.</div>", unsafe_allow_html=True)
     if case.context:
         source, url = case.context_source
         st.caption(f"Context, not used in the analysis or the memo: {case.context} Source: [{source}]({url}).")
@@ -477,11 +483,16 @@ with tab_ov:
 
     # ---- the headline figures, coloured by the findings behind them
     cards = []
+    notes = {"Net working capital": a.sector.negative_nwc_note
+             if view.nwc_values[B] is not None and view.nwc_values[B] < 0 else ""}
     for l, v, sub in kpis:
         cls, tag = status(KPI_RULES[l], fired)
         year = fy(L if "EBITDA" in l or l in ("Revenue", "Cash conversion") else B)
+        why = "; ".join(f"{i} {fired[i].rule.name}" for i in KPI_RULES[l] if i in fired)   # what the colour means
+        note = f"<div class='n'>{html.escape(notes[l])}</div>" if notes.get(l) else ""
         cards.append(f"<div class='dd-kpi {cls}'><div class='l'>{l} · {year}</div><div class='v'>{v}</div>"
-                     f"<div class='s'>{sub}</div><span class='dd-tag {cls}'>{html.escape(tag)}</span></div>")
+                     f"<div class='s'>{sub}</div>{note}<span class='dd-tag {cls}' title='{html.escape(why)}'>"
+                     f"{html.escape(tag)}</span></div>")
     st.markdown("<div class='dd-kpis'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
 
     # ---- where it goes wrong: the figure, the threshold, in plain words, and where to look
@@ -770,6 +781,7 @@ with tab_sec:
 
 # ---------------------------------------------------------------- what the agent read
 with tab_src:
+    st.caption(f"How the statements were read: {ext.method}.")
     if ext.files:
         st.markdown("<div class='dd-section'>Documents in the data room</div>", unsafe_allow_html=True)
         st.caption("Excel files are read together as one set of statements; every figure keeps its file and cell. "

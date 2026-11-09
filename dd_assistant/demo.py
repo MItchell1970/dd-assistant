@@ -42,6 +42,7 @@ class Case:
     headline: str         # the most interesting finding, in one sentence (figures from the engine; tested)
     accounts: str         # what the accounts are and where they come from
     purpose: str = "buy"
+    pages: str = ""       # where the statements are in the report
     context: str = ""     # one sentence of outside context for the visitor, never given to the engine or the memo
     context_source: tuple[str, str] = ("", "")   # (publication and date, URL)
 
@@ -74,6 +75,7 @@ CASES = (
     Case("tap", "TAP Air Portugal", "TAP_2025_published.xlsx", "PT", "transport",
          "More cash than bank debt, yet €2,293m of net debt (3.16x EBITDA) once the leased aircraft (IFRS 16) and pensions are counted.",
          "Consolidated accounts FY2025, 2025 Integrated Report",
+         pages="2025 Integrated Report, pp. 152–156, notes 10 and 20",
          context="The privatisation is under way: Air France-KLM and Lufthansa submitted binding offers, and the "
                  "Government extended the deadline to complete it to the end of 2026.",
          context_source=("Jornal de Notícias, 6 September 2026",
@@ -81,10 +83,12 @@ CASES = (
                          "privatizacao-da-tap/18123884")),
     Case("toyota-caetano", "Toyota Caetano Portugal", "Toyota_Caetano_2025_published.xlsx", "PT", "automotive",
          "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (−€3,987k).",
-         "Consolidated accounts FY2025, 2025 annual report (ESEF)"),
+         "Consolidated accounts FY2025, 2025 annual report (ESEF)",
+         pages="Relatório Anual 2025 (ESEF), consolidated statements"),
     Case("corticeira-amorim", "Corticeira Amorim", "Corticeira_Amorim_2025_published.xlsx", "PT", "materials",
          "Capex runs below depreciation in both years, and short-term debt fell from 56.3% to 28.7% of debt.",
-         "Consolidated accounts FY2025, 2025 annual report (ESEF)"),
+         "Consolidated accounts FY2025, 2025 annual report (ESEF)",
+         pages="Relatório Anual 2025 (ESEF), consolidated statements and note 19"),
 )
 CASE_BY_SLUG = {c.slug: c for c in CASES}
 
