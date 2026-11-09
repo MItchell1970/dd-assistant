@@ -25,7 +25,48 @@ EXAMPLES = ROOT / "docs" / "examples"
 AUTHOR = "Bernardo Espinola"
 GITHUB = "https://github.com/MItchell1970/dd-assistant"
 LINKEDIN = "https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/"
-TAGLINE = "A first-pass financial due diligence on published accounts: every figure traced to its source"
+TAGLINE = "A first-pass financial due diligence on published accounts. Every figure traced to its source"
+BUILT_BY = "Built by Bernardo Espinola, Economics, University of Porto · ex-EY Transaction Services intern"
+FOR_WHOM = ("For deal teams, lenders and analysts who need the first pass of a financial due diligence fast, and "
+            "want to check every number.")
+DATA_NOTE = ("Nothing is uploaded and no AI is called in this demo. The engine runs on the published accounts stored "
+             "in the repository; the memos were written beforehand and checked by code.")
+PROCESS = (("description", "Read the accounts", "Every line of the statements, with its sheet and cell"),
+           ("fact_check", "Check the reading", "Rebuild the published subtotals before trusting a figure"),
+           ("flag", "Flag what matters", "29 rules, each with evidence, source and a question"),
+           ("account_balance", "Build the bridges", "EBITDA, net debt and working capital, as a deal team asks"),
+           ("table_view", "Export to Excel", "A databook with live formulas and every source"))
+NOT_MEASURED = ("Time saved against a manual review: not measured.",
+                "Accuracy on companies outside the test set: not measured; five sets of real accounts so far.",
+                "Review by a practitioner: the classification of the findings is not yet reviewed by one.")
+HOW_TO_CHECK = ("Data room tab: every line read, the label it matched and its cell in the published file.",
+                "Reading checks: the subtotals rebuilt from those lines against the ones the company printed.",
+                "Red flags: each finding gives its figures, the source cell and the threshold.",
+                "Databook: open the Excel, follow any total back to its source line; the Checks sheet compares "
+                "every total with the code.",
+                "Memo tab: the checker's result, run again on the page.")
+GLOSSARY = {
+    "QoE": "Quality of earnings: how much of the reported profit is recurring and supported by evidence.",
+    "EBITDA": "Earnings before interest, tax, depreciation and amortisation: operating profit before the cost of "
+              "assets and financing.",
+    "Diligence-adjusted EBITDA": "EBITDA after the adjustments the reviewer accepts: what a buyer would price.",
+    "Net debt": "What the company owes to lenders, less its cash; a buyer deducts it from the value of the business.",
+    "Debt-like item": "An obligation that is not a bank loan but behaves like one (leases, pensions, tax due), so it "
+                      "is deducted from the price.",
+    "IFRS 16": "The lease standard: future lease payments are shown as debt, and their cost leaves EBITDA.",
+    "NWC": "Net working capital: stock plus money owed by customers, less money owed to suppliers and similar items.",
+    "Peg": "The normal level of working capital agreed in the sale contract; a difference at closing changes the "
+           "price.",
+    "Completion accounts": "A price fixed on the balance sheet at closing, with net debt and working capital "
+                           "trued up.",
+    "Locked box": "A price fixed on a past balance sheet; the buyer is protected against value leaving the "
+                  "company (leakage).",
+    "Red flag": "A finding a rule raised: a figure beyond a threshold that needs an explanation from management.",
+    "SPA": "Share purchase agreement: the contract for the sale of the company.",
+    "DSO / DIO / DPO": "Days of sales outstanding, inventory outstanding and payables outstanding: how long "
+                       "customers take to pay, stock stays, and the company takes to pay suppliers.",
+    "ESEF": "European Single Electronic Format: the tagged annual report EU listed companies must publish.",
+}
 WARNING = "Demo on published accounts. Preliminary analysis, not an opinion."
 LIMITS = ("Annual accounts only (no monthly figures, LTM or budget)", "Euros only",
           "Financial due diligence only (no legal, tax, commercial or IT review)",
@@ -43,6 +84,8 @@ class Case:
     accounts: str         # what the accounts are and where they come from
     purpose: str = "buy"
     pages: str = ""       # where the statements are in the report
+    big: str = ""         # the card's big number (from the engine; tested against the material)
+    big_label: str = ""
     context: str = ""     # one sentence of outside context for the visitor, never given to the engine or the memo
     context_source: tuple[str, str] = ("", "")   # (publication and date, URL)
 
@@ -76,19 +119,22 @@ CASES = (
          "More cash than bank debt, yet €2,293m of net debt (3.16x EBITDA) once the leased aircraft (IFRS 16) and pensions are counted.",
          "Consolidated accounts FY2025, 2025 Integrated Report",
          pages="2025 Integrated Report, pp. 152–156, notes 10 and 20",
+         big="€2,293m", big_label="adjusted net debt, vs −⁠€43m borrowings less cash",
          context="The privatisation is under way: Air France-KLM and Lufthansa submitted binding offers, and the "
                  "Government extended the deadline to complete it to the end of 2026.",
          context_source=("Jornal de Notícias, 6 September 2026",
                          "https://www.jn.pt/economia/artigo/governo-prorroga-ate-final-do-ano-prazo-para-concluir-"
                          "privatizacao-da-tap/18123884")),
     Case("toyota-caetano", "Toyota Caetano Portugal", "Toyota_Caetano_2025_published.xlsx", "PT", "automotive",
-         "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (−€3,987k).",
+         "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (−⁠€3,987k).",
          "Consolidated accounts FY2025, 2025 annual report (ESEF)",
-         pages="Relatório Anual 2025 (ESEF), consolidated statements"),
+         pages="Relatório Anual 2025 (ESEF), consolidated statements",
+         big="60.5%", big_label="of FY25 EBITDA is other income"),
     Case("corticeira-amorim", "Corticeira Amorim", "Corticeira_Amorim_2025_published.xlsx", "PT", "materials",
          "Capex runs below depreciation in both years, and short-term debt fell from 56.3% to 28.7% of debt.",
          "Consolidated accounts FY2025, 2025 annual report (ESEF)",
-         pages="Relatório Anual 2025 (ESEF), consolidated statements and note 19"),
+         pages="Relatório Anual 2025 (ESEF), consolidated statements and note 19",
+         big="155.4%", big_label="cash conversion in FY25, as stock was released"),
 )
 CASE_BY_SLUG = {c.slug: c for c in CASES}
 
@@ -167,3 +213,23 @@ def insights(case: Case) -> list[dict[str, str]]:
                     "why": field_("Why it matters in a deal"),
                     "question": field_("Question for management").strip('"“”')})
     return out
+
+
+def verification() -> dict[str, int]:
+    """The three numbers of 'How it is verified', computed now: tests, published subtotals rebuilt on the demo
+    companies, and memo figures checked (with those found without a source)."""
+    import unittest
+    try:
+        tests = unittest.TestLoader().discover(str(ROOT / "tests"), top_level_dir=str(ROOT)).countTestCases()
+    except Exception:   # noqa: BLE001 — the page still shows the other two numbers
+        tests = 0
+    checks = passed = figures = unmatched = 0
+    for c in CASES:
+        a = analysis(c)
+        checks += len(a.checks)
+        passed += sum(x["OK"] for x in a.checks)
+        r = check(c)
+        if r is not None:
+            figures += r.numbers_checked
+            unmatched += len(r.unmatched_numbers)
+    return {"tests": tests, "checks": checks, "checks_passed": passed, "figures": figures, "unmatched": unmatched}

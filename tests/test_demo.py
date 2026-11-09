@@ -110,8 +110,11 @@ class DemoAppTest(unittest.TestCase):
     def test_landing_page(self):
         at = app_test()
         self.assertFalse(at.exception)
-        self.assertEqual([b.label for b in at.button], ["Open the analysis"] * 3)
-        text = page_text(at)
+        self.assertEqual([b.label for b in at.button], ["Open the TAP analysis"] + ["Open the analysis"] * 3)
+        self.assertEqual([d.proto.label for d in at.get("download_button")], ["Download the TAP databook (Excel)"])
+        self.assertIn(demo.DATA_NOTE, text := page_text(at))
+        self.assertIn("Not measured", text)
+        self.assertIn("without a source", text)
         self.assertIn(demo.WARNING, text)
         self.assertIn(demo.TAGLINE, text)
         for c in demo.CASES:
@@ -210,6 +213,19 @@ class SameNumbersTest(unittest.TestCase):
         for text in (demo.memo(tap), demo.material(tap)):
             for word in ("privatis", "Lufthansa", "Air France"):
                 self.assertNotIn(word, text)
+
+    def test_card_big_numbers_are_in_the_material(self):
+        from dd_assistant.memo_check import _check_numbers
+        for c in demo.CASES:
+            checked, unmatched, misdated, _ = _check_numbers(f"{c.big} {c.big_label}", demo.material(c))
+            self.assertGreater(checked, 0, c.slug)
+            self.assertEqual((unmatched, misdated), ([], []), c.slug)
+
+    def test_verification_numbers(self):
+        v = demo.verification()
+        self.assertGreater(v["tests"], 190)
+        self.assertEqual((v["checks_passed"], v["unmatched"]), (v["checks"], 0))
+        self.assertGreater(v["figures"], 200)
 
     def test_request_list_comes_from_the_memo(self):
         for c in demo.CASES:

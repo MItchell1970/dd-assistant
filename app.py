@@ -144,6 +144,16 @@ CSS = """
 .dd-insight .why {color: #3b4457; font-size: .84rem; margin-bottom: 6px;}
 .dd-insight .q {color: #0b3d91; font-size: .82rem; font-weight: 600;}
 .dd-chart-title {font-weight: 600; color: #1b2333; font-size: .9rem; margin: .6rem 0 0;}
+.dd-hero {font-size: 1.3rem; color: #1b2333; font-weight: 600; margin: .2rem 0 .3rem; max-width: 900px;}
+.dd-by {font-size: .85rem; color: #0b3d91; font-weight: 600; margin-bottom: .5rem;}
+.dd-co {display: flex; gap: 10px; align-items: center; margin-bottom: .4rem;}
+.dd-initial {width: 38px; height: 38px; border-radius: 50%; background: #0b3d91; color: #fff; display: inline-flex;
+             align-items: center; justify-content: center; font-weight: 700; flex: none;}
+.dd-big {font-size: 2rem; font-weight: 750; color: #0b3d91; line-height: 1.1; margin-top: .3rem;}
+.dd-big-l {font-size: .85rem; color: #3b4457; margin-bottom: .5rem;}
+.dd-tiles {display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: .3rem 0 1rem;}
+.dd-tile {border: 1px solid #d6e2fb; border-radius: 12px; padding: 12px 16px; background: #f7f9fe;}
+.dd-tile .v {font-size: 1.7rem; font-weight: 750; color: #0b3d91;} .dd-tile .l {font-size: .84rem; color: #3b4457;}
 .dd-foot {border-top: 1px solid #e3e7ee; margin-top: 2.4rem; padding-top: .8rem; font-size: .8rem; color: #5b6474;}
 .dd-foot a {color: #0b3d91;}
 </style>
@@ -328,27 +338,91 @@ def open_case(slug: str | None) -> None:
         st.query_params.clear()
 
 
+@st.cache_resource(show_spinner=False)
+def verification() -> dict:
+    return demo.verification()
+
+
+def glossary() -> None:
+    with st.expander("Glossary: the terms on this site, in one sentence each"):
+        st.markdown("\n".join(f"- **{term}**: {text}" for term, text in demo.GLOSSARY.items()))
+
+
 def landing() -> None:
-    """Demo home page: what the agent does, the warning and one card per company."""
+    """Demo home page: what it does and for whom, three real companies, what you get, how it is verified."""
+    tap = demo.CASE_BY_SLUG["tap"]
     st.markdown("<div class='dd-eyebrow'>Live demo · published accounts</div><div class='dd-title'>DD Assistant</div>"
-                f"<div class='dd-sub' style='font-size:1.05rem'>{html.escape(demo.TAGLINE)}.</div>"
-                f"<div class='dd-banner'>{html.escape(demo.WARNING)}</div>", unsafe_allow_html=True)
-    for col, case in zip(st.columns(len(demo.CASES), gap="medium"), demo.CASES):
+                f"<div class='dd-hero'>{html.escape(demo.TAGLINE)}.</div>"
+                f"<div class='dd-by'>{html.escape(demo.BUILT_BY)}</div>"
+                f"<div class='dd-sub'>{html.escape(demo.FOR_WHOM)} <b>Limits:</b> "
+                + html.escape("; ".join(x[0].lower() + x[1:] for x in demo.LIMITS)) + ".</div>",
+                unsafe_allow_html=True)
+    b1, b2, b3, _ = st.columns([1.2, 1.3, 1, 1.5])
+    b1.button("Open the TAP analysis", type="primary", width="stretch", on_click=open_case, args=("tap",))
+    if tap.databook_path.exists():
+        b2.download_button("Download the TAP databook (Excel)", tap.databook_path.read_bytes(), "tap_databook.xlsx",
+                           mime=XLSX_MIME, width="stretch")
+    b3.link_button("See the code", demo.GITHUB, width="stretch")
+    st.markdown(f"<div class='dd-banner'>{html.escape(demo.WARNING)} {html.escape(demo.DATA_NOTE)}</div>",
+                unsafe_allow_html=True)
+    tour = Path(__file__).parent / "docs" / "images" / "demo-tour.gif"
+    if tour.exists():
+        st.image(str(tour), caption="30 seconds on TAP: net debt, a red flag with its source, the Excel download.")
+
+    st.markdown("<div class='dd-section'>How it works</div>", unsafe_allow_html=True)
+    for col, (icon, title, text) in zip(st.columns(len(demo.PROCESS)), demo.PROCESS):
         with col.container(border=True):
-            st.markdown(f"<div class='dd-card-co'>{html.escape(case.company)}</div>"
-                        f"<div class='dd-card-acc'>{html.escape(case.accounts)}</div>"
-                        f"<div class='dd-card-find'>{html.escape(case.headline)}</div>", unsafe_allow_html=True)
-            st.button("Open the analysis", key=f"open-{case.slug}", type="primary", width="stretch",
-                      on_click=open_case, args=(case.slug,))
-    st.markdown("<div class='dd-section'>What you can do here</div>", unsafe_allow_html=True)
-    st.markdown("- See what the agent read, line by line, and the published subtotals it rebuilt.\n"
-                "- Review the red flags, each with its evidence, its source and the question for management.\n"
-                "- Change the decisions a deal team makes: debt-like items, the price mechanism, an enterprise "
-                "value. They stay in your browser session.\n"
-                "- Read the memo the agent wrote and the automatic check of every figure in it.\n"
-                "- Download the databook: the Excel a transaction team works in, with live formulas.")
-    st.caption("No file is uploaded and no AI is called on this site: the memos were written beforehand and checked "
-               "automatically. Nothing here is an investment recommendation or a view on price.")
+            st.markdown(f":material/{icon}: **{title}**")
+            st.caption(text)
+
+    st.markdown("<div class='dd-section'>Three real companies, published FY2025 accounts</div>",
+                unsafe_allow_html=True)
+    for col, c in zip(st.columns(len(demo.CASES), gap="medium"), demo.CASES):
+        with col.container(border=True):
+            st.markdown(f"<div class='dd-co'><span class='dd-initial'>{html.escape(c.company[0])}</span>"
+                        f"<span><div class='dd-card-co'>{html.escape(c.company)}</div>"
+                        f"<div class='dd-card-acc'>{html.escape(c.accounts)}</div></span></div>"
+                        f"<div class='dd-big'>{html.escape(c.big)}</div><div class='dd-big-l'>"
+                        f"{html.escape(c.big_label)}</div><div class='dd-card-find'>{html.escape(c.headline)}</div>",
+                        unsafe_allow_html=True)
+            st.button("Open the analysis", key=f"open-{c.slug}", type="primary", width="stretch",
+                      on_click=open_case, args=(c.slug,))
+
+    st.markdown("<div class='dd-section'>What you get: the databook, in Excel</div>", unsafe_allow_html=True)
+    g1, g2 = st.columns([3, 2], gap="large")
+    image = Path(__file__).parent / "docs" / "images" / "databook-net-debt.png"
+    if image.exists():
+        g1.image(str(image), caption="The Net Debt sheet of TAP's databook, as Excel draws it.")
+    g2.markdown("- **QoE:** reported to diligence-adjusted EBITDA, each adjustment with its status and document.\n"
+                "- **Net debt:** borrowings less cash, then every debt-like item with its classification.\n"
+                "- **NWC:** the lines in working capital, by policy, with the average as the peg reference.\n"
+                "- **Issues & requests:** each finding with its evidence, question and document to request.\n"
+                "- **Live formulas:** figures in blue with their source cell, decisions in yellow; Excel recalculates, "
+                "and a Checks sheet compares every total with the code.")
+
+    v = verification()
+    st.markdown("<div class='dd-section'>How it is verified</div>", unsafe_allow_html=True)
+    tiles = [(f"{v['tests']}" if v["tests"] else "—", "automated tests, run on every change"),
+             (f"{v['checks_passed']} of {v['checks']}", "published subtotals rebuilt from the lines read, on the "
+                                                        "three companies"),
+             (f"{v['figures']}", f"memo figures checked against the engine's material; {v['unmatched']} without a "
+                                 "source")]
+    st.markdown("<div class='dd-tiles'>" + "".join(f"<div class='dd-tile'><div class='v'>{html.escape(a)}</div>"
+                                                     f"<div class='l'>{html.escape(b)}</div></div>" for a, b in tiles)
+                + "</div>", unsafe_allow_html=True)
+    m1, m2 = st.columns(2, gap="large")
+    with m1:
+        st.markdown("**Measured** (on this page, now)")
+        st.markdown("\n".join(f"- {x}" for x in (
+            "The tests above pass on every change, including parity with a hand-built Excel template.",
+            "Every subtotal the companies published is rebuilt from the lines read.",
+            "Every figure of the stored memos is found in the engine's material, for the year it is cited.")))
+    with m2:
+        st.markdown("**Not measured**")
+        st.markdown("\n".join(f"- {x}" for x in demo.NOT_MEASURED))
+    with st.expander("How you check it yourself"):
+        st.markdown("\n".join(f"{i}. {x}" for i, x in enumerate(demo.HOW_TO_CHECK, 1)))
+    glossary()
     footer()
 
 
