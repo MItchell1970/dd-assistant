@@ -97,3 +97,18 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Testes:** 203 OK.
 - **Pendente:** confirmar a linha "Built by … ex-EY Transaction Services intern" (o README diz "International Tax and Transaction Services"); push com aprovação; carregar a social preview no GitHub.
 
+## Fase 3 (docs/FASE3_SPEC.md, 10 de novembro de 2026)
+
+**Decisões do Bernardo:** materialidade "o normal do mercado" (ficou 5% do EBITDA reportado para itens de resultados e 1% das vendas para itens de balanço, editável); linha de autor "former intern in International Tax and Transaction Services at EY"; nome público por decidir (no GitHub e na app continua "DD Assistant").
+
+| # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
+|---|---|---|---|---|---|
+| A1 + A2 | Materialidade, montante em causa por achado, lista única de key issues (achados e itens de net debt) por montante, implicação para o deal por regra e editável; folha Key Issues no databook, separador na app, secção 1b no material do memo, JSON | Sim | 219 testes OK (16 novos em `tests/test_issues.py`); memos reverificados: 96, 85 e 93 números, nenhum sem fonte | TAP: leasings (4 linhas do balanço, p.152), excesso de clientes da R07 e juros da R22 calculados à mão a partir das células publicadas | Pendente |
+
+- **Decisão de desenho, diferente da especificação:** a materialidade é uma camada acima das regras (`dd_assistant/issues.py`). `rules.evaluate` continua a dar a severidade da planilha, por isso a paridade não mudou e o teste não foi ajustado. A severidade final (com "below materiality") é a de `pipeline.analyse`.
+- **Montante por regra:** tabela `issues.AMOUNTS` (por exemplo R07 = clientes acima do nível que o crescimento das vendas daria; R10 = caixa operacional em falta face ao limite; R24 = D&A menos capex). A R18 fica "not quantifiable from the accounts". Um achado não quantificável mantém a severidade da regra.
+- **O que mudou de severidade:** na Duriva, a R13 e a R14 (€85k) passam de Medium a Low (abaixo de 1% das vendas, €214k). Nas três empresas da demo nenhuma severidade mudou: na TAP a R07 fica High porque o excesso de clientes (€63m) passa o limiar de €43m; desce para o 7.º lugar da lista.
+- **Itens "to assess" que a R28 já cobre** não aparecem duas vezes na lista.
+- **Memos:** cada um ganhou a tabela "Key issues by amount at stake" (5 primeiros, com a implicação). Os temas não foram reordenados: fica para quando as notas (A4) mudarem o conteúdo.
+- **Pendente:** o Excel "Red flags" e o CSV ainda não têm a coluna do montante (o databook tem); nome público; push.
+

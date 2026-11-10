@@ -15,7 +15,7 @@ from dd_assistant.pipeline import analyse
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 SHEETS = ["Read Me", "Executive Summary", "Source Register", "Financials", "QoE", "NWC", "Net Debt", "EV to Equity",
-          "Leakage", "Monthly & LTM", "Issues & Requests", "Checks"]
+          "Leakage", "Monthly & LTM", "Key Issues", "Issues & Requests", "Checks"]
 
 
 class QoeCaseTest(unittest.TestCase):

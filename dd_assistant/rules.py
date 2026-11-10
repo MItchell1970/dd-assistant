@@ -520,6 +520,15 @@ class RuleResult:
     values: dict[int, object]
     fires: dict[int, str]
     evidence: str
+    # set by issues.apply (materiality and deal implication); the rule itself stays as in the template
+    amount: float | None = None      # amount at stake, EUR thousands (None: not quantifiable from the accounts)
+    amount_label: str = ""           # what the amount is
+    amount_year: int | None = None
+    material: bool | None = None     # None: not quantifiable
+    note: str = ""                   # 'below materiality (…)' when the severity was lowered
+    base_severity: str = ""          # the rule's severity before materiality
+    implication: str = ""            # Price: EBITDA · Price: net debt · … (issues.IMPLICATIONS)
+    treatment: str = ""              # the typical treatment, in one sentence
 
     @property
     def alert(self) -> bool:

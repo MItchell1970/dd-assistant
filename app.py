@@ -33,6 +33,7 @@ from dd_assistant.price import (LEAKAGE_STATES, LEAKAGE_TREATMENTS, MECHANISMS, 
 from dd_assistant.dataroom import DOCUMENTS, ESEF, SPREADSHEETS, NeedsPdfReading, files_in, read_data_room
 from dd_assistant.extract import ExtractionError, data_room_text
 from dd_assistant.input_loader import Named
+from dd_assistant.issues import DISCLAIMER, IMPLICATIONS, NOT_QUANTIFIABLE, Materiality
 from dd_assistant.memo_check import MemoCheck, check_memo, report
 from dd_assistant.metrics import ALL_LABELS
 from dd_assistant.pipeline import PURPOSES, analyse, choice_effects
@@ -111,6 +112,7 @@ CSS = """
 .dd-issue {display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: start; padding: 12px 14px;
            border: 1px solid #e3e7ee; border-left: 4px solid #8a8f98; border-radius: 10px; margin-bottom: 8px; background: #fff;}
 .dd-issue.High {border-left-color: #d03b3b;} .dd-issue.Medium {border-left-color: #fab219;}
+.dd-issue.Item {border-left-color: #0b3d91;}
 .dd-issue .big {font-size: 1.35rem; font-weight: 700; color: #1b2333; line-height: 1.2; font-variant-numeric: tabular-nums;}
 .dd-issue .vs {font-size: .76rem; color: #5b6474;}
 .dd-issue .h {font-weight: 650; color: #1b2333;} .dd-issue .p {font-size: .88rem; color: #3b4457; margin: 2px 0;}
@@ -617,7 +619,13 @@ for row in st.session_state.get(own_key, {}).get("added_rows", []):
                                      if row.get(f"FY{str(y)[2:]}") not in (None, "") and not pd.isna(row[f"FY{str(y)[2:]}"])}))
 include = {int(i): bool(ch["Include"]) for i, ch in edited(inc_key).items() if "Include" in ch}
 
-a = analyse(ext, sector_key, country, overrides, docs, decisions, analyst, include, purpose)
+mat_key, imp_key = f"mat-{file_key}", f"imp-{file_key}"
+materiality = Materiality(st.session_state.get(f"{mat_key}-pl", 5.0) / 100, st.session_state.get(f"{mat_key}-bs", 1.0) / 100)
+a = analyse(ext, sector_key, country, overrides, docs, decisions, analyst, include, purpose, materiality)
+chosen = {a.issues[int(i)].key: ch["Deal implication"] for i, ch in edited(imp_key).items()
+          if "Deal implication" in ch and int(i) < len(a.issues)}
+if chosen:   # the reviewer changed an implication: it flows to the databook and the memo material
+    a = analyse(ext, sector_key, country, overrides, docs, decisions, analyst, include, purpose, materiality, chosen)
 data, metrics, results, al, view, money = a.data, a.metrics, a.results, a.findings, a.view, a.money
 review_key = f"review-{file_key}-{'-'.join(r.rule.id for r in al)}"
 reviews = {r.rule.id: ("Pending", "") for r in al}
@@ -664,9 +672,9 @@ if DEMO:
         tour(case, a)   # a dialog reruns on its own when its buttons are used
     key_insights(case)
 
-tab_ov, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(
-    ["Overview", "Deal view", f"Red flags ({len(al)})", "Sector", "Data room", "Rulebook", "Metrics",
-     "Memo" if DEMO else "AI memo"])
+tab_ov, tab_ki, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(
+    ["Overview", f"Key issues ({len(a.issues)})", "Deal view", f"Red flags ({len(al)})", "Sector", "Data room",
+     "Rulebook", "Metrics", "Memo" if DEMO else "AI memo"])
 
 # ---------------------------------------------------------------- overview
 with tab_ov:
@@ -744,25 +752,30 @@ with tab_ov:
             waterfall(steps, money, f"EBITDA bridge, {fy(L)} ({money.unit})", "ov-qoe")
 
     # ---- where it goes wrong: the figure, the threshold, in plain words, and where to look
-    st.markdown(f"<div class='dd-section'>Where it goes wrong · {len(al)} {term('red flags', 'Red flag')}</div>"
+    st.markdown(f"<div class='dd-section'>Key issues, by amount at stake · {len(al)} "
+                f"{term('red flags', 'Red flag')} and {len(a.issues) - len(al)} net debt items</div>"
                 + " ".join(f"{pill(k)} <span style='color:#5b6474;font-size:.85rem'>{by[k]}</span>&nbsp;&nbsp;"
                            for k in SEVERITIES), unsafe_allow_html=True)
-    if not al:
+    if not a.issues:
         st.success("No rule fired: no red flags on the data provided.")
-    impact = lambda rid: IMPACT.index(rid) if rid in IMPACT else len(IMPACT)   # a new rule goes last, never fails
-    ordered = sorted(al, key=lambda r: (SEVERITIES.index(r.rule.severity), impact(r.rule.id)))
-    issues = []
-    for r in ordered[:6]:
-        big, vs = headline(r, money)
-        issues.append(f"<div class='dd-issue {r.rule.severity}'><div><div class='big'>{html.escape(big)}</div>"
-                      f"<div class='vs'>{html.escape(vs)}</div></div><div><div class='h'>{pill(r.rule.severity)} "
-                      f"{r.rule.id} · {html.escape(r.rule.name)}</div><div class='p'>{html.escape(r.rule.plain)}</div>"
-                      f"<div class='w'>Ask: {html.escape(r.rule.question.split('?')[0])}? · "
-                      f"See {WHERE.get(r.rule.area, 'Red flags')}</div></div></div>")
-    st.markdown("<div class='dd-list'>" + "".join(issues) + "</div>", unsafe_allow_html=True)
-    if len(ordered) > 6:
-        st.caption(f"…and {len(ordered) - 6} more in the Red flags tab: "
-                   + ", ".join(f"{r.rule.id} {r.rule.name}" for r in ordered[6:]) + ".")
+    cards = []
+    for i in a.issues[:6]:
+        r = fired.get(i.key)
+        big = money.fmt(i.amount) if i.amount is not None else "n/q"
+        vs = (NOT_QUANTIFIABLE if i.amount is None else f"{i.amount_label}, {fy(i.year)}" if r else i.amount_label)
+        head = (f"{pill(i.severity)} {i.key} · {html.escape(i.title)}" if r else
+                f"<span class='dd-pill'>{html.escape(i.kind)}</span> {html.escape(i.title)}")
+        plain = (r.rule.plain + (f" The ratio: {' · '.join(headline(r, money))}." if r else "")) if r else i.treatment
+        cards.append(f"<div class='dd-issue {i.severity or 'Item'}'><div><div class='big'>{html.escape(big)}</div>"
+                     f"<div class='vs'>{html.escape(vs)}</div></div><div><div class='h'>{head}</div>"
+                     f"<div class='p'>{html.escape(plain)}"
+                     + (f" <i>{html.escape(i.note[0].upper() + i.note[1:])}.</i>" if i.note else "") + "</div>"
+                     f"<div class='w'>{html.escape(i.implication)} · Ask: {html.escape(i.question.split('?')[0])}"
+                     f"{'?' if '?' in i.question else ''}</div></div></div>")
+    st.markdown("<div class='dd-list'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
+    if len(a.issues) > 6:
+        st.caption(f"…and {len(a.issues) - 6} more in the Key issues tab. Materiality: {materiality.text()} "
+                   f"({money.fmt(a.thresholds.get('pl'))} and {money.fmt(a.thresholds.get('bs'))}).")
 
     st.markdown("<div class='dd-section'>Financial summary</div>", unsafe_allow_html=True)
     summary = pd.DataFrame([[ALL_LABELS[k]] + [fmt_metric(k, metrics[k].get(y), money) for y in years3]
@@ -772,6 +785,41 @@ with tab_ov:
     passed = sum(c["OK"] for c in a.checks)
     st.caption(f"Reading checks: {passed} of {len(a.checks)} passed. Data coverage: {found} of {len(ext.items)} "
                "standard line items identified" + (f". Not found: {', '.join(ext.missing)}." if ext.missing else "."))
+
+# ---------------------------------------------------------------- key issues
+with tab_ki:
+    st.caption("Findings and net debt items in one list, ordered by the amount at stake, as a due diligence report "
+               "lists its key issues. The amount is computed from the lines that made each rule fire.")
+    k1, k2, k3 = st.columns([1, 1, 3])
+    k1.number_input("Materiality: % of reported EBITDA (earnings items)", min_value=0.0, max_value=50.0, value=5.0,
+                    step=0.5, key=f"{mat_key}-pl")
+    k2.number_input("Materiality: % of revenue (balance sheet items)", min_value=0.0, max_value=20.0, value=1.0,
+                    step=0.25, key=f"{mat_key}-bs")
+    k3.markdown(f"<div class='dd-effect' style='margin-top:1.7rem'><b>What this changes:</b> in {fy(L)} the "
+                f"thresholds are {money.fmt(a.thresholds.get('pl'))} and {money.fmt(a.thresholds.get('bs'))}. A "
+                "finding below its threshold becomes Low, with the note 'below materiality'.</div>",
+                unsafe_allow_html=True)
+    if a.issues:
+        table = pd.DataFrame([{"Issue": f"{i.key} · {i.title}" if i.kind == "Finding" else i.title, "Type": i.kind,
+                               "Severity": i.severity or "–",
+                               "Amount at stake": money.fmt(i.amount) if i.amount is not None else "n/q",
+                               "What the amount is": (f"{i.amount_label}, {fy(i.year)}" if i.kind == "Finding"
+                                                      and i.amount is not None else i.amount_label)
+                               + (f" — {i.note}" if i.note else ""),
+                               "Deal implication": i.implication, "Typical treatment": i.treatment,
+                               "Question for management": i.question, "Document to request": i.request}
+                              for i in a.issues])
+        st.data_editor(table, key=imp_key, hide_index=True, width="stretch", height=35 * (len(table) + 1) + 3,
+                       disabled=[c for c in table.columns if c != "Deal implication"],
+                       column_config={"Issue": st.column_config.TextColumn(width="medium"),
+                                      "Deal implication": st.column_config.SelectboxColumn(
+                                          options=list(IMPLICATIONS), required=True, width="medium"),
+                                      "Typical treatment": st.column_config.TextColumn(width="large"),
+                                      "Question for management": st.column_config.TextColumn(width="large")})
+        st.caption(f"Deal implication: change it in the table (yellow cells in the databook's Key Issues sheet). "
+                   f"{DISCLAIMER} Nothing here is legal advice or a view on price. 'n/q': {NOT_QUANTIFIABLE}.")
+    else:
+        st.success("No rule fired and no net debt item was found.")
 
 # ---------------------------------------------------------------- deal view
 price = None   # the price mechanism the analyst sets in Deal view (carried into the databook)
@@ -944,11 +992,12 @@ with tab_rf:
         st.caption("Double-click Status or Comment to record your review. Your review flows into the downloads"
                    + ("." if DEMO else " and the AI memo."))
         table = pd.DataFrame([{"Severity": r.rule.severity, "Rule": r.rule.id, "Finding": r.rule.name,
+                               "Amount": money.fmt(r.amount) if r.amount is not None else "n/q",
                                "Area": r.rule.area, "Years": r.years_text, "Status": "Pending", "Comment": ""}
                               for r in al])
         st.data_editor(
             table, key=review_key, hide_index=True, width="stretch", height=35 * (len(table) + 1) + 3,
-            disabled=["Severity", "Rule", "Finding", "Area", "Years"],
+            disabled=["Severity", "Rule", "Finding", "Amount", "Area", "Years"],
             column_config={
                 "Severity": st.column_config.TextColumn(width="small"),
                 "Rule": st.column_config.TextColumn(width="small"),
@@ -990,10 +1039,16 @@ with tab_rf:
         d2.download_button("Download report", buf.getvalue(), f"{stem}_due_diligence.xlsx", mime=XLSX_MIME)
         d3.download_button("Download CSV", csv_bytes(results, reviews), f"{stem}_red_flags.csv", mime="text/csv")
 
-    for r in sorted(al, key=lambda r: SEVERITIES.index(r.rule.severity)):
+    for r in al:   # by amount at stake
         rule = r.rule
+        amount = (f"{money.fmt(r.amount)} in {fy(r.amount_year)} ({r.amount_label})" if r.amount is not None
+                  else NOT_QUANTIFIABLE)
         with st.expander(f"{rule.id} · {rule.name}  —  {rule.severity} · {r.years_text} · {reviews[rule.id][0]}"):
             st.markdown(f"**In plain words**  \n{rule.plain}")
+            st.markdown(f"**Amount at stake**  \n{amount[0].upper() + amount[1:]}"
+                        + (f". {r.note[0].upper() + r.note[1:]}: severity lowered from {r.base_severity} to Low"
+                           if r.note else "") + f".  \n**Deal implication**  \n{r.implication}. {r.treatment} "
+                        f"_{DISCLAIMER}_")
             st.markdown(f"**Evidence**  \n{r.evidence}")
             st.markdown(f"**Test**  \n{rule.test} · threshold {rule.limit_text()}"
                         + (f" · graded severity: {rule.grade_text[0].lower()}{rule.grade_text[1:]}"

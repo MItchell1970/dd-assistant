@@ -26,7 +26,8 @@ AUTHOR = "Bernardo Espinola"
 GITHUB = "https://github.com/MItchell1970/dd-assistant"
 LINKEDIN = "https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/"
 TAGLINE = "A first-pass financial due diligence on published accounts. Every figure traced to its source"
-BUILT_BY = "Built by Bernardo Espinola, Economics, University of Porto · ex-EY Transaction Services intern"
+BUILT_BY = ("Built by Bernardo Espinola, Economics, University of Porto · former intern in International Tax and "
+            "Transaction Services at EY")
 FOR_WHOM = ("For deal teams, lenders and analysts who need the first pass of a financial due diligence fast, and "
             "want to check every number.")
 DATA_NOTE = ("Nothing is uploaded and no AI is called in this demo. The engine runs on the published accounts stored "
@@ -62,6 +63,11 @@ GLOSSARY = {
     "Locked box": "A price fixed on a past balance sheet; the buyer is protected against value leaving the "
                   "company (leakage).",
     "Red flag": "A finding a rule raised: a figure beyond a threshold that needs an explanation from management.",
+    "Materiality": "The size below which an item does not change the reader's view: here 5% of EBITDA for "
+                   "earnings items and 1% of revenue for balance sheet items, and you can change it.",
+    "Amount at stake": "The euros behind a finding, computed from the lines that made the rule fire.",
+    "Deal implication": "What a deal team typically does with an issue: change the price, protect itself in the "
+                        "contract, ask for more, or plan for it after the deal.",
     "SPA": "Share purchase agreement: the contract for the sale of the company.",
     "DSO / DIO / DPO": "Days of sales outstanding, inventory outstanding and payables outstanding: how long "
                        "customers take to pay, stock stays, and the company takes to pay suppliers.",

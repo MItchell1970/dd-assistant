@@ -30,6 +30,18 @@ Preliminary buy-side review of Corticeira Amorim, a Portuguese listed group in m
 | Adjusted net debt | 198,897 | 79,657 |
 | Net working capital | 538,907 | 439,589 |
 
+### Key issues by amount at stake
+
+Materiality is 5% of reported EBITDA for earnings items (€7,049k) and 1% of revenue for balance sheet items (€8,610k). The deal implication is the typical treatment. The deal team and its lawyers decide.
+
+| Issue | Amount at stake | Deal implication |
+| --- | --- | --- |
+| R11 · Short-term debt concentration (finding) | €153,270k in FY24, borrowings due within 12 months | Further diligence |
+| Other financial liabilities (to assess) | €48,897k of other financial liabilities at FY25 | Further diligence |
+| Other financial assets (to assess) | €39,262k of other financial assets at FY25 | Further diligence |
+| R04 · Material other income within EBITDA (finding) | €17,421k in FY25, other income within EBITDA | Price: EBITDA |
+| R24 · Capex below depreciation (finding) | €17,111k in FY25, capex short of depreciation | Post-deal |
+
 ## Page 2
 
 ### Theme 1 — Cash came from releasing stock, in a year of lower sales

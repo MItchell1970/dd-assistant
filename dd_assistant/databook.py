@@ -637,6 +637,40 @@ def _placeholder(ws, title: str, lines: list[str]) -> None:
     ws.protection.sheet = True
 
 
+def _key_issues(ws, a, reviews) -> None:
+    """Findings and net debt items in one list, ordered by amount at stake, each with its deal implication."""
+    from .issues import DISCLAIMER, IMPLICATIONS
+    reviews = reviews or {}
+    t = a.thresholds
+    limit = lambda x: "n/a" if x is None else f"{x:,.0f}"
+    _title(ws, "Key Issues", f"EUR thousands. Findings and net debt items together, ordered by amount at stake. "
+                             f"Materiality: {a.materiality.text()} ({limit(t.get('pl'))} and {limit(t.get('bs'))}); "
+                             f"a finding below it is Low. Deal implication: {DISCLAIMER[0].lower() + DISCLAIMER[1:]} "
+                             "Change it, and the status, in yellow.")
+    _header(ws, 4, ["#", "Issue", "Type", "Severity", "Year", "Amount at stake", "What the amount is", "Material",
+                    "Deal implication", "Typical treatment", "Question for management", "Document to request",
+                    "Source", "Status"])
+    r = 4
+    for n, i in enumerate(a.issues, 1):
+        r += 1
+        ref = f"{i.key} · {i.title}" if i.kind == "Finding" else i.title
+        state = reviews.get(i.key, ("Pending", ""))[0] if i.kind == "Finding" else "Open"
+        for c, value in enumerate([n, ref, i.kind, i.severity or "–", fy(i.year) if i.year else "–"], 1):
+            _put(ws, r, c, value).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 6, i.amount if i.amount is not None else "not quantifiable", _FORMULA, _NUM)
+        for c, value in enumerate([i.amount_label, "–" if i.material is None else "Yes" if i.material else
+                                   f"No ({i.note})"], 7):
+            _put(ws, r, c, value).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 9, i.implication, fill=_DECISION, unlocked=True)
+        for c, value in enumerate([i.treatment, i.question, i.request, i.source], 10):
+            _put(ws, r, c, value).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 14, state, fill=_DECISION, unlocked=True)
+    if a.issues:
+        _validation(ws, list(IMPLICATIONS), f"I5:I{r}")
+        _validation(ws, ["Pending", "Open", "Accepted", "Dismissed", "Closed"], f"N5:N{r}")
+    _finish(ws, [5, 44, 14, 10, 7, 16, 40, 22, 26, 52, 52, 40, 34, 12], "C5", 4, 14)
+
+
 def _issues(ws, a, reviews) -> None:
     reviews = reviews or {}
     _title(ws, "Issues & Requests", "Findings (observation, evidence, question, document) and the request list, with "
@@ -860,7 +894,7 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, 
     wb = Workbook()
     sheets = {name: (wb.active if i == 0 else wb.create_sheet(name)) for i, name in enumerate(
         ["Read Me", "Executive Summary", "Source Register", "Financials", "QoE", "NWC", "Net Debt", "EV to Equity",
-         "Leakage", "Monthly & LTM", "Issues & Requests", "Checks"])}
+         "Leakage", "Monthly & LTM", "Key Issues", "Issues & Requests", "Checks"])}
     sheets["Read Me"].title = "Read Me"
     fin_rows = _financials(sheets["Financials"], a)
     qoe = _qoe(sheets["QoE"], a, fin_rows)
@@ -874,6 +908,7 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, 
         "Without 12–24 monthly balances there is no LTM, no seasonality and no defensible working capital peg.",
         "Request: monthly management accounts (P&L) and month-end balances of receivables, inventories and payables "
         "for the last 24 months."])
+    _key_issues(sheets["Key Issues"], a, reviews)
     _issues(sheets["Issues & Requests"], a, reviews)
     _checks(sheets["Checks"], a, qoe, nd, nwc, ev, price)
     _read_me(sheets["Read Me"], a, stamp)

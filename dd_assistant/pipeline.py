@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field, replace
 
-from . import europe, sectors
+from . import europe, issues, sectors
 from .deal import DealView, benchmark_rows, deal_view
 from .extract import Extraction, apply_edits
 from .input_loader import CompanyData, Named
@@ -44,6 +44,9 @@ class Analysis:
     general_years: dict[str, str] = field(default_factory=dict)   # general thresholds (no sector): ID -> years
     include: dict[int, bool] = field(default_factory=dict)        # reviewer: balance item index -> in net debt
     analyst: list[Named] = field(default_factory=list)            # reviewer's own adjustments to EBITDA
+    materiality: issues.Materiality = field(default_factory=issues.Materiality)
+    thresholds: dict = field(default_factory=dict)                # materiality in EUR thousands: 'pl' and 'bs'
+    issues: list = field(default_factory=list)                    # findings and net debt items, by amount at stake
 
     @property
     def checks_ok(self) -> bool:
@@ -62,7 +65,8 @@ def consolidated(text: str) -> bool:
 def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country: str | None = None,
             edits: dict[str, dict[int, float | None]] | None = None, documents: list[tuple[str, bool]] | None = None,
             decisions: dict[str, str] | None = None, analyst: list[Named] | None = None,
-            include: dict[int, bool] | None = None, purpose: str = "buy") -> Analysis:
+            include: dict[int, bool] | None = None, purpose: str = "buy",
+            materiality: issues.Materiality | None = None, implications: dict[str, str] | None = None) -> Analysis:
     """sector, country: None = the ones suggested from the data room. The reviewer's inputs: corrected figures
     (edits), documents received, decisions on management adjustments, own adjustments and net debt items to
     include."""
@@ -86,12 +90,16 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
         c = replace(c, framework=f"IFRS as adopted by the EU (consolidated accounts; {local} is for individual "
                                  "accounts)")
     m = compute_metrics(data)
-    results = evaluate(data, m, sector=s)
+    materiality = materiality or issues.Materiality()
+    results = issues.apply(evaluate(data, m, sector=s), data, m, materiality, implications)
     general_years = {r.rule.id: r.years_text for r in alerts(evaluate(data, m))}
     view = deal_view(data, m, decisions, analyst, include)
-    return Analysis(ext, data, m, results, alerts(results), reading_checks(data), view, s, suggested, words,
+    findings = issues.by_amount(alerts(results))
+    return Analysis(ext, data, m, results, findings, reading_checks(data), view, s, suggested, words,
                     Money.for_data(data), benchmark_rows(data, m, view, s), dict(decisions or {}), c, c_suggested,
-                    c_why, purpose, general_years, dict(include or {}), list(analyst or []))
+                    c_why, purpose, general_years, dict(include or {}), list(analyst or []), materiality,
+                    materiality.thresholds(data, m),
+                    issues.key_issues(findings, view, data, m, materiality, implications))
 
 
 PURPOSE_EFFECTS = {
@@ -145,6 +153,13 @@ def to_dict(a: Analysis) -> dict:
     d = a.data
     return {
         "company": a.ext.company,
+        "materiality": {"rule": a.materiality.text(), "earnings_items": a.thresholds.get("pl"),
+                        "balance_sheet_items": a.thresholds.get("bs")},
+        "key_issues": [{"key": i.key, "type": i.kind, "issue": i.title, "severity": i.severity or None,
+                        "year": fy(i.year) if i.year else None, "amount_at_stake": i.amount,
+                        "what_the_amount_is": i.amount_label, "material": i.material, "note": i.note,
+                        "deal_implication": i.implication, "typical_treatment": i.treatment,
+                        "question": i.question, "document": i.request, "source": i.source} for i in a.issues],
         "read_with": a.ext.method,
         "amounts": f"{d.currency} thousands (shown in the app as {a.money.unit})",
         "income_statement_format": d.pl_format,

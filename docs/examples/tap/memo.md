@@ -31,6 +31,18 @@ Preliminary buy-side review of TAP, a Portuguese airline group, in the transport
 | Adjusted net debt | 2,536 | 2,293 |
 | Net working capital | -366 | -598 |
 
+### Key issues by amount at stake
+
+Materiality is 5% of reported EBITDA for earnings items (€36m) and 1% of revenue for balance sheet items (€43m). The deal implication is the typical treatment. The deal team and its lawyers decide.
+
+| Issue | Amount at stake | Deal implication |
+| --- | --- | --- |
+| Lease liabilities (net debt item) | €2,158m of lease liabilities at FY25 | Price: net debt |
+| Deferred revenue and customer advances (to assess) | €711m of deferred revenue and customer advances at FY25 | Further diligence |
+| R28 · Large 'other' working capital line (finding) | €631m in FY25, largest 'other' current line | Price: working capital / peg |
+| Provisions (to assess) | €415m of provisions at FY25 | Further diligence |
+| R22 · Low interest cover (finding) | €196m in FY25, interest expense | Further diligence |
+
 ## Page 2
 
 ### Theme 1 — Cash exceeds bank borrowings, but leases bring adjusted net debt to €2,293m

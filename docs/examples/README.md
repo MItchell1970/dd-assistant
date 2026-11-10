@@ -6,9 +6,9 @@ The online demo (`DD_DEMO=1`) reads these folders. Each holds what Claude Code p
 
 | Folder | Company | Memo check |
 | --- | --- | --- |
-| `tap/` | TAP Air Portugal | passed: 89 figures, none without a source, no warning |
-| `toyota-caetano/` | Toyota Caetano Portugal | passed: 78 figures, none without a source, no warning |
-| `corticeira-amorim/` | Corticeira Amorim | passed: 85 figures, none without a source, no warning |
+| `tap/` | TAP Air Portugal | passed: 96 figures, none without a source, no warning |
+| `toyota-caetano/` | Toyota Caetano Portugal | passed: 85 figures, none without a source, no warning |
+| `corticeira-amorim/` | Corticeira Amorim | passed: 93 figures, none without a source, no warning |
 
 In each folder:
 

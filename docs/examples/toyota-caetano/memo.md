@@ -30,6 +30,18 @@ Preliminary buy-side review of Toyota Caetano Portugal, a Portuguese automotive 
 | Adjusted net debt | 57,542 | 78,039 |
 | Net working capital | 61,710 | 101,201 |
 
+### Key issues by amount at stake
+
+Materiality is 5% of reported EBITDA for earnings items (€3,309k) and 1% of revenue for balance sheet items (€6,670k). The deal implication is the typical treatment. The deal team and its lawyers decide.
+
+| Issue | Amount at stake | Deal implication |
+| --- | --- | --- |
+| R28 · Large 'other' working capital line (finding) | €143,131k in FY25, largest 'other' current line | Price: working capital / peg |
+| R10 · Weak EBITDA-to-cash conversion (finding) | €50,318k in FY25, operating cash short of the threshold share of EBITDA | Further diligence |
+| R04 · Material other income within EBITDA (finding) | €40,036k in FY25, other income within EBITDA | Price: EBITDA |
+| R09 · Inventory build ahead of COGS (finding) | €28,149k in FY25, inventory above the level implied by cost of sales growth | Price: working capital / peg |
+| R24 · Capex below depreciation (finding) | €12,638k in FY25, capex short of depreciation | Post-deal |
+
 ## Page 2
 
 ### Theme 1 — EBITDA relies on other income, and operating profit on lower D&A

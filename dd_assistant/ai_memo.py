@@ -97,9 +97,29 @@ def _alerts_section(results: list[RuleResult], reviews: Reviews) -> list[str]:
                 f"- What to investigate: {rule.focus}",
                 f"- Why it matters: {rule.rationale}",
                 f"- Model question for management: {rule.question}",
-                f"- Document to request: {rule.request}",
-                f"- Reviewer status: {status}" + (f" — {comment}" if comment else "")]
+                f"- Document to request: {rule.request}"]
+        if r.implication:   # set by issues.apply: materiality and deal implication
+            out += ["- Amount at stake: " + (f"{fmt_value(r.amount)} in {fy(r.amount_year)} ({r.amount_label})"
+                                             if r.amount is not None else r.amount_label)
+                    + (f"; {r.note}: severity lowered from {r.base_severity} to Low" if r.note else ""),
+                    f"- Deal implication (typical treatment, not advice): {r.implication}. {r.treatment}"]
+        out.append(f"- Reviewer status: {status}" + (f" — {comment}" if comment else ""))
     return out
+
+
+def _issues_section(a) -> list[str]:
+    """Findings and net debt items in one list, ordered by amount at stake: what the memo leads with."""
+    t = a.thresholds
+    out = ["## 1b. Key issues, ordered by amount at stake (findings and net debt items together)",
+           f"Materiality: {a.materiality.text()}. In {a.data.currency} thousands: "
+           f"{fmt_value(t.get('pl'))} for earnings items and {fmt_value(t.get('bs'))} for balance sheet items. A "
+           "finding below it is Low. Order the memo's themes by these amounts. The deal implication is the typical "
+           "treatment, for the deal team and its lawyers to decide: never write it as advice or as a view on price."]
+    rows = [[i.key, i.kind, i.title, i.severity or "n/a", fy(i.year) if i.year else "n/a",
+             fmt_value(i.amount) if i.amount is not None else "not quantifiable", i.amount_label,
+             ("n/a" if i.material is None else "Yes" if i.material else "No"), i.implication] for i in a.issues]
+    return out + _table(["Key", "Type", "Issue", "Severity", "Year", "Amount at stake", "What the amount is",
+                         "Material", "Deal implication"], rows)
 
 
 def _rules_section(results: list[RuleResult]) -> list[str]:
@@ -191,6 +211,8 @@ def build_material(d: CompanyData, metrics: Metrics, results: list[RuleResult], 
              "changes and growth gaps in percentage points; DSO, DIO and DPO in days; 'n/a' = not available. Data "
              "room references use the form Sheet!Cell (e.g. DRE!D5) or a page number.", ""]
     parts += _alerts_section(results, reviews or {}) + [""]
+    if analysis is not None and analysis.issues:
+        parts += _issues_section(analysis) + [""]
     parts += _rules_section(results) + [""]
     parts += _metrics_section(metrics, d.years) + [""]
     parts += _input_section(d) + [""]

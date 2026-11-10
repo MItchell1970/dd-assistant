@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "review")
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8599"
 PAGES = {"home": "", "tap": "?company=tap", "toyota": "?company=toyota-caetano", "amorim": "?company=corticeira-amorim"}
-SIZES = {"desktop": (1440, 900), "phone": (375, 812)}
+SIZES = {"desktop": (1440, 900), "narrow": (800, 900), "phone": (375, 812)}
 TALL = 3600   # Streamlit scrolls inside the page: a tall viewport shows the whole page in one capture
 
 

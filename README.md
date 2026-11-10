@@ -44,7 +44,7 @@ Each company has a memo, the checker's result, the databook and a one-page case 
 
 1. **Read the accounts:** every Excel, PDF, Word and ESEF file of the data room, with a six-language dictionary of statement lines; each figure keeps its file and cell, or its XBRL tag.
 2. **Check the reading:** the subtotals the company published are rebuilt from the lines read before any figure is used. A missing figure stays unknown, never zero.
-3. **Flag what matters:** 29 rules from Big Four due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request.
+3. **Flag what matters:** 29 rules from Big Four due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request. Each finding gets an amount at stake in euros and is ranked by it, with the net debt items, in one list of key issues; below a visible materiality threshold (5% of EBITDA, 1% of revenue) a finding is Low. Each issue carries its typical deal implication: price (EBITDA, net debt, working capital), SPA protection, further diligence or post-deal.
 4. **Build the bridges:** reported to diligence-adjusted EBITDA, borrowings less cash to adjusted net debt, and working capital with an indicative peg; then enterprise value to equity, once you enter the price mechanism.
 5. **Export and write:** the databook in Excel; Claude writes the memo and the request list from that material only, and a checker with no AI confirms every figure, for the year it is cited.
 
@@ -62,11 +62,11 @@ flowchart LR
 
 **Measured**
 
-- **203 automated tests** (`python -m unittest`), run on every change.
+- **219 automated tests** (`python -m unittest`), run on every change.
 - **Parity with a hand-built Excel template:** the Python gives exactly the template's metrics, rule values, thresholds and severities.
 - **Published totals rebuilt:** on each real company, the subtotals rebuilt from the lines read must equal the published ones, and the balance sheet must balance. Operating profit is rebuilt to the euro for TAP and Toyota Caetano; EBITDA is within the report's own €2k rounding for Corticeira Amorim.
 - **No false alarm on a clean company:** a fictitious company designed to pass raises no finding.
-- **Memo checker:** every figure of the memo must be in the material, for the period cited; every finding must appear; every question needs a request; no investment-recommendation language. The three demo memos pass with 89, 78 and 85 figures checked, none without a source.
+- **Memo checker:** every figure of the memo must be in the material, for the period cited; every finding must appear; every question needs a request; no investment-recommendation language. The three demo memos pass with 96, 85 and 93 figures checked, none without a source.
 - **Databook:** recalculated by Excel, every total equals the Python value.
 
 **Not measured**
@@ -97,6 +97,9 @@ flowchart LR
 | Completion accounts | A price fixed on the balance sheet at closing, with net debt and working capital trued up. |
 | Locked box | A price fixed on a past balance sheet; the buyer is protected against value leaving the company (leakage). |
 | Red flag | A finding a rule raised: a figure beyond a threshold that needs an explanation from management. |
+| Materiality | The size below which an item does not change the reader's view: here 5% of EBITDA for earnings items and 1% of revenue for balance sheet items, and you can change it. |
+| Amount at stake | The euros behind a finding, computed from the lines that made the rule fire. |
+| Deal implication | What a deal team typically does with an issue: change the price, protect itself in the contract, ask for more, or plan for it after the deal. |
 | SPA | Share purchase agreement: the contract for the sale of the company. |
 | DSO / DIO / DPO | Days of sales outstanding, inventory outstanding and payables outstanding: how long customers take to pay, stock stays, and the company takes to pay suppliers. |
 | ESEF | European Single Electronic Format: the tagged annual report EU listed companies must publish. |
