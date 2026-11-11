@@ -472,6 +472,10 @@ def landing() -> None:
                                                         "three companies"),
              (f"{v['figures']}", f"memo figures checked against the engine's material; {v['unmatched']} without a "
                                  "source")]
+    det = demo.detection()
+    if det:
+        tiles.append((f"{det['detected']} of {det['scored']}", "known distortions planted one at a time in the real "
+                                                               "accounts were detected; the misses are published"))
     st.markdown("<div class='dd-tiles'>" + "".join(f"<div class='dd-tile'><div class='v'>{html.escape(a)}</div>"
                                                      f"<div class='l'>{html.escape(b)}</div></div>" for a, b in tiles)
                 + "</div>", unsafe_allow_html=True)
@@ -481,7 +485,9 @@ def landing() -> None:
         st.markdown("\n".join(f"- {x}" for x in (
             "The tests above pass on every change, including parity with a hand-built Excel template.",
             "Every subtotal the companies published is rebuilt from the lines read.",
-            "Every figure of the stored memos is found in the engine's material, for the year it is cited.")))
+            "Every figure of the stored memos is found in the engine's material, for the year it is cited.",
+            "A benchmark plants known distortions in the real accounts and counts the ones the rules catch "
+            "(docs/DETECTION.md in the repository lists every run, misses included).")))
     with m2:
         st.markdown("**Not measured**")
         st.markdown("\n".join(f"- {x}" for x in demo.NOT_MEASURED))

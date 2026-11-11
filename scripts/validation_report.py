@@ -44,6 +44,15 @@ def main() -> None:
               "A true positive means the figures show what the rule says, not that a deal team would treat it as "
               "an issue. EDP (ESEF FY2025) was checked by hand and is not in this table: its 96 MB package is not "
               "in the project."]
+    detection = ROOT / "docs" / "DETECTION.md"
+    if detection.exists():      # the benchmark by mutation (scripts/detection_benchmark.py): summary and link
+        text = detection.read_text(encoding="utf-8").split("\n")
+        lines += ["", "## Detection benchmark by mutation", ""] + [x for x in text[2:8] if x] + [
+            "", "Every run and every miss: [`docs/DETECTION.md`](DETECTION.md)."]
+    lines += ["", "## Review by a person", "",
+              "`docs/REVIEW_SHEET.xlsx` lists the findings of the three demo companies with their evidence and the "
+              "classification proposed by the agent, and empty columns for the reviewer's decision "
+              "(`scripts/review_sheet.py`). Until those are filled, nothing here is reviewed by a person."]
     out = ROOT / "docs" / "VALIDATION.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{out}: {total} findings — " + ", ".join(f"{k}: {v}" for k, v in c.items()))

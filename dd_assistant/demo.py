@@ -38,8 +38,10 @@ PROCESS = (("description", "Read the accounts", "Every line of the statements, w
            ("account_balance", "Build the bridges", "EBITDA, net debt and working capital, as a deal team asks"),
            ("table_view", "Export to Excel", "A databook with live formulas and every source"))
 NOT_MEASURED = ("Time saved against a manual review: not measured.",
-                "Accuracy on companies outside the test set: not measured; five sets of real accounts so far.",
-                "Review by a practitioner: the classification of the findings is not yet reviewed by one.")
+                "Distortions nobody thought of, smaller ones, or several at once: the benchmark plants one known "
+                "distortion at a time.",
+                "Review by a practitioner: the classification of the findings is proposed by the agent and not yet "
+                "reviewed by a person.")
 HOW_TO_CHECK = ("Data room tab: every line read, the label it matched and its cell in the published file.",
                 "Reading checks: the subtotals rebuilt from those lines against the ones the company printed.",
                 "Red flags: each finding gives its figures, the source cell and the threshold.",
@@ -285,3 +287,14 @@ def tour_steps(case: Case, a: Analysis) -> list[tuple[str, str]]:
         ("Take it to Excel", "The databook holds the same bridges with live formulas, every figure with its source "
                              "cell, and a Checks sheet that compares each total with the code."),
     ]
+
+
+def detection() -> dict[str, int]:
+    """The published result of the detection benchmark (docs/DETECTION.md, written by
+    scripts/detection_benchmark.py): planted distortions detected, out of those scored. Empty if not run."""
+    import re
+    path = ROOT / "docs" / "DETECTION.md"
+    if not path.exists():
+        return {}
+    m = re.search(r"\*\*Detected: (\d+) of (\d+) planted distortions", path.read_text(encoding="utf-8"))
+    return {"detected": int(m.group(1)), "scored": int(m.group(2))} if m else {}

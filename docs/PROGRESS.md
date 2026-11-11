@@ -129,3 +129,17 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Não feito (fica em GAPS):** regras novas baseadas em notas (partes relacionadas, contingências sem provisão, concentração por segmento); itens das notas a entrar sozinhos na ponte de net debt (o financiamento de stock da Toyota e as provisões de redelivery da TAP estão no memo, não na ponte); a app normal (sem demo) ainda não tem campo para o relatório anterior nem para as notas, só a linha de comandos.
 - **Commit único para A3 + A4:** os dois blocos mexem nos mesmos ficheiros e os memos só voltaram a passar com ambos.
 
+### B1 + B3 (11 de novembro de 2026): benchmark de deteção e folha de revisão
+
+| # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
+|---|---|---|---|---|---|
+| B1 | `scripts/detection_benchmark.py`: 19 distorções e 2 controlos, uma de cada vez, nas três empresas da demo; resultado em `docs/DETECTION.md` e resumo em `docs/VALIDATION.md`, README e página inicial | Sim | 8 testes em `tests/test_detection.py` (252 no total) | Não aplicável: mede o motor contra distorções plantadas | Pendente |
+| B3 | `docs/REVIEW_SHEET.xlsx` (`scripts/review_sheet.py`): 23 achados e 16 itens de net debt, com evidência, estado das notas e classificação proposta; colunas de decisão vazias | Sim | Sim (colunas do revisor vazias; folha atual) | — | **À espera do Bernardo** |
+
+- **Tabela do esperado escrita antes de correr** (`MUTATIONS` no script). Não foi alterada depois da primeira corrida, nem nenhum limite.
+- **Resultado da primeira e única corrida: 48 de 49 detetadas (98%).** 8 ficaram fora da taxa porque a regra já disparava nas contas reais (por exemplo, R07 na TAP, R09 na Toyota); 11 outras regras dispararam ao lado, todas consequência plausível da distorção (por exemplo, juros mais altos baixam o lucro e disparam também a R25).
+- **Falha 1 (não detetada): TAP, M18.** Fornecedores +20 dias de custo das vendas não disparou a R23, porque nas contas reais o DPO da TAP caiu 96 dias de FY24 para FY25; a regra compara ano com ano e o movimento real esconde a distorção plantada.
+- **Falha 2 (alerta a mais num controlo): Amorim, C02.** Um erro de €2k na caixa final da DFC fez a R13 disparar com severidade Medium, quando devia ficar Low. Causa: a reconciliação por descobertos é tudo ou nada; com €2k de diferença deixa de "explicar" e os €29,451k inteiros passam a diferença por explicar.
+- **Não afinei nada.** As duas falhas ficam publicadas e em `docs/GAPS.md`; mudar a R13 ou a R23 fica para decidires.
+- **O que o benchmark não mede:** distorções que ninguém pensou, mais pequenas, ou várias ao mesmo tempo.
+
