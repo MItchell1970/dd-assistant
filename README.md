@@ -11,11 +11,11 @@
 
 **Live demo:** <https://dd-assistant-tickmark.streamlit.app> — three real companies on their published FY2025 accounts: [TAP Air Portugal](https://dd-assistant-tickmark.streamlit.app/?company=tap) · [Toyota Caetano Portugal](https://dd-assistant-tickmark.streamlit.app/?company=toyota-caetano) · [Corticeira Amorim](https://dd-assistant-tickmark.streamlit.app/?company=corticeira-amorim). **Nothing is uploaded and no AI is called in the demo:** the engine runs on the published accounts stored here, and the memos were written beforehand and checked by code.
 
-![23 seconds on TAP: net debt, a red flag with its report page, the Excel](docs/images/demo-tour.gif)
+![20 seconds on TAP: net debt, a red flag with its report page, the Excel](docs/images/demo-tour.gif)
 
-*23 seconds on TAP Air Portugal: the headline figures with their report pages, the net debt bridge, the most severe red flag with the pages it comes from, and the databook in Excel.*
+*20 seconds on TAP Air Portugal: the headline figures with their report pages, the net debt bridge, the most severe red flag with the pages it comes from, and the databook in Excel.*
 
-It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings (QoE), net debt with debt-like items, net working capital (NWC), 29 red-flag rules with their sources, a two-page memo, the request list and an Excel databook with live formulas. European companies, euros only.
+It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings (QoE), net debt with debt-like items, net working capital (NWC), 30 red-flag rules with their sources, a two-page memo, the request list and an Excel databook with live formulas. European companies, euros only.
 
 ![The net debt bridge of TAP Air Portugal, FY25](docs/images/demo-net-debt.png)
 
@@ -27,24 +27,24 @@ It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its
 
 ## What it found
 
-Three Portuguese companies, on their latest published consolidated accounts (FY2025, with FY2024 comparatives). The engine computed every figure; each is in the stored memo, which passed the automatic checker.
+Three Portuguese companies, on three years of published consolidated accounts (FY2023 to FY2025, from two annual reports each) and the key notes of the 2025 report. The engine computed every figure; each is in the stored memo, which passed the automatic checker.
 
 | Company | Finding | Source |
 |---|---|---|
 | **TAP Air Portugal** | On the balance sheet TAP holds more cash than bank debt: borrowings less cash are -€43m in FY25. Count the leased aircraft (IFRS 16) and pensions, and net debt is **€2,293m**, 3.16x EBITDA. Leases also make EBITDA look bigger: €726m, but €262m after lease payments. | Statement of financial position, 2025 Integrated Report p.152 (four lease liability lines) |
-| | The effective tax rate was **96.9%** in FY25, against 22.5% statutory (R25): income tax of €66m on profit before tax of €68m. | Income statement, p.153 |
-| **Toyota Caetano Portugal** | Other income is **60.5% of FY25 EBITDA**: €40,036k of €66,187k (R04, High). | Income statement, 2025 annual report (ESEF), "Outros rendimentos operacionais" |
-| | Operating cash flow turned negative: **-€3,987k** in FY25 against €62,857k in FY24 (R10), as inventories grew 25.8% against COGS up 4.5% (R09). | Cash flow statement and balance sheet, 2025 annual report |
-| **Corticeira Amorim** | Revenue fell 8.3%, yet operating cash flow was **155.4% of EBITDA** (€219,015k), as inventories fell from €466,545k to €388,297k. No rule fires; the memo asks whether it will repeat. | Cash flow statement and balance sheet, 2025 annual report (ESEF) |
-| | Debt due within 12 months fell from **56.3% to 28.7%** (R11 on FY24), and cash in the cash flow statement is net of €29,451k of bank overdrafts. | Statement of financial position and note 19 |
+| | Provisions of **€415m** look like one line; note 18 shows €291m is aircraft redelivery costs, a debt-like question. The 2024 balance sheet was restated between the two reports (R30). | Notes 18 (pp.204–205); 2024 and 2025 reports |
+| **Toyota Caetano Portugal** | Other income is **60.5% of FY25 EBITDA**: €40,036k of €66,187k (R04, High). Note 33 says what it is: cost recoveries of €13,977k, grants of €5,142k and gains on disposals of €4,862k. | Income statement and note 33, 2025 annual report (ESEF) |
+| | Stock financing outside reported debt: note 22 says **€48,078k** is owed to Toyota Kreditbank for vehicle purchases, inside "other payables"; net financial debt is €76,532k without it. | Note 22, 2025 annual report |
+| **Corticeira Amorim** | Revenue fell 8.3%, yet operating cash flow was **155.3% of EBITDA** (€219,015k), as inventories fell from €466,545k to €388,297k. No rule fires; the memo asks whether it will repeat. | Cash flow statement and balance sheet, 2025 annual report (ESEF) |
+| | "Other financial liabilities" of **€43,264k** are mostly operating payables, not debt (note 24). Debt due within 12 months fell from 56.3% to 28.7% (R11). | Notes 22 and 24; statement of financial position |
 
 Each company has a memo, the checker's result, the databook and a one-page case note in [`docs/examples/`](docs/examples/).
 
 ## How it works
 
 1. **Read the accounts:** every Excel, PDF, Word and ESEF file of the data room, with a six-language dictionary of statement lines; each figure keeps its file and cell, or its XBRL tag.
-2. **Check the reading:** the subtotals the company published are rebuilt from the lines read before any figure is used. A missing figure stays unknown, never zero.
-3. **Flag what matters:** 29 rules from Big Four due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request. Each finding gets an amount at stake in euros and is ranked by it, with the net debt items, in one list of key issues; below a visible materiality threshold (5% of EBITDA, 1% of revenue) a finding is Low. Each issue carries its typical deal implication: price (EBITDA, net debt, working capital), SPA protection, further diligence or post-deal.
+2. **Check the reading:** the subtotals the company published are rebuilt from the lines read before any figure is used. A missing figure stays unknown, never zero. Two annual reports give three years; a line that differs between them is a restatement, listed and never mixed in silence.
+3. **Flag what matters:** 30 rules from financial due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request. Each finding gets an amount at stake in euros and is ranked by it, with the net debt items, in one list of key issues; below a visible materiality threshold (5% of EBITDA, 1% of revenue) a finding is Low. Each issue carries its typical deal implication: price (EBITDA, net debt, working capital), SPA protection, further diligence or post-deal. The key notes of the report are read too: each issue says whether a note explains it, partly explains it, or leaves it open.
 4. **Build the bridges:** reported to diligence-adjusted EBITDA, borrowings less cash to adjusted net debt, and working capital with an indicative peg; then enterprise value to equity, once you enter the price mechanism.
 5. **Export and write:** the databook in Excel; Claude writes the memo and the request list from that material only, and a checker with no AI confirms every figure, for the year it is cited.
 
@@ -62,12 +62,13 @@ flowchart LR
 
 **Measured**
 
-- **219 automated tests** (`python -m unittest`), run on every change.
+- **244 automated tests** (`python -m unittest`), run on every change.
 - **Parity with a hand-built Excel template:** the Python gives exactly the template's metrics, rule values, thresholds and severities.
 - **Published totals rebuilt:** on each real company, the subtotals rebuilt from the lines read must equal the published ones, and the balance sheet must balance. Operating profit is rebuilt to the euro for TAP and Toyota Caetano; EBITDA is within the report's own €2k rounding for Corticeira Amorim.
 - **No false alarm on a clean company:** a fictitious company designed to pass raises no finding.
-- **Memo checker:** every figure of the memo must be in the material, for the period cited; every finding must appear; every question needs a request; no investment-recommendation language. The three demo memos pass with 96, 85 and 93 figures checked, none without a source.
+- **Memo checker:** every figure of the memo must be in the material, for the period cited; every finding must appear; every question needs a request; no investment-recommendation language. The three demo memos pass with 142, 134 and 139 figures checked, none without a source.
 - **Databook:** recalculated by Excel, every total equals the Python value.
+- **Notes read independently:** a second reader with no access to the transcriptions read 30 figures of the notes from the three reports; all 30 equal the transcribed ones.
 
 **Not measured**
 
@@ -145,7 +146,7 @@ What the agent does:
   - net working capital, with an indicative peg reference.
 - **Bridges to the price.** You choose the mechanism of the SPA first; nothing is computed before. Completion accounts: EV + eligible cash − financial debt − debt-like items + (NWC at closing − peg). Locked box: the agreed equity price + value accrual or ticking fee − leakage confirmed after review. Dividends paid in the cash flow statement are listed as leakage candidates, never as a verdict. Sensitivity to the multiple and EBITDA only when EV is derived from a multiple you enter.
 - **Exports a databook**, the Excel a transaction team works in: Read Me, Executive Summary, Source Register (every file with its SHA-256), Financials, QoE, NWC, Net Debt, EV to Equity, Leakage, Issues & Requests and Checks. Figures from the data room in blue, formulas in black, links in green; you decide only in the yellow cells (adjustment status, items in net debt, lines in NWC) and the totals follow. On this PC Excel recalculates it and every total equals the Python value.
-- **Runs 29 rules**, each explained in plain words with the practice it comes from. Each finding gives evidence with its source, what to investigate, the question for management and the document to request.
+- **Runs 30 rules**, each explained in plain words with the practice it comes from. Each finding gives evidence with its source, what to investigate, the question for management and the document to request.
   - Thresholds are calibrated for 15 sectors, always with the reason shown.
   - Severity follows size and persistence where it matters: other income inside EBITDA (R04) is measured against EBITDA and is High above a quarter of it; weak cash conversion (R10) is High only when the years analysed together convert less than 70%, since one weak year is often working capital timing.
   - The country of the target, suggested from its legal form (S.G.P.S., S.L., SAS, GmbH, S.p.A.…), sets the accounting framework and the statutory tax rate.
@@ -195,7 +196,7 @@ These are the standard checks of financial due diligence (the Big Four transacti
 | ESEF | `esef.py` | Reads an ESEF report package: tagged facts of the consolidated statements, in the company's order, own lines through their anchoring, euros only |
 | Read | `extract.py` | Maps the statements to a standard model with a six-language dictionary. Detects the unit (euros only), the European formats and the P&L presentation; stops at operating profit; flags debt-like and cash-like lines |
 | Metrics | `metrics.py` | Growth, concentration, margins, quality of earnings, DSO/DIO/DPO, cash conversion, net debt, leverage, interest cover, capex/D&A, effective tax rate, consistency checks and reading checks |
-| Rules | `rules.py` | 29 rules with explicit thresholds, graded severity where size matters, plain-language explanations and their practice |
+| Rules | `rules.py` | 30 rules with explicit thresholds, graded severity where size matters, plain-language explanations and their practice |
 | Context | `europe.py`, `sectors.py` | 10 European countries (framework, tax rate, legal forms) and 15 sectors (calibration, Damodaran Europe benchmarks, sector lens) |
 | Deal view | `deal.py` | Quality of earnings, net debt and working capital bridges; benchmarks; illustrative value at stake |
 | Price | `price.py` | Enterprise value to equity: completion accounts, locked box with accrual or ticking fee, leakage register, sensitivity |
@@ -302,7 +303,7 @@ The deal view finds pensions and income tax payable as debt-like items in both g
 - cash conversion of 20.5%;
 - 55% of debt due within 12 months.
 
-**Velmora (clean company):** no analytical findings, with the general thresholds, with its sector's and with the 29 rules.
+**Velmora (clean company):** no analytical findings, with the general thresholds, with its sector's and with the 30 rules.
 
 **EDP (ESEF FY2025, read from the tags):** operating profit rebuilt to the thousand euros in both years (€2,999,414k in FY25, €2,261,983k in FY24), with the share of joint ventures inside it as EDP presents it. The country (Portugal) comes from the report itself and the sector is suggested as energy & utilities. Seven findings: other income at 17% of EBITDA (EDP's gains on asset rotation sit there), cash conversion of 67% in FY25 (Medium: 81% over the two years), leverage of 3.6x, interest cover of 2.6x, an effective tax rate of 36.7% in FY24, large "other" working capital lines, and the documents a listed report does not contain. Tax equity partnerships in North America and collateral deposits are shown as items to assess in net debt.
 

@@ -103,8 +103,25 @@ def _alerts_section(results: list[RuleResult], reviews: Reviews) -> list[str]:
                                              if r.amount is not None else r.amount_label)
                     + (f"; {r.note}: severity lowered from {r.base_severity} to Low" if r.note else ""),
                     f"- Deal implication (typical treatment, not advice): {r.implication}. {r.treatment}"]
+        if r.evidence_state:   # set from the notes to the accounts (notes.py)
+            out.append(f"- Evidence from the notes: {r.evidence_state}"
+                       + (f" by {r.evidence_note}" if r.evidence_note else "")
+                       + (f". {r.evidence_text}" if r.evidence_text else ": no note on this subject was read.")
+                       + (f" Next request: {r.next_request}." if r.next_request else ""))
         out.append(f"- Reviewer status: {status}" + (f" — {comment}" if comment else ""))
     return out
+
+
+def _notes_section(a) -> list[str]:
+    """The key notes of the report, transcribed as printed: what the memo may quote, with the note and page."""
+    from .notes import TOPICS, as_text
+    ext = a.ext
+    out = [f"## 7b. Notes to the accounts (transcribed as printed from the same report; file {ext.notes_file})",
+           "Figures are in the unit each note prints, NOT converted: quote them with the note number (and page). A "
+           "finding marked 'explained' or 'partly explained' must be written with what the note says; do not ask "
+           "management for what the note already gives: ask for the next level (ledger, contract)."]
+    out += [f"- Not read: {TOPICS.get(topic, topic)} ({reason})." for topic, reason in ext.notes_not_read]
+    return out + ["", as_text(ext.notes)]
 
 
 def _issues_section(a) -> list[str]:
@@ -117,9 +134,11 @@ def _issues_section(a) -> list[str]:
            "treatment, for the deal team and its lawyers to decide: never write it as advice or as a view on price."]
     rows = [[i.key, i.kind, i.title, i.severity or "n/a", fy(i.year) if i.year else "n/a",
              fmt_value(i.amount) if i.amount is not None else "not quantifiable", i.amount_label,
-             ("n/a" if i.material is None else "Yes" if i.material else "No"), i.implication] for i in a.issues]
+             ("n/a" if i.material is None else "Yes" if i.material else "No"), i.implication,
+             (i.evidence_state + (f" by {i.evidence_note}" if i.evidence_note else "")) or "notes not read"]
+            for i in a.issues]
     return out + _table(["Key", "Type", "Issue", "Severity", "Year", "Amount at stake", "What the amount is",
-                         "Material", "Deal implication"], rows)
+                         "Material", "Deal implication", "Evidence from the notes"], rows)
 
 
 def _rules_section(results: list[RuleResult]) -> list[str]:
@@ -140,7 +159,10 @@ def _input_section(d: CompanyData) -> list[str]:
     ys = d.years
     vals = lambda values: [fmt_value(values.get(y)) for y in ys]
     labels = {f.key: f.label for f in FIELDS} | _EXTRA_LABELS
-    rows = [[label] + vals(d.lines[key]) + [d.sources.get(key, "")] for key, label in labels.items() if key in d.lines]
+    early = ", ".join(fy(y) for y in d.prior_years)
+    src = lambda key: d.sources.get(key, "") + (f"; {early}: {d.prior_sources[key]}" if key in d.prior_sources and
+                                                d.prior_sources[key] != d.sources.get(key) else "")
+    rows = [[label] + vals(d.lines[key]) + [src(key)] for key, label in labels.items() if key in d.lines]
     rows += [[f"Sales to customer: {c.name}"] + vals(c.values) + [d.clients_source if i == 0 else ""]
              for i, c in enumerate(d.clients)]
     if d.other_clients:
@@ -150,7 +172,13 @@ def _input_section(d: CompanyData) -> list[str]:
     docs = "; ".join(f"{name}: {'Yes' if ok else 'No'}" for name, ok in d.documents)
     return ([f"## 4. Input (source figures, {d.currency} thousands, with data room reference)"]
             + _table(["Line item"] + [fy(y) for y in ys] + ["Source"], rows)
-            + ["", f"Key documents received: {docs}"])
+            + ["", f"Key documents received: {docs}"]
+            + ([f"Earlier years ({early}) come from the prior report, {d.prior_report}. For "
+                f"{', '.join(fy(y) for y in d.overlap_years)}, which both reports give, the comparative of the latest "
+                f"report is used. Lines restated between the two reports: {len(d.restatements)}"
+                + ("; ".join([""] + [f"{r['line']} {fy(r['year'])}: {fmt_value(r['as_first_published'])} as first "
+                                     f"published, {fmt_value(r['as_restated'])} as comparative"
+                                     for r in d.restatements[:12]]) + ".")] if d.prior_report else []))
 
 
 def _deal_section(a) -> list[str]:
@@ -218,6 +246,8 @@ def build_material(d: CompanyData, metrics: Metrics, results: list[RuleResult], 
     parts += _input_section(d) + [""]
     if analysis is not None:
         parts += _deal_section(analysis) + [""] + _sector_section(analysis) + [""] + _checks_section(analysis) + [""]
+        if analysis.ext.notes:
+            parts += _notes_section(analysis) + [""]
     parts += [f"## {8 if analysis is not None else 5}. Data room (full text)", source_text or "Not provided.", "",
               "Write the three deliverables (two-page memo, information request list and notes to improve the "
               "template) in Markdown, in British English. Review them against the checklist before answering and "

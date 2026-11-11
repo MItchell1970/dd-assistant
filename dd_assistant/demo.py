@@ -34,7 +34,7 @@ DATA_NOTE = ("Nothing is uploaded and no AI is called in this demo. The engine r
              "in the repository; the memos were written beforehand and checked by code.")
 PROCESS = (("description", "Read the accounts", "Every line of the statements, with its sheet and cell"),
            ("fact_check", "Check the reading", "Rebuild the published subtotals before trusting a figure"),
-           ("flag", "Flag what matters", "29 rules, each with evidence, source and a question"),
+           ("flag", "Flag what matters", "30 rules, each with evidence, source and a question"),
            ("account_balance", "Build the bridges", "EBITDA, net debt and working capital, as a deal team asks"),
            ("table_view", "Export to Excel", "A databook with live formulas and every source"))
 NOT_MEASURED = ("Time saved against a manual review: not measured.",
@@ -90,6 +90,8 @@ class Case:
     accounts: str         # what the accounts are and where they come from
     purpose: str = "buy"
     pages: str = ""       # where the statements are in the report
+    notes: str = ""       # the key notes of the report, transcribed, in data/notes/
+    prior: str = ""       # the prior year's published accounts in data/: the third year, and restatements
     page_of: dict = None  # sheet of the data file -> where it is printed in the report (page or statement)
     big: str = ""         # the card's big number (from the engine; tested against the material)
     big_label: str = ""
@@ -124,8 +126,9 @@ class Case:
 CASES = (
     Case("tap", "TAP Air Portugal", "TAP_2025_published.xlsx", "PT", "transport",
          "More cash than bank debt, yet €2,293m of net debt (3.16x EBITDA) once the leased aircraft (IFRS 16) and pensions are counted.",
-         "Consolidated accounts FY2025, 2025 Integrated Report",
+         "Consolidated accounts FY2023 to FY2025, 2025 Integrated Report and 2024 annual report",
          pages="2025 Integrated Report, pp. 152–156, notes 10 and 20",
+         prior="TAP_2024_published.xlsx", notes="TAP_2025_notes.xlsx",
          page_of={"Financial position": "p.152", "Income statement": "p.153", "Cash flow": "p.156",
                   "Note 10 Other receivables": "note 10, p.190", "Note 20 Other payables": "note 20, p.208"},
          big="€2,293m", big_label="adjusted net debt, vs −⁠€43m borrowings less cash",
@@ -135,19 +138,21 @@ CASES = (
                          "https://www.jn.pt/economia/artigo/governo-prorroga-ate-final-do-ano-prazo-para-concluir-"
                          "privatizacao-da-tap/18123884")),
     Case("toyota-caetano", "Toyota Caetano Portugal", "Toyota_Caetano_2025_published.xlsx", "PT", "automotive",
-         "Other income is 60.5% of FY25 EBITDA, and operating cash flow turned negative in FY25 (−⁠€3,987k).",
-         "Consolidated accounts FY2025, 2025 annual report (ESEF)",
+         "Other income is 60.5% of FY25 EBITDA; note 22 shows €48,078k of stock financing outside reported debt.",
+         "Consolidated accounts FY2023 to FY2025, 2025 and 2024 annual reports (ESEF)",
          pages="Relatório Anual 2025 (ESEF), consolidated statements",
+         prior="Toyota_Caetano_2024_published.xlsx", notes="Toyota_Caetano_2025_notes.xlsx",
          page_of={"DRE": "income statement", "Balanço": "statement of financial position",
                   "DFC": "cash flow statement"},
          big="60.5%", big_label="of FY25 EBITDA is other income"),
     Case("corticeira-amorim", "Corticeira Amorim", "Corticeira_Amorim_2025_published.xlsx", "PT", "materials",
-         "Capex runs below depreciation in both years, and short-term debt fell from 56.3% to 28.7% of debt.",
-         "Consolidated accounts FY2025, 2025 annual report (ESEF)",
+         "Cash came from releasing stock as sales fell 8.3%; short-term debt fell from 56.3% to 28.7% of debt.",
+         "Consolidated accounts FY2023 to FY2025, 2025 and 2024 annual reports (ESEF)",
          pages="Relatório Anual 2025 (ESEF), consolidated statements and note 19",
+         prior="Corticeira_Amorim_2024_published.xlsx", notes="Corticeira_Amorim_2025_notes.xlsx",
          page_of={"Resultados": "income statement", "Posição financeira": "statement of financial position",
                   "Fluxos de caixa": "cash flow statement", "Nota 19 Caixa": "note 19"},
-         big="155.4%", big_label="cash conversion in FY25, as stock was released"),
+         big="155.3%", big_label="cash conversion, as stock was released"),
 )
 CASE_BY_SLUG = {c.slug: c for c in CASES}
 
@@ -163,14 +168,28 @@ def enabled(env: dict | None = None, root: Path | str | None = None) -> bool:
 
 
 @lru_cache(maxsize=8)
-def _extraction(path: Path):
-    return read_data_room(files_in([path]))
+def _extraction(path: Path, prior: Path | None = None, notes: Path | None = None):
+    ext = read_data_room(files_in([path]))
+    if prior is not None and prior.exists():
+        from .history import add_prior_report
+        ext = add_prior_report(ext, read_data_room(files_in([prior])), prior.name)
+    if notes is not None and notes.exists():
+        from dataclasses import replace
+        from .notes import not_read, read_notes
+        ext = replace(ext, notes=read_notes(notes), notes_file=notes.name, notes_not_read=not_read(notes))
+    return ext
+
+
+def extraction(case: Case):
+    """What was read for a demo company: the latest report, with the earlier year of the prior report if stored."""
+    return _extraction(case.path, DATA / case.prior if case.prior else None,
+                       DATA / "notes" / case.notes if case.notes else None)
 
 
 def analysis(case: Case, decisions: dict | None = None, include: dict | None = None, analyst: list | None = None,
              documents: list | None = None) -> Analysis:
     """The analysis of a demo company, with the visitor's decisions (none = the default the memo was checked on)."""
-    return analyse(_extraction(case.path), case.sector, case.country, None, documents, decisions, analyst, include,
+    return analyse(extraction(case), case.sector, case.country, None, documents, decisions, analyst, include,
                    case.purpose)
 
 

@@ -67,8 +67,7 @@ def main() -> None:
         frames = []
         page.goto(URL)
         ready(page)
-        page.screenshot(path=OUT / "demo-home.png")
-        frames.append((frame(page), 2500))
+        page.screenshot(path=OUT / "demo-home.png")   # not a GIF frame: the home page shows the GIF itself
 
         page.goto(f"{URL}/?company=tap")
         ready(page)

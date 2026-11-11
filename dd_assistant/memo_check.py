@@ -103,6 +103,7 @@ class Fact:
 
 _YEAR = re.compile(r"\bFY ?(\d{4}|\d{2})\b|(?<![\d.,])((?:19|20)\d{2})(?![\d.,])")
 _COL_YEAR = re.compile(r"\bFY ?(\d{4}|\d{2})\b|^\s*((?:19|20)\d{2})\s*$")
+_DAY = re.compile(r"\b\d{1,2}(?:\s+de)?\s+[^\W\d]+(?:\s+de)?\s*$")   # '31 de dezembro de', '31 December'
 _CELL = re.compile(r"([A-Z]{1,3})(\d+): (.*)")
 _CLAUSE = re.compile(r"[^;.!?]+(?:[.!?](?=\d)[^;.!?]*)*")   # a clause; '23.8' does not end it
 
@@ -126,7 +127,8 @@ def _cited_year(text: str, start: int, end: int) -> int | None:
     years = [y for y in _YEAR.finditer(text) if not y.start() <= start < y.end()]
     after = [y for y in years if y.start() >= end]
     before = [y for y in years if y.end() <= start]
-    plain = lambda a, b: not re.search(r"\d", _YEAR.sub("", text[a:b]))
+    # the day of a date is not a figure: '46.149.071 em 31 de dezembro de 2024', '… at 31 December 2024'
+    plain = lambda a, b: not re.search(r"\d", _DAY.sub("", _YEAR.sub("", text[a:b])))
     if after and plain(end, after[0].start()):
         return _year_of(after[0])
     if before:
@@ -194,7 +196,7 @@ def _material_facts(material: str) -> list[Fact]:
 
 def _same(value: float, decimals: int, m: float) -> bool:
     """The written value is the material's figure at the same rounding; also as a %, in millions or unsigned."""
-    for cand in (m, m * 100, m / 1000):   # decimal -> %; EUR thousands -> millions
+    for cand in (m, m * 100, m / 1000, m / 1_000_000):   # decimal -> %; EUR k -> millions; euros -> millions
         r = round(cand, decimals)
         if abs(r - value) < 1e-9 or abs(abs(r) - abs(value)) < 1e-9:
             return True

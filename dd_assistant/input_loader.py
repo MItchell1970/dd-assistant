@@ -120,6 +120,12 @@ class CompanyData:
     balance_items: list[BalanceItem] = field(default_factory=list)
     # payments to shareholders in the cash flow statement (label, EUR k paid per year, source): leakage candidates
     distributions: list[tuple[str, dict[int, float], str]] = field(default_factory=list)
+    # three years from two annual reports (history.py): where the earlier years come from, and what was restated
+    prior_report: str = ""
+    prior_years: list[int] = field(default_factory=list)
+    prior_sources: dict[str, str] = field(default_factory=dict)
+    overlap_years: list[int] = field(default_factory=list)       # years both reports give
+    restatements: list[dict] = field(default_factory=list)       # lines restated in the overlap years
 
     def v(self, key: str, year: int) -> float | None:
         """Value of a line in a year (None if missing)."""

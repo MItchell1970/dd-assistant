@@ -91,7 +91,12 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
                                  "accounts)")
     m = compute_metrics(data)
     materiality = materiality or issues.Materiality()
-    results = issues.apply(evaluate(data, m, sector=s), data, m, materiality, implications)
+    money = Money.for_data(data)
+    # balance sheet lines the model does not use, by year: a note that breaks one down ties to it (notes.py)
+    raw = {y: [(row.get("Line in the file", ""), row[f"FY{str(y)[2:]}"]) for row in ext.unmapped
+               if row.get("Statement") == "Balance sheet" and isinstance(row.get(f"FY{str(y)[2:]}"), (int, float))]
+           for y in data.years} if ext.notes else {}
+    results = issues.apply(evaluate(data, m, sector=s), data, m, materiality, implications, ext.notes, money, raw)
     general_years = {r.rule.id: r.years_text for r in alerts(evaluate(data, m))}
     view = deal_view(data, m, decisions, analyst, include)
     findings = issues.by_amount(alerts(results))
@@ -99,7 +104,7 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
                     Money.for_data(data), benchmark_rows(data, m, view, s), dict(decisions or {}), c, c_suggested,
                     c_why, purpose, general_years, dict(include or {}), list(analyst or []), materiality,
                     materiality.thresholds(data, m),
-                    issues.key_issues(findings, view, data, m, materiality, implications))
+                    issues.key_issues(findings, view, data, m, materiality, implications, ext.notes, money))
 
 
 PURPOSE_EFFECTS = {
@@ -159,7 +164,9 @@ def to_dict(a: Analysis) -> dict:
                         "year": fy(i.year) if i.year else None, "amount_at_stake": i.amount,
                         "what_the_amount_is": i.amount_label, "material": i.material, "note": i.note,
                         "deal_implication": i.implication, "typical_treatment": i.treatment,
-                        "question": i.question, "document": i.request, "source": i.source} for i in a.issues],
+                        "question": i.question, "document": i.request, "source": i.source,
+                        "evidence_from_the_notes": i.evidence_state or None, "note": i.evidence_note or None,
+                        "what_the_note_says": i.evidence_text or None} for i in a.issues],
         "read_with": a.ext.method,
         "amounts": f"{d.currency} thousands (shown in the app as {a.money.unit})",
         "income_statement_format": d.pl_format,

@@ -1,6 +1,6 @@
 # Case note — Toyota Caetano Portugal, FY2025
 
-*One page to read before an interview. Figures from the engine on the published FY2025 consolidated accounts (2025 annual report, ESEF, read from the printed statements); every one is in the stored memo and passes the checker.*
+*One page to read before an interview. Figures from the engine on the published consolidated accounts FY23 to FY25 (2025 and 2024 annual reports) and the notes of the 2025 report, read from the printed text of the ESEF file; every one is in the stored memo and passes the checker.*
 
 ## Context
 
@@ -8,26 +8,32 @@ Toyota Caetano Portugal imports and distributes Toyota and Lexus vehicles in Por
 
 ## Three talking points
 
-**1. Most of EBITDA is "other income".**
-- *The number:* other income was €40,036k in FY25, 60.5% of EBITDA of €66,187k (R04, High).
-- *Why it matters in a deal:* a buyer pays a multiple of EBITDA. If part of that income is manufacturer bonuses tied to targets, or one-off gains, it may not recur, and the multiple applies to a smaller base.
-- *Question for management:* "How much income comes from OEM bonuses, marketing support and target-based incentives, and where is it recorded?"
+**1. Most of EBITDA is "other income", and the notes say what it is.**
+- *The number:* other income was €40,036k in FY25, 60.5% of EBITDA of €66,187k (R04, High). Note 33 breaks it down: recoveries of warranty and other operating costs of €13,977k, operating grants of €5,142k and gains on disposals of assets of €4,862k.
+- *Why it matters in a deal:* a buyer pays a multiple of EBITDA. Cost recoveries recur while the agreement lasts; a gain on a disposal does not. The split decides the base of the price.
+- *Question for management:* "Which lines of other income are contractual and recurring, and which depend on yearly targets or decisions of the manufacturer?"
 
-**2. EBITDA did not turn into cash.**
-- *The number:* operating cash flow was -€3,987k in FY25, against €62,857k in FY24 (R10, High). Inventories rose 25.8% while cost of sales rose 4.5% (R09); payments to suppliers were €821,437k.
+**2. There is stock financing outside reported debt.**
+- *The number:* note 22 says €48,078k is owed to Toyota Kreditbank for vehicle purchases in 2025, inside "other payables". Net financial debt is €76,532k without it.
+- *Why it matters in a deal:* financing that funds stock is debt-like for a buyer. If the SPA definition leaves it out, the buyer pays for stock financed by someone else.
+- *Question for management:* "Is vehicle stock financed through floorplan or OEM credit lines, and are these lines included in reported debt?"
+
+**3. EBITDA turned into cash in one year out of three.**
+- *The number:* operating cash flow was -€12,859k in FY23, €62,857k in FY24 and -€3,987k in FY25 (R10, High). Inventories rose 25.8% in FY25 while COGS rose 4.5% (R09).
 - *Why it matters in a deal:* the buyer values cash, not EBITDA. A stock build at year-end inflates the working capital peg if it is set on year-end balances.
 - *Question for management:* "What is the composition and ageing of inventory? Which orders support current stock levels?"
 
-**3. Operating profit rose because depreciation fell.**
-- *The number:* EBITDA fell from €74,634k to €66,187k, but D&A fell from €28,125k to €18,617k, so operating profit rose to €47,570k. Capex was 0.32x D&A in FY25 (R24).
-- *Why it matters in a deal:* lower depreciation and low capex flatter profit and free cash flow today; deferred investment is paid by the buyer later.
-- *Question for management:* "Why did depreciation fall in FY25: asset disposals, longer useful lives or fully depreciated assets?"
+Also worth a sentence: capex / D&A was 0.62x in FY23, 0.42x in FY24 and 0.32x in FY25 (R24). The FY24 peak in D&A of €28,125k is explained by note 5: the development costs of a vehicle project were fully amortised that year.
 
-Also worth a sentence: 46.4% of debt is due within 12 months, but R11 does not fire, because the threshold is calibrated at 60% for car distributors that fund stock with short-term lines. The reason is printed next to the rule.
+## What the notes settled
+
+- **Other income (note 33):** explained, line by line; the next request is the ledger and the contracts behind the largest lines.
+- **Other payables (note 22):** explained: taxes, and the stock financing above.
+- **Cash conversion, the stock build, capex below depreciation:** still open; no note answers them.
 
 ## Limits of the analysis
 
-- Annual accounts only, and the notes were not read: other income and "other" liabilities (€144,507k, R28) are not broken down.
-- The distribution agreement, the OEM incentive schedule and the floorplan lines are not public.
-- The ESEF report's own XBRL tags were not used: some are wrong (assets held for sale tagged as inventories), so the printed statements were copied.
+- Annual accounts only: no monthly balances, so the working capital peg is indicative.
+- The distribution agreement, the OEM incentive schedule and the floorplan agreements are not public.
+- The ESEF report's own XBRL tags were not used: some are wrong (assets held for sale tagged as inventories), so the printed statements and notes were copied.
 - A first pass for an analyst to review: no view on the shares or the price.

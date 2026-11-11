@@ -649,7 +649,7 @@ def _key_issues(ws, a, reviews) -> None:
                              "Change it, and the status, in yellow.")
     _header(ws, 4, ["#", "Issue", "Type", "Severity", "Year", "Amount at stake", "What the amount is", "Material",
                     "Deal implication", "Typical treatment", "Question for management", "Document to request",
-                    "Source", "Status"])
+                    "Source", "Status", "Evidence from the notes", "What the note says"])
     r = 4
     for n, i in enumerate(a.issues, 1):
         r += 1
@@ -665,10 +665,13 @@ def _key_issues(ws, a, reviews) -> None:
         for c, value in enumerate([i.treatment, i.question, i.request, i.source], 10):
             _put(ws, r, c, value).alignment = Alignment(wrap_text=True, vertical="top")
         _put(ws, r, 14, state, fill=_DECISION, unlocked=True)
+        ev = (i.evidence_state + (f" by {i.evidence_note}" if i.evidence_note else "")) or "notes not read"
+        for c, value in enumerate([ev, i.evidence_text], 15):
+            _put(ws, r, c, value).alignment = Alignment(wrap_text=True, vertical="top")
     if a.issues:
         _validation(ws, list(IMPLICATIONS), f"I5:I{r}")
         _validation(ws, ["Pending", "Open", "Accepted", "Dismissed", "Closed"], f"N5:N{r}")
-    _finish(ws, [5, 44, 14, 10, 7, 16, 40, 22, 26, 52, 52, 40, 34, 12], "C5", 4, 14)
+    _finish(ws, [5, 44, 14, 10, 7, 16, 40, 22, 26, 52, 52, 40, 34, 12, 26, 70], "C5", 4, 16)
 
 
 def _issues(ws, a, reviews) -> None:

@@ -25,6 +25,10 @@ def run() -> int:
         with tempfile.TemporaryDirectory() as tmp:
             args = [str(case.path), "--country", case.country, "--sector", case.sector, "--purpose", case.purpose,
                     "--databook", "--out", tmp]
+            if case.prior:
+                args += ["--prior", str(case.path.parent / case.prior)]
+            if case.notes and (case.path.parent / "notes" / case.notes).exists():
+                args += ["--notes", str(case.path.parent / "notes" / case.notes)]
             if case.memo_path.exists():
                 args += ["--check-memo", str(case.memo_path)]
             rc = main(args)

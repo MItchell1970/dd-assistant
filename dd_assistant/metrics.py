@@ -84,17 +84,22 @@ EXTENDED_LABELS = {
     "other_wc": "Largest 'other' working capital line (% of revenue)",
     "acq_share": "Acquisitions of businesses paid (% of revenue)",
     "ebitda_pre16": "EBITDA before IFRS 16 (EBITDA less lease payments)",
+    "cagr_vendas": "Revenue CAGR over the three years",
+    "cagr_ebitda": "EBITDA CAGR over the three years",
+    "restated": "Lines restated against the prior report (count)",
+    "restated_max": "Largest restatement against the prior report",
 }
 ALL_LABELS = LABELS | EXTENDED_LABELS
 
 # Key -> unit, used only to display the values (pct = decimal shown as %; eur = EUR k).
 _UNIT_GROUPS = {
     "pct": "g_vendas new_share g_ex_new top_share g_ex_top_new gm ebitda_m or_share or_ebitda or_var gain_pct "
-           "adj_pct g_cli g_inv g_cmv conv conv_cum capex_pct other_wc acq_share st_share cov_head etr own_share",
+           "adj_pct g_cli g_inv g_cmv conv conv_cum capex_pct other_wc acq_share st_share cov_head etr own_share "
+           "cagr_vendas cagr_ebitda",
     "pp": "gm_pp cli_gap inv_gap etr_gap da_gap",
     "days": "dso dso_var dio dpo dpo_var",
     "x": "nd_ebitda nd_ebitda_ex cov_lim int_cover capex_da capex_da_2y",
-    "count": "adj_rec docs_miss",
+    "count": "adj_rec docs_miss restated",
     "text": "new_name top_name adj_rec_name docs_list cash_recon",
 }
 UNITS = {k: unit for unit, keys in _UNIT_GROUPS.items() for k in keys.split()}
@@ -364,6 +369,17 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("acq_share", P, lambda y: None if not v("vendas", y) or (v("acq", y) is None and v("fco", y) is None)
         else 0.0 - N(v("acq", y)) / v("vendas", y))
     put("ebitda_pre16", P, lambda y: None if v("lease_pay", y) is None else m["ebitda"][y] + v("lease_pay", y))
+    # compound annual growth: only with the three years present, and positive figures at both ends
+    def cagr(a, b):
+        return None if not need(a, b) or a <= 0 or b <= 0 else (b / a) ** 0.5 - 1
+    three = P[-3:] if len(P) >= 3 and P[-1] - P[-3] == 2 else []
+    put("cagr_vendas", P, lambda y: cagr(v("vendas", three[0]), v("vendas", y)) if three and y == three[-1] else None)
+    put("cagr_ebitda", P, lambda y: cagr(m["ebitda"][three[0]], m["ebitda"][y]) if three and y == three[-1] else None)
+    # comparatives restated: only for the years two reports give (history.py); unknown without a prior report
+    hits = lambda y: [r for r in d.restatements if r["year"] == y]
+    put("restated", d.years, lambda y: len(hits(y)) if y in d.overlap_years else None)
+    put("restated_max", d.years, lambda y: (max((abs(r["difference"]) for r in hits(y)), default=0.0)
+                                            if y in d.overlap_years else None))
     return m
 
 

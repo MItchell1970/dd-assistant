@@ -461,6 +461,24 @@ NEW_RULES = [
        plain="The company paid for acquisitions: part of its growth may not be organic (like-for-like).",
        practice="Revenue quality: growth is split into like-for-like and acquired before it is extrapolated.",
        in_template=False),
+    _r("R30", "Consistency", "Comparatives restated", "Lines whose prior-year figure changed between two reports",
+       ">", 0, "count", "restated", "Medium",
+       "A change of accounting policy, a reclassification or the correction of an error.",
+       "Why were the comparatives restated? Is it a change of policy, a reclassification or a correction, and what "
+       "is the effect on EBITDA, net debt and working capital?",
+       "Note on restatements and changes in accounting policies; reconciliation of the restated comparatives",
+       "Trends across years are only valid on a like-for-like basis; a correction of an error also says something "
+       "about the quality of the accounts.",
+       ev=lambda c: "; ".join(
+           f"{r['line']} {fy(r['year'])}: {c.cur(r['as_first_published'])} as first published, "
+           f"{c.cur(r['as_restated'])} as comparative ({r['source_first']} → {r['source_latest']})"
+           for r in c.d.restatements[:4])
+           + (f"; and {len(c.d.restatements) - 4} more" if len(c.d.restatements) > 4 else "")
+           + f". Policy: the comparative of the latest report is used. Prior report: {c.d.prior_report}",
+       plain="A figure for the same year is different in two annual reports: the company restated its comparatives.",
+       practice="Information quality: the comparatives of each report are tied to the prior report; restatements "
+                "are explained before a trend is read.",
+       in_template=False),
 ]
 
 # Every template rule in plain words, and where the practice comes from.
@@ -529,6 +547,11 @@ class RuleResult:
     base_severity: str = ""          # the rule's severity before materiality
     implication: str = ""            # Price: EBITDA · Price: net debt · … (issues.IMPLICATIONS)
     treatment: str = ""              # the typical treatment, in one sentence
+    # set from the notes to the accounts (notes.py): what the public report already answers
+    evidence_state: str = ""         # open · partly explained · explained ('' = no notes were read)
+    evidence_note: str = ""          # 'note 30' or 'note 25 (p.214)'
+    evidence_text: str = ""          # one sentence with the note's own figures
+    next_request: str = ""           # the next-level request, when the note answered the first one
 
     @property
     def alert(self) -> bool:

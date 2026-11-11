@@ -112,3 +112,20 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Memos:** cada um ganhou a tabela "Key issues by amount at stake" (5 primeiros, com a implicação). Os temas não foram reordenados: fica para quando as notas (A4) mudarem o conteúdo.
 - **Pendente:** o Excel "Red flags" e o CSV ainda não têm a coluna do montante (o databook tem); nome público; push.
 
+### A3 + A4 (11 de novembro de 2026): três anos, reexpressões e notas
+
+| # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
+|---|---|---|---|---|---|
+| A3 | Três anos a partir de dois relatórios (`dd_assistant/history.py`, `--prior`); regra R30 (comparativos reexpressos); CAGR só com os três anos; as três empresas da demo com FY23–FY25 | Sim | 12 testes em `tests/test_history.py` | TAP 2024: transcrição por subagente a partir do relatório consolidado de 2024 (pp. 54, 55, 58, 123, 145); resultado operacional reconstruído ao euro em FY24 e FY23 | Pendente |
+| A4 | Notas-chave transcritas para as três empresas (`data/notes/`, `scripts/notes_*.py`); leitor `dd_assistant/notes.py`; estado de evidência de cada achado e item (open · partly explained · explained by note N); pedido de nível seguinte; notas no material do memo, na app, no databook e no JSON (`--notes`) | Sim | 13 testes em `tests/test_notes.py` | 30 valores das notas lidos por um subagente independente, sem acesso às transcrições: 30 em 30 iguais | Pendente |
+
+- **Total de testes:** 244 OK. Memos reescritos com os três anos e as notas: TAP 142 números, Toyota 134, Amorim 139, nenhum sem fonte, zero avisos.
+- **Política dos comparativos:** para o ano que os dois relatórios dão usa-se o comparativo do relatório mais recente; cada linha diferente (acima de €1k) fica listada com as duas fontes. Linhas derivadas ("total menos as linhas identificadas") não contam, porque dependem do detalhe de cada ficheiro.
+- **Reexpressões encontradas:** Toyota e Amorim, nenhuma. TAP: seis linhas de totais do balanço de 2024 (ativo total €5,739m publicado, €5,797m como comparativo); a R30 dispara (Medium, €58m).
+- **O que as notas resolveram:** Toyota: outros rendimentos explicados pela nota 33 (recuperações de encargos €13,977k, subsídios €5,142k, mais-valias €4,862k) e outras dívidas a terceiros pela nota 22, que revela €48,078k devidos à Toyota Kreditbank para compra de viaturas, fora dos financiamentos. TAP: leasings (nota 19) e provisões (nota 18: €291m de redelivery). Amorim: dívida de curto prazo de 2024 (nota 22), outros passivos e ativos financeiros (notas 24 e 14: sobretudo saldos operacionais e fiscais); outros rendimentos só em parte (nota 30 deixa €7,051k em "Outros").
+- **Como se decide o estado:** "explained" exige que um valor da nota seja igual (±€1k) à linha das demonstrações por trás do achado; se a maior linha da nota for um "Outros" residual, fica "partly explained". Nada é inferido.
+- **Correções feitas pelo caminho:** o imposto a pagar do balanço de 2025 da Amorim ("Imposto sobre o rendimento", passivo corrente) passou a ser reconhecido como debt-like, como já era no de 2024; a net debt ajustada de FY25 passa de €79,657k para €83,638k. O verificador do memo passou a aceitar euros citados em milhões e a não tratar o dia de uma data ("31 de dezembro de 2024") como número.
+- **Teste da empresa limpa ajustado:** a R30 fica "n/a" com um só relatório, por desenho; o teste que exige todas as regras testadas na Velmora exclui-a com essa razão. Nenhum alarme novo na Velmora.
+- **Não feito (fica em GAPS):** regras novas baseadas em notas (partes relacionadas, contingências sem provisão, concentração por segmento); itens das notas a entrar sozinhos na ponte de net debt (o financiamento de stock da Toyota e as provisões de redelivery da TAP estão no memo, não na ponte); a app normal (sem demo) ainda não tem campo para o relatório anterior nem para as notas, só a linha de comandos.
+- **Commit único para A3 + A4:** os dois blocos mexem nos mesmos ficheiros e os memos só voltaram a passar com ambos.
+

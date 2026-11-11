@@ -68,10 +68,10 @@ KPI_RULES = {"Revenue": ["R01", "R02", "R16", "R29"],
              "Net working capital": ["R07", "R08", "R09", "R23", "R28"]}
 # Within a severity, what moves the price first: EBITDA quality, cash, debt, then revenue, working capital, data.
 IMPACT = ["R19", "R05", "R04", "R26", "R27", "R10", "R20", "R21", "R11", "R13", "R22", "R28", "R01", "R02", "R29",
-          "R03", "R07", "R09", "R08", "R24", "R06", "R23", "R17", "R12", "R15", "R14", "R16", "R25", "R18"]
+          "R03", "R07", "R09", "R08", "R24", "R06", "R23", "R17", "R12", "R15", "R14", "R16", "R30", "R25", "R18"]
 WHERE = {"Quality of earnings": "Deal view", "Net working capital": "Deal view", "Debt": "Deal view",
          "Consistency": "Data room", "Information": "Data room"}
-SUMMARY_ROWS = ["vendas", "g_vendas", "gm", "ebitda", "ebitda_m", "ebitda_adj", "ebitda_ex_gain", "cgo", "conv",
+SUMMARY_ROWS = ["vendas", "g_vendas", "cagr_vendas", "gm", "ebitda", "ebitda_m", "ebitda_adj", "ebitda_ex_gain", "cgo", "conv",
                 "fco", "dso", "dio", "dpo", "net_debt", "nd_ebitda"]
 
 CSS = """
@@ -432,7 +432,7 @@ def landing() -> None:
                 unsafe_allow_html=True)
     tour = Path(__file__).parent / "docs" / "images" / "demo-tour.gif"
     if tour.exists():
-        st.image(str(tour), caption="23 seconds on TAP: the headline figures with their pages, the net debt bridge, a red flag with its source, the Excel.")
+        st.image(str(tour), caption="20 seconds on TAP: the headline figures with their pages, the net debt bridge, a red flag with its source, the Excel.")
 
     st.markdown("<div class='dd-section'>How it works</div>", unsafe_allow_html=True)
     for col, (icon, title, text) in zip(st.columns(len(demo.PROCESS)), demo.PROCESS):
@@ -440,7 +440,7 @@ def landing() -> None:
             st.markdown(f":material/{icon}: **{title}**")
             st.caption(text)
 
-    st.markdown("<div class='dd-section'>Three real companies, published FY2025 accounts</div>",
+    st.markdown("<div class='dd-section'>Three real companies, published accounts FY2023 to FY2025</div>",
                 unsafe_allow_html=True)
     for col, c in zip(st.columns(len(demo.CASES), gap="medium"), demo.CASES):
         with col.container(border=True):
@@ -559,6 +559,8 @@ except anthropic.AnthropicError as e:
     st.error(f"Claude API error while reading the PDF: {e}")
     st.stop()
 
+if DEMO and case.prior:   # three years: the earlier one from the prior year's report (history.py)
+    ext = demo.extraction(case)
 suggested, words = sectors.suggest(ext.source_text, ext.company)
 c_suggested, c_why = europe.suggest(ext.source_text, ext.company)
 keys = [s.key for s in sectors.SECTORS]
@@ -779,7 +781,7 @@ with tab_ov:
 
     st.markdown("<div class='dd-section'>Financial summary</div>", unsafe_allow_html=True)
     summary = pd.DataFrame([[ALL_LABELS[k]] + [fmt_metric(k, metrics[k].get(y), money) for y in years3]
-                            for k in SUMMARY_ROWS], columns=[f"{money.unit} unless stated"] + [fy(y) for y in years3])
+                            for k in SUMMARY_ROWS if not k.startswith("cagr") or metrics[k].get(L) is not None], columns=[f"{money.unit} unless stated"] + [fy(y) for y in years3])
     st.dataframe(summary, hide_index=True, width="stretch", height=35 * (len(summary) + 1) + 3)
     found = len(ext.items) - len(ext.missing)
     passed = sum(c["OK"] for c in a.checks)
@@ -806,7 +808,11 @@ with tab_ki:
                                "What the amount is": (f"{i.amount_label}, {fy(i.year)}" if i.kind == "Finding"
                                                       and i.amount is not None else i.amount_label)
                                + (f" — {i.note}" if i.note else ""),
-                               "Deal implication": i.implication, "Typical treatment": i.treatment,
+                               "Deal implication": i.implication,
+                               "Evidence from the notes": (i.evidence_state + (f" by {i.evidence_note}"
+                                                                               if i.evidence_note else ""))
+                               if ext.notes else "notes not read",
+                               "What the note says": i.evidence_text, "Typical treatment": i.treatment,
                                "Question for management": i.question, "Document to request": i.request}
                               for i in a.issues])
         st.data_editor(table, key=imp_key, hide_index=True, width="stretch", height=35 * (len(table) + 1) + 3,
@@ -814,6 +820,7 @@ with tab_ki:
                        column_config={"Issue": st.column_config.TextColumn(width="medium"),
                                       "Deal implication": st.column_config.SelectboxColumn(
                                           options=list(IMPLICATIONS), required=True, width="medium"),
+                                      "What the note says": st.column_config.TextColumn(width="large"),
                                       "Typical treatment": st.column_config.TextColumn(width="large"),
                                       "Question for management": st.column_config.TextColumn(width="large")})
         st.caption(f"Deal implication: change it in the table (yellow cells in the databook's Key Issues sheet). "
@@ -1049,6 +1056,11 @@ with tab_rf:
                         + (f". {r.note[0].upper() + r.note[1:]}: severity lowered from {r.base_severity} to Low"
                            if r.note else "") + f".  \n**Deal implication**  \n{r.implication}. {r.treatment} "
                         f"_{DISCLAIMER}_")
+            if r.evidence_state:
+                st.markdown(f"**Evidence from the notes**  \n{r.evidence_state.capitalize()}"
+                            + (f" by {r.evidence_note}. {r.evidence_text}" if r.evidence_note else
+                               ": no note on this subject was read.")
+                            + (f"  \n**Next request**  \n{r.next_request}" if r.next_request else ""))
             st.markdown(f"**Evidence**  \n{r.evidence}")
             st.markdown(f"**Test**  \n{rule.test} · threshold {rule.limit_text()}"
                         + (f" · graded severity: {rule.grade_text[0].lower()}{rule.grade_text[1:]}"
@@ -1098,6 +1110,33 @@ with tab_src:
         st.caption("Excel files are read together as one set of statements; every figure keeps its file and cell. "
                    "Documents are read as text for the memo, on this computer.")
         st.dataframe(pd.DataFrame(ext.files), hide_index=True, width="stretch")
+    if ext.notes:
+        st.markdown("<div class='dd-section'>Notes to the accounts read</div>", unsafe_allow_html=True)
+        st.caption("The key notes of the same report, transcribed as printed. Each finding says whether one of them "
+                   "explains it (Key issues tab). A note that was not read is listed as such, never guessed.")
+        st.dataframe(pd.DataFrame([{"Note": t.note, "Title as printed": t.title, "Where": t.page,
+                                    "Subject": t.topic.replace("_", " "), "Lines": len(t.rows), "Unit": t.unit}
+                                   for t in ext.notes]
+                                  + [{"Note": "–", "Title as printed": "not read", "Where": reason,
+                                      "Subject": topic.replace("_", " "), "Lines": 0, "Unit": ""}
+                                     for topic, reason in ext.notes_not_read]), hide_index=True, width="stretch")
+    if data.prior_report:
+        st.markdown("<div class='dd-section'>Two annual reports, three years</div>", unsafe_allow_html=True)
+        st.caption(f"{', '.join(fy(y) for y in data.prior_years)} comes from the prior report "
+                   f"({data.prior_report}). {', '.join(fy(y) for y in data.overlap_years)} is in both reports: the "
+                   "comparative of the latest report is used, and every line that differs between the two is listed "
+                   "here (rule R30), never mixed in silence.")
+        if data.restatements:
+            st.dataframe(pd.DataFrame([{"Line": r["line"], "Year": fy(r["year"]),
+                                        "As first published": money.amount(r["as_first_published"]),
+                                        "As comparative (used)": money.amount(r["as_restated"]),
+                                        "Difference": money.amount(r["difference"]),
+                                        "Source, prior report": r["source_first"],
+                                        "Source, latest report": r["source_latest"]} for r in data.restatements]),
+                         hide_index=True, width="stretch")
+        else:
+            st.success(f"No line was restated: the {', '.join(fy(y) for y in data.overlap_years)} figures of the two "
+                       "reports are the same, within €1k.")
     st.markdown("<div class='dd-section'>Reading checks</div>", unsafe_allow_html=True)
     if a.checks:
         st.caption("Subtotals rebuilt from the lines the agent read, compared with the subtotals the company "

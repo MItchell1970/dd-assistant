@@ -30,7 +30,8 @@ class CleanCompanyTest(unittest.TestCase):
     def test_every_rule_was_tested(self):
         """Zero alertas só vale se todas as regras tiveram valor no último ano (nenhuma "n/a")."""
         last = self.data.pl_years[-1]
-        untested = [r.rule.id for r in self.results if r.fires[last] == "n/a"]
+        # R30 compares two annual reports: with one report it is not applicable by design (tests/test_history.py)
+        untested = [r.rule.id for r in self.results if r.fires[last] == "n/a" and r.rule.id != "R30"]
         self.assertEqual(untested, [])
 
     def test_no_false_alarms_with_its_sector_thresholds(self):

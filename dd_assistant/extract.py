@@ -500,7 +500,7 @@ DEBT_LIKE = [
       "employee benefit obligations", "provisiones por retribuciones a largo plazo al personal",
       "provisions pour retraites", "engagements de retraite", "ruckstellungen fur pensionen", "pensionsruckstellungen",
       "trattamento di fine rapporto di lavoro subordinato", "trattamento di fine rapporto", "fondo tfr"], True),
-    ("Income tax payable", ["imposto sobre o rendimento a pagar", "income tax liabilities", "income tax payable",
+    ("Income tax payable", ["imposto sobre o rendimento a pagar", "imposto sobre o rendimento", "income tax liabilities", "income tax payable",
                             "income taxes payable", "current tax liabilities", "current income tax liabilities",
                             "corporation tax", "pasivos por impuesto corriente",
                             "steuerruckstellungen", "debiti tributari"], True),
@@ -580,6 +580,9 @@ class Extraction:
     source_text: str = ""                        # full text of the data room, for the AI memo
     unmapped: list[dict] = field(default_factory=list)   # lines of the statements the analysis does not use
     files: list[dict] = field(default_factory=list)      # the data room's files and how each was read
+    notes: list = field(default_factory=list)            # notes to the accounts, transcribed (notes.NoteTable)
+    notes_file: str = ""
+    notes_not_read: list = field(default_factory=list)   # (topic, reason) the transcriber could not read
 
 
 # ---------------------------------------------------------------- Excel helpers

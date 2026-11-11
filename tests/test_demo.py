@@ -263,7 +263,7 @@ class SameNumbersTest(unittest.TestCase):
                 expected = {"Diligence-adjusted EBITDA": a.view.ebitda_dd, "Adjusted net debt": a.view.net_debt_adjusted,
                             "Net working capital": a.view.nwc_values}
                 controls = control_results(c.databook_path)
-                self.assertEqual(len(controls), 6)
+                self.assertEqual(len(controls), 3 * len(a.view.pl_years))   # three totals per year
                 for name, year, workbook, _python, status in controls:
                     self.assertTrue(str(status).startswith("OK"), (name, year, status))
                     self.assertAlmostEqual(workbook, expected[name][2000 + int(year[2:])], delta=1, msg=(name, year))

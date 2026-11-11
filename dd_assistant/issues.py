@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from . import notes as notes_
 from .deal import DealView
 from .input_loader import CompanyData
 from .metrics import Metrics
@@ -103,6 +104,7 @@ AMOUNTS = {
             lambda d, m, y, p, r: abs(d.v("da", y)) - abs(d.v("da", p)) * (1 + _growth(d.v("aft", y), d.v("aft", p)))),
     "R28": ("bs", "largest 'other' current line", lambda d, m, y, p, r: m["other_wc"][y] * d.v("vendas", y)),
     "R29": ("bs", "acquisitions of businesses paid", lambda d, m, y, p, r: -d.v("acq", y)),
+    "R30": ("bs", "largest restated line", lambda d, m, y, p, r: m["restated_max"][y]),
 }
 
 # rule ID -> (implication, the typical treatment in one sentence)
@@ -150,6 +152,8 @@ TREATMENT = {
     "R28": ("Price: working capital / peg", "The line is broken down: operating items go into the peg, debt-like "
                                             "items into net debt."),
     "R29": ("Further diligence", "Growth is split into like-for-like and acquired before it is extrapolated."),
+    "R30": ("Further diligence", "The restatement is reconciled and explained before trends are read; a corrected "
+                                 "error is usually covered by the accounts warranty."),
 }
 
 
@@ -171,7 +175,8 @@ def amount_at_stake(r: RuleResult, d: CompanyData, m: Metrics) -> tuple[float | 
 
 
 def apply(results: list[RuleResult], d: CompanyData, m: Metrics, materiality: Materiality,
-          implications: dict[str, str] | None = None) -> list[RuleResult]:
+          implications: dict[str, str] | None = None, notes: list | None = None, money=None,
+          raw: dict | None = None) -> list[RuleResult]:
     """Each fired rule with its amount, its materiality and its deal implication. A finding whose amount is below
     the threshold becomes Low ('below materiality'); one that cannot be quantified keeps the rule's severity."""
     limits = materiality.thresholds(d, m)
@@ -189,9 +194,12 @@ def apply(results: list[RuleResult], d: CompanyData, m: Metrics, materiality: Ma
                 f"{BELOW} ({materiality.bs_pct:.0%} of revenue)"
             rule = replace(rule, severity="Low")
         implication, treatment = TREATMENT.get(rule.id, ("Further diligence", ""))
+        ev = notes_.for_finding(rule.id, year, notes, d, m, money, (raw or {}).get(year)) if notes else None
         out.append(replace(r, rule=rule, amount=amount, amount_label=label, amount_year=year, material=material,
                            note=note, base_severity=r.rule.severity,
-                           implication=(implications or {}).get(rule.id, implication), treatment=treatment))
+                           implication=(implications or {}).get(rule.id, implication), treatment=treatment,
+                           evidence_state=ev.state if ev else "", evidence_note=ev.note if ev else "",
+                           evidence_text=ev.text if ev else "", next_request=ev.request if ev else ""))
     return out
 
 
@@ -217,9 +225,12 @@ class KeyIssue:
     question: str
     request: str
     source: str
+    evidence_state: str = ""      # open · partly explained · explained ('' = no notes were read)
+    evidence_note: str = ""
+    evidence_text: str = ""
 
 
-def _bridge_items(view: DealView, year: int) -> list[tuple[str, str, float, str]]:
+def _bridge_items(view: DealView, year: int) -> list[tuple[str, str, float, str, list]]:
     """(kind, category, signed amount, source) of the net debt bridge, one row per category. The lines an R28
     finding already covers are left out."""
     groups: dict[tuple[str, str], list] = {}
@@ -234,23 +245,27 @@ def _bridge_items(view: DealView, year: int) -> list[tuple[str, str, float, str]
             continue
         if ln.note.startswith("Material 'other' line"):
             continue
-        g = groups.setdefault((kind, ln.note or ln.label), [0.0, []])
+        g = groups.setdefault((kind, ln.note or ln.label), [0.0, [], []])
         g[0] += value
         g[1].append(ln.source)
-    return [(k, cat, total, "; ".join(dict.fromkeys(s for s in src if s))) for (k, cat), (total, src) in groups.items()]
+        g[2].append(abs(value))
+    return [(k, cat, total, "; ".join(dict.fromkeys(s for s in src if s)), parts)
+            for (k, cat), (total, src, parts) in groups.items()]
 
 
 def key_issues(findings: list[RuleResult], view: DealView, d: CompanyData, m: Metrics, materiality: Materiality,
-               implications: dict[str, str] | None = None) -> list[KeyIssue]:
+               implications: dict[str, str] | None = None, notes: list | None = None, money=None) -> list[KeyIssue]:
     """Findings and net debt items in one list, ordered by amount at stake (not quantifiable last)."""
     implications = implications or {}
     out = [KeyIssue(r.rule.id, "Finding", r.rule.name, r.rule.severity, r.amount, r.amount_label, r.amount_year,
-                    r.material, r.note, r.implication, r.treatment, r.rule.question, r.rule.request,
-                    r.evidence.split("Source: ")[-1] if "Source: " in r.evidence else "")
+                    r.material, r.note, r.implication, r.treatment, r.rule.question,
+                    r.next_request or r.rule.request,
+                    r.evidence.split("Source: ")[-1] if "Source: " in r.evidence else "",
+                    r.evidence_state, r.evidence_note, r.evidence_text)
            for r in findings]
     B = view.bs_years[-1]
     limit = materiality.thresholds(d, m)["bs"]
-    for kind, category, total, source in _bridge_items(view, B):
+    for kind, category, total, source, parts in _bridge_items(view, B):
         key = f"ND: {category}"
         included = kind == "Net debt item"
         nature = "cash-like" if total < 0 else "debt-like"
@@ -260,10 +275,13 @@ def key_issues(findings: list[RuleResult], view: DealView, d: CompanyData, m: Me
                      "Included in adjusted net debt as a cash-like item, if the SPA definition agrees." if included
                      else f"Not in adjusted net debt yet: to be classified as {nature}, working capital or neither.")
         material = None if limit is None else abs(total) >= limit
+        ev = notes_.for_item(category, [abs(total)] + parts, B, notes, money) if notes else None
         out.append(KeyIssue(key, kind, category, "", abs(total), f"balance at {fy(B)}", B, material,
                             "" if material is not False else f"{BELOW} ({materiality.bs_pct:.0%} of revenue)",
                             implications.get(key, default), treatment,
                             f"Please provide the breakdown, terms and maturity of: {category.lower()}.",
-                            f"Schedule of {category.lower()} with supporting agreements", source))
+                            (ev.request if ev and ev.request else
+                             f"Schedule of {category.lower()} with supporting agreements"), source,
+                            ev.state if ev else "", ev.note if ev else "", ev.text if ev else ""))
     order = lambda i: (i.amount is None, -(i.amount or 0), SEVERITIES.index(i.severity) if i.severity else 9)
     return sorted(out, key=order)

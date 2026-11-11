@@ -75,6 +75,10 @@ def main(argv=None) -> int:
                                                  "report package .zip), or a completed DD template")
     p.add_argument("--read-pdf", metavar="PDF", help="Read the financial statements from this PDF with Claude (paid), "
                                                      "when the data room has no Excel statements")
+    p.add_argument("--prior", metavar="FILE", help="The prior year's report (Excel): adds the earlier year and "
+                   "lists the comparatives restated between the two reports (R30)")
+    p.add_argument("--notes", metavar="FILE", help="The key notes of the report, transcribed (scripts/notes_*.py): "
+                   "each finding then says whether a note explains it")
     p.add_argument("--out", default="output", help="Folder for the results (default: output)")
     p.add_argument("--sector", choices=list(sectors.SECTOR_BY_KEY), help="Sector (default: suggested from the file)")
     p.add_argument("--country", choices=list(europe.COUNTRY_BY_CODE),
@@ -107,7 +111,7 @@ def main(argv=None) -> int:
         p.error("the data room is required: one or more files, or a folder")
 
     paths = [Path(x) for x in args.financials]
-    for f in paths + [Path(x) for x in (args.data_room, args.check_memo) if x]:
+    for f in paths + [Path(x) for x in (args.data_room, args.check_memo, args.prior, args.notes) if x]:
         if not f.exists():
             print(f"File not found: {f}", file=sys.stderr)
             return 1
@@ -117,6 +121,14 @@ def main(argv=None) -> int:
         load_env()   # reading a PDF's statements uses the Claude API
     try:
         ext = read_data_room(files_in(paths), read_pdf=args.read_pdf)
+        if args.prior:
+            from .history import add_prior_report
+            ext = add_prior_report(ext, read_data_room(files_in([Path(args.prior)])), Path(args.prior).name)
+        if args.notes:
+            from dataclasses import replace as _replace
+            from .notes import not_read, read_notes
+            ext = _replace(ext, notes=read_notes(args.notes), notes_file=Path(args.notes).name,
+                           notes_not_read=not_read(args.notes))
         if args.data_room:
             ext.source_text = data_room_text(args.data_room)
         docs = [(name, ok or any(name.lower().startswith(r.lower()) for r in args.received))
