@@ -124,6 +124,10 @@ class Case:
     def case_note_path(self) -> Path:
         return self.folder / "case_note.md"
 
+    @property
+    def slides_path(self) -> Path:
+        return self.folder / "red_flag_report.pptx"
+
 
 CASES = (
     Case("tap", "TAP Air Portugal", "TAP_2025_published.xlsx", "PT", "transport",

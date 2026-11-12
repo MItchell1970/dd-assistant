@@ -96,6 +96,8 @@ def main(argv=None) -> int:
     p.add_argument("--material", action="store_true", help="Also save the material for the AI memo (no API call)")
     p.add_argument("--databook", action="store_true", help="Also save the databook (Excel with formulas) and, when "
                                                            "Excel is installed, recalculate it and compare the totals")
+    p.add_argument("--slides", action="store_true", help="Also save the Red Flag Report in PowerPoint (9 slides; "
+                   "needs python-pptx)")
     p.add_argument("--memo", action="store_true", help="Also write the memo and request list with the Claude API")
     p.add_argument("--data-room", help="Data room (Excel) for the memo when the input is a DD template")
     p.add_argument("--check-memo", metavar="MEMO", help="Check a memo already written (e.g. in claude.ai)")
@@ -153,6 +155,10 @@ def main(argv=None) -> int:
                                                    encoding="utf-8")
     if args.databook:
         _databook(a, out / f"{stem}_databook.xlsx")
+    if args.slides:
+        from .slides import write_slides
+        write_slides(a, out / f"{stem}_red_flag_report.pptx")
+        print(f"Slides: {stem}_red_flag_report.pptx")
     if args.material or args.memo or args.check_memo:
         _material(a, out, path)
     print(f"\nResults saved to: {out.resolve()}")

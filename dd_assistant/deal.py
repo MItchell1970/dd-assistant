@@ -304,3 +304,32 @@ def net_debt_steps(view: DealView, year: int) -> list[Step]:
     steps += [(label, value, "delta") for label, value in groups.items()]
     steps.append(("Adjusted net debt", end, "total"))
     return steps
+
+
+def cash_steps(view: DealView, d: CompanyData, m: Metrics, year: int) -> list[Step]:
+    """EBITDA → free cash flow, reconciled to the cash flow statement: reported EBITDA, the change in net working
+    capital (from the two balance sheets), tax, interest and other operating items (the remainder to the operating
+    cash flow as published, shown as its own line, never hidden), operating cash flow, capex, free cash flow and,
+    when the cash flow statement shows them, lease payments. Empty when a figure it needs is missing."""
+    ebitda, ocf, capex = view.ebitda.get(year), d.v("fco", year), d.v("capex", year)
+    if ebitda is None or ocf is None or capex is None:
+        return []
+    steps: list[Step] = [("Reported EBITDA", ebitda, "total")]
+    earlier = [y for y in view.bs_years if y < year]
+    now, before = view.nwc_values.get(year), view.nwc_values.get(earlier[-1]) if earlier else None
+    change = -(now - before) if now is not None and before is not None else None
+    if change is not None:
+        steps.append(("Change in net working capital", change, "delta"))
+    steps.append(("Tax, interest and other operating items" if change is not None else
+                  "Working capital, tax and other operating items", ocf - ebitda - (change or 0.0), "delta"))
+    steps += [("Operating cash flow", ocf, "total"), ("Capex", capex, "delta")]
+    disposals = d.v("alien", year) or 0.0          # free cash flow as in the metrics: after proceeds from disposals
+    if disposals:
+        steps.append(("Proceeds from asset disposals", disposals, "delta"))
+    fcf = ocf + capex + disposals
+    steps.append(("Free cash flow", fcf, "total"))
+    lease = d.v("lease_pay", year)
+    if lease:
+        steps += [("Lease payments", lease, "delta"), ("Free cash flow after leases", fcf + lease, "total")]
+    return steps
+

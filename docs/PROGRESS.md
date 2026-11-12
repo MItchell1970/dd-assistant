@@ -150,3 +150,15 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **R23 não alterada, e porquê.** A distorção plantada na TAP (+20 dias de fornecedores) vale cerca de €12m, abaixo da materialidade de balanço da TAP (€43m), e fica escondida por uma queda real de 96 dias no DPO. Para a apanhar seria preciso mudar a definição do DPO (hoje fornecedores sobre o custo das mercadorias, que numa companhia aérea é só uma pequena parte das compras). O DPO é uma métrica da planilha de referência: mudá-lo quebra a paridade e obriga a alterar a planilha. Não é uma correção para fazer por causa de um teste; fica como falha publicada, dentro da taxa.
 - **Transparência:** a história (primeira corrida, o que mudou e o que não mudou) está escrita no `docs/DETECTION.md`.
 
+### C + A5 (12 de novembro de 2026): relatório em slides e ponte de caixa
+
+| # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
+|---|---|---|---|---|---|
+| A5 | Ponte de caixa EBITDA → free cash flow (`deal.cash_steps`): variação do NWC pelos dois balanços, o resto até ao fluxo operacional publicado como linha própria, capex, alienações, pagamentos de locação. Na app (Deal view), no material do memo e nos slides | Sim | 2 testes em `tests/test_slides.py` (reconcilia com a DFC e com o FCF das métricas) | Reconcilia por construção com o fluxo operacional publicado | Pendente |
+| C | Red Flag Report em PowerPoint (`dd_assistant/slides.py`, `--slides`): 9 slides, títulos com a conclusão e o número montados por regra, 4 gráficos nativos (editáveis), fonte no rodapé; PDF exportado pelo PowerPoint deste PC | Sim | 6 testes (9 slides, rodapé, títulos, cada número no material, gráficos com os passos do motor) | Cada slide das três empresas visto em imagem; barras negativas e rótulos corrigidos | Pendente |
+
+- **Dependência nova, só para produzir os slides:** `python-pptx` 1.0.2, em `requirements-dev.txt` (com o Playwright). A app e a demo publicada não precisam dela: descarregam os ficheiros já gerados em `docs/examples/<empresa>/`.
+- **Gráficos nativos:** cascatas feitas com colunas empilhadas (base invisível); o valor de cada barra está no rótulo da categoria, para ficar editável e legível. A parte de uma barra abaixo de zero usa séries próprias por cor, porque o PowerPoint não respeita a cor por ponto em valores negativos.
+- **Total de testes:** 262 OK.
+- **Não feito:** a ponte de caixa ainda não tem folha no databook (fica em GAPS); os slides da demo refletem a análise por defeito, como o memo.
+

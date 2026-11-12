@@ -15,11 +15,15 @@
 
 *20 seconds on TAP Air Portugal: the headline figures with their report pages, the net debt bridge, the most severe red flag with the pages it comes from, and the databook in Excel.*
 
-It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings (QoE), net debt with debt-like items, net working capital (NWC), 30 red-flag rules with their sources, a two-page memo, the request list and an Excel databook with live formulas. European companies, euros only.
+It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings (QoE), net debt with debt-like items, net working capital (NWC), 30 red-flag rules with their sources, a two-page memo, the request list, an Excel databook with live formulas and a Red Flag Report in nine slides. European companies, euros only.
 
 ![The net debt bridge of TAP Air Portugal, FY25](docs/images/demo-net-debt.png)
 
 *TAP's net debt bridge, FY25, € millions: borrowings less cash are -€43m; the leased aircraft (€2,158m), pensions (€173m) and tax payable (€4m) bring adjusted net debt to €2,293m. Every bar is a value the engine computed.*
+
+![A slide of the Red Flag Report: TAP's net debt](docs/images/slides-net-debt.png)
+
+*One of the nine slides of the Red Flag Report (PowerPoint, with editable charts): the title states the conclusion with its figure, and the footer gives the source.*
 
 ![The databook's Net Debt sheet in Excel](docs/images/databook-net-debt.png)
 
@@ -38,7 +42,7 @@ Three Portuguese companies, on three years of published consolidated accounts (F
 | **Corticeira Amorim** | Revenue fell 8.3%, yet operating cash flow was **155.3% of EBITDA** (€219,015k), as inventories fell from €466,545k to €388,297k. No rule fires; the memo asks whether it will repeat. | Cash flow statement and balance sheet, 2025 annual report (ESEF) |
 | | "Other financial liabilities" of **€43,264k** are mostly operating payables, not debt (note 24). Debt due within 12 months fell from 56.3% to 28.7% (R11). | Notes 22 and 24; statement of financial position |
 
-Each company has a memo, the checker's result, the databook and a one-page case note in [`docs/examples/`](docs/examples/).
+Each company has a memo, the checker's result, the databook, the Red Flag Report in slides (PowerPoint and PDF) and a one-page case note in [`docs/examples/`](docs/examples/).
 
 ## How it works
 
@@ -46,7 +50,7 @@ Each company has a memo, the checker's result, the databook and a one-page case 
 2. **Check the reading:** the subtotals the company published are rebuilt from the lines read before any figure is used. A missing figure stays unknown, never zero. Two annual reports give three years; a line that differs between them is a restatement, listed and never mixed in silence.
 3. **Flag what matters:** 30 rules from financial due diligence, private equity and bank credit practice, each with its threshold, evidence, source, question for management and document to request. Each finding gets an amount at stake in euros and is ranked by it, with the net debt items, in one list of key issues; below a visible materiality threshold (5% of EBITDA, 1% of revenue) a finding is Low. Each issue carries its typical deal implication: price (EBITDA, net debt, working capital), SPA protection, further diligence or post-deal. The key notes of the report are read too: each issue says whether a note explains it, partly explains it, or leaves it open.
 4. **Build the bridges:** reported to diligence-adjusted EBITDA, borrowings less cash to adjusted net debt, and working capital with an indicative peg; then enterprise value to equity, once you enter the price mechanism.
-5. **Export and write:** the databook in Excel; Claude writes the memo and the request list from that material only, and a checker with no AI confirms every figure, for the year it is cited.
+5. **Export and write:** the databook in Excel and the Red Flag Report in slides, whose titles are assembled by rule from the engine's figures; Claude writes the memo and the request list from that material only, and a checker with no AI confirms every figure, for the year it is cited.
 
 ```mermaid
 flowchart LR
@@ -62,7 +66,7 @@ flowchart LR
 
 **Measured**
 
-- **254 automated tests** (`python -m unittest`), run on every change.
+- **262 automated tests** (`python -m unittest`), run on every change.
 - **Parity with a hand-built Excel template:** the Python gives exactly the template's metrics, rule values, thresholds and severities.
 - **Published totals rebuilt:** on each real company, the subtotals rebuilt from the lines read must equal the published ones, and the balance sheet must balance. Operating profit is rebuilt to the euro for TAP and Toyota Caetano; EBITDA is within the report's own €2k rounding for Corticeira Amorim.
 - **No false alarm on a clean company:** a fictitious company designed to pass raises no finding.

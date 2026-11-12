@@ -191,6 +191,14 @@ def _deal_section(a) -> list[str]:
                             " (x)" if l.unit == "x" else "")]
                 + [fmt_value(l.values.get(y)) if l.values else "" for y in years] + [l.source, l.note] for l in block]
         out += ["", f"### {title}"] + _table(["Line"] + [fy(y) for y in years] + ["Source", "Note"], rows)
+    from .deal import cash_steps
+    bridge = {y: cash_steps(a.view, a.data, a.metrics, y) for y in a.view.pl_years}
+    labels = list(dict.fromkeys(label for steps in bridge.values() for label, _, _ in steps))
+    if labels:
+        value = lambda y, label: next((fmt_value(v) for l, v, _ in bridge[y] if l == label), "")
+        out += ["", "### Cash flow bridge: EBITDA to free cash flow (reconciled to the cash flow statement)"]
+        out += _table(["Line"] + [fy(y) for y in a.view.pl_years],
+                      [[label] + [value(y, label) for y in a.view.pl_years] for label in labels])
     return out
 
 

@@ -24,7 +24,8 @@ import streamlit as st
 
 from dd_assistant import demo, europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
-from dd_assistant.deal import ADJUSTMENT_STATES, Line, ifrs16_steps, net_debt_steps, qoe_steps, value_at_stake
+from dd_assistant.deal import (ADJUSTMENT_STATES, Line, cash_steps, ifrs16_steps, net_debt_steps, qoe_steps,
+                               value_at_stake)
 from dd_assistant.databook import write_databook
 from dd_assistant.price import (LEAKAGE_STATES, LEAKAGE_TREATMENTS, MECHANISMS, EnterpriseValue,
                                LeakageItem, LockedBox, PriceInputs, completion_equity,
@@ -889,6 +890,11 @@ with tab_deal:
         st.caption("No debt-like or cash-like lines found in the balance sheet (leases, pensions, tax payable, "
                    "marketable securities…). Check the notes: they are often presented there.")
 
+    st.markdown("<div class='dd-section'>Cash flow: EBITDA to free cash flow</div>", unsafe_allow_html=True)
+    waterfall(cash_steps(view, data, metrics, L), money,
+              f"Cash flow bridge, {fy(L)} ({money.unit}), reconciled to the cash flow statement", "dv-cash")
+    st.caption("The change in working capital comes from the two balance sheets; what is left to reach the operating "
+               "cash flow as published is shown as its own bar (tax, interest and other operating items).")
     st.markdown(f"<div class='dd-section'>{term('Net working capital', 'NWC')}</div>", unsafe_allow_html=True)
     nwc_chart(view, money, "dv-nwc")
     st.markdown(bridge(view.nwc, view.bs_years, money), unsafe_allow_html=True)
@@ -1035,7 +1041,13 @@ with tab_rf:
         st.caption("The downloads are at the top of the page.")
         with downloads:
             requests = demo.request_list(case)
-            d1, d2, d3, d4 = st.columns(4)
+            d1, d5, d2, d3, d4 = st.columns(5)
+            if case.slides_path.exists():
+                d5.download_button("Slides (PowerPoint)", case.slides_path.read_bytes(),
+                                   f"{case.slug}_red_flag_report.pptx", width="stretch",
+                                   mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                   help="The Red Flag Report in nine slides, with editable charts. Built from the "
+                                        "default analysis, like the memo.")
             d1.download_button("Databook (Excel)", book.getvalue(), f"{case.slug}_databook.xlsx",
                                mime=XLSX_MIME, type="primary", width="stretch", help=book_help + " Includes your decisions.")
             d2.download_button("Red flags (Excel)", buf.getvalue(), f"{case.slug}_red_flags.xlsx", mime=XLSX_MIME,

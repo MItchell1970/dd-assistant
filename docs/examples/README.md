@@ -15,6 +15,7 @@ In each folder:
 - `memo.md`: the two-page memo, the request list and the notes to improve the template;
 - `memo_check.md`: the result of the automatic checker (`memo_check.py`, no AI);
 - `databook.xlsx`: the databook, recalculated by Excel, whose totals equal the engine;
+- `red_flag_report.pptx` and `.pdf`: the Red Flag Report in nine slides, with native (editable) charts;
 - `case_note.md`: one page to read before an interview — context, three talking points, limits.
 
 `tests/test_demo.py` checks that the stored memo still passes the checker, that the stored check is current, and that the memo, the databook and the app quote the same figures. To regenerate the databooks and the checks after a change to the engine:
