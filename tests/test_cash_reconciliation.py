@@ -46,6 +46,22 @@ class CashReconciliationTest(unittest.TestCase):
         d = apply_edits(self.base, {"cx_fim": {2025: self.cash - 30}, "desc": {2025: 20}})   # explains only part
         self.assertTrue(self.r13(d)[1].alert)
 
+    def test_a_small_error_leaves_only_the_remainder_unexplained(self):
+        """Overdrafts of 30,000 explain all but 2 of the difference: R13 fires on the 2, not on the 30,002."""
+        d = apply_edits(self.base, {"cx_fim": {2025: self.cash - 30002}, "desc": {2025: 30000}})
+        m, r13 = self.r13(d)
+        self.assertEqual(m["cash_diff"][2025], -30002)
+        self.assertAlmostEqual(m["cash_diff_unexpl"][2025], -2)
+        self.assertTrue(r13.alert)
+        self.assertIn("remainder is not explained", m["cash_recon"][2025])
+
+    def test_a_line_that_explains_too_little_explains_nothing(self):
+        """Overdrafts of 20 against a difference of 30: a third is left over, so the whole difference stands."""
+        d = apply_edits(self.base, {"cx_fim": {2025: self.cash - 30}, "desc": {2025: 20}})
+        m, r13 = self.r13(d)
+        self.assertEqual(m["cash_diff_unexpl"][2025], -30)
+        self.assertTrue(r13.alert)
+
     def test_restricted_cash_included_in_the_cash_flow_statement(self):
         d = apply_edits(self.base, {"cx_fim": {2025: self.cash + 12}})
         d.balance_items = [BalanceItem("Restricted cash", "Restricted cash", "cash", "current", {2025: 12}, "BS!B9",

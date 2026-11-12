@@ -303,6 +303,12 @@ def compute_metrics(d: CompanyData) -> Metrics:
             if adj and abs(diff + adj) <= 1:
                 m["cash_recon"][y] = why
                 return diff + adj
+        # a line explains most of it: only the remainder is unexplained (a small error must not turn the whole
+        # overdraft difference into a finding). The remainder still fires R13 when it is above the threshold.
+        adj, why = min(options, key=lambda o: abs(diff + o[0]) if o[0] else float("inf"))
+        if adj and abs(diff + adj) < abs(diff) and abs(diff + adj) <= 0.1 * abs(adj):
+            m["cash_recon"][y] = f"{why}; a remainder is not explained"
+            return diff + adj
         return diff
 
     put("cash_diff_unexpl", P, cash_unexplained)

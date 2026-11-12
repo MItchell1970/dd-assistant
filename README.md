@@ -62,13 +62,13 @@ flowchart LR
 
 **Measured**
 
-- **252 automated tests** (`python -m unittest`), run on every change.
+- **254 automated tests** (`python -m unittest`), run on every change.
 - **Parity with a hand-built Excel template:** the Python gives exactly the template's metrics, rule values, thresholds and severities.
 - **Published totals rebuilt:** on each real company, the subtotals rebuilt from the lines read must equal the published ones, and the balance sheet must balance. Operating profit is rebuilt to the euro for TAP and Toyota Caetano; EBITDA is within the report's own €2k rounding for Corticeira Amorim.
 - **No false alarm on a clean company:** a fictitious company designed to pass raises no finding.
 - **Memo checker:** every figure of the memo must be in the material, for the period cited; every finding must appear; every question needs a request; no investment-recommendation language. The three demo memos pass with 142, 134 and 139 figures checked, none without a source.
 - **Databook:** recalculated by Excel, every total equals the Python value.
-- **Detection benchmark:** known distortions are planted one at a time in the real accounts of the three companies (receivables +25%, a disposal gain hidden in other income, a dropped cost line…), with the expected rule written before the run. **48 of 49 were detected**; one was missed, and one of six controls raised an alert it should not have. Every run is in [`docs/DETECTION.md`](docs/DETECTION.md).
+- **Detection benchmark:** known distortions are planted one at a time in the real accounts of the three companies (receivables +25%, a disposal gain hidden in other income, a dropped cost line…), with the expected rule written before the run. **48 of 49 were detected** and one was missed. On the first run one of six controls raised an alert it should not have; that rule (R13) was then corrected, and the history is published with every run in [`docs/DETECTION.md`](docs/DETECTION.md).
 - **Notes read independently:** a second reader with no access to the transcriptions read 30 figures of the notes from the three reports; all 30 equal the transcribed ones.
 
 **Not measured**

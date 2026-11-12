@@ -143,3 +143,10 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Não afinei nada.** As duas falhas ficam publicadas e em `docs/GAPS.md`; mudar a R13 ou a R23 fica para decidires.
 - **O que o benchmark não mede:** distorções que ninguém pensou, mais pequenas, ou várias ao mesmo tempo.
 
+### Depois do benchmark (12 de novembro de 2026): R13 corrigida, R23 mantida
+
+- **Decisão do Bernardo:** corrigir as duas regras que falharam.
+- **R13 corrigida.** Quando uma linha identificada (descobertos, caixa restrita) explica pelo menos 90% da diferença de caixa, só o resto fica por explicar; o resto continua a disparar a R13 se passar €1k. Antes, um erro de €2k tornava os €29,451k da Amorim "por explicar". Dois testes novos em `tests/test_cash_reconciliation.py`; a paridade com a planilha não muda (a Duriva não tem descobertos). Benchmark depois da correção: 6 de 6 controlos, as mesmas 48 de 49.
+- **R23 não alterada, e porquê.** A distorção plantada na TAP (+20 dias de fornecedores) vale cerca de €12m, abaixo da materialidade de balanço da TAP (€43m), e fica escondida por uma queda real de 96 dias no DPO. Para a apanhar seria preciso mudar a definição do DPO (hoje fornecedores sobre o custo das mercadorias, que numa companhia aérea é só uma pequena parte das compras). O DPO é uma métrica da planilha de referência: mudá-lo quebra a paridade e obriga a alterar a planilha. Não é uma correção para fazer por causa de um teste; fica como falha publicada, dentro da taxa.
+- **Transparência:** a história (primeira corrida, o que mudou e o que não mudou) está escrita no `docs/DETECTION.md`.
+
