@@ -693,17 +693,11 @@ def _issues(ws, a, reviews) -> None:
         _put(ws, r, 11, comment, fill=_DECISION, unlocked=True)
     if found:
         _validation(ws, ["Pending", "Accepted", "Dismissed"], f"I5:I{r}")
-    requests: dict[str, list] = {}
+    from .deal_layer import request_list
     order = {s: i for i, s in enumerate(("High", "Medium", "Low"))}
-    for res in found:
-        for part in (p.strip() for p in res.rule.request.split(";")):
-            if part and part.lower() != "the documents listed in the evidence":
-                requests.setdefault(part[0].upper() + part[1:], []).append(res)
-    for doc, ok in a.data.documents:
-        if not ok:
-            requests.setdefault(doc, [])
-    for note in a.view.incomplete:
-        requests.setdefault(f"Figure missing from the data room: {note.split(' — ')[0]}", [])
+    by_id = {res.rule.id: res for res in found}
+    requests = {doc: [by_id[s] for s in src if s in by_id] for doc, src in request_list(a).items()}
+    origin = request_list(a)
     r += 2
     _put(ws, r, 1, "Request list (duplicates merged)", _BOLD)
     r += 1
@@ -713,7 +707,7 @@ def _issues(ws, a, reviews) -> None:
         prio = min((x.rule.severity for x in src), key=lambda s: order[s]) if src else "Medium"
         _put(ws, r, 1, f"REQ-{i:02d}")
         _put(ws, r, 2, doc).alignment = Alignment(wrap_text=True, vertical="top")
-        _put(ws, r, 3, ", ".join(sorted({x.rule.id for x in src})) or "document checklist")
+        _put(ws, r, 3, ", ".join(dict.fromkeys(origin[doc])))
         _put(ws, r, 4, prio)
         _put(ws, r, 9, "Open", fill=_DECISION, unlocked=True)
     for col, w in zip("ABCDEFGHIJK", [9, 34, 18, 9, 10, 60, 44, 36, 11, 14, 28]):
@@ -724,6 +718,127 @@ def _issues(ws, a, reviews) -> None:
     ws.print_area = f"A1:K{ws.max_row}"
     ws.protection.sheet = True
     ws.protection.autoFilter = False
+
+
+def _valuation_impact(ws, a) -> None:
+    """Phase 4B: the findings in equity value terms at three illustrative multiples, with live formulas."""
+    from .deal_layer import ILLUSTRATIVE, MULTIPLES, valuation_impact
+    vi = valuation_impact(a)
+    _title(ws, "Valuation Impact", f"EUR thousands. {ILLUSTRATIVE}: the diligence adjustments to EBITDA × a multiple, "
+                                   "the debt-like and cash-like items one for one, and working capital against the "
+                                   "indicative peg (average of the year-ends, not a negotiated peg). Each item enters "
+                                   "once: items in net debt are out of working capital.")
+    _header(ws, 4, ["Side", "Item", "Finding", "Basis", "Source", "Amount"])
+    r, rows = 4, {"EBITDA": [], "Net debt": [], "Working capital": []}
+    for c in vi.components:
+        r += 1
+        for col, value in enumerate([c.kind, c.label, c.finding or "–", c.basis, c.source], 1):
+            _put(ws, r, col, value).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 6, c.amount, _FORMULA, _NUM)
+        rows[c.kind].append(r)
+    r += 2
+    total = lambda side: f"=SUM({','.join(f'F{x}' for x in rows[side])})" if rows[side] else "=0"
+    labels = [("EBITDA change (diligence-adjusted less the seller's EBITDA)", "EBITDA"),
+              ("Net debt items: effect on equity value", "Net debt"),
+              ("Working capital against the indicative peg", "Working capital")]
+    refs = {}
+    for label, side in labels:
+        _put(ws, r, 2, label, _BOLD)
+        _formula(ws, r, 6, total(side), bold=True)
+        refs[side] = f"F{r}"
+        r += 1
+    r += 1
+    _put(ws, r, 2, f"Equity value impact of the findings ({ILLUSTRATIVE.lower()})", _BOLD)
+    r += 1
+    _header(ws, r, ["", "Multiple (x)", "", "", "", "Equity value impact"])
+    for m in MULTIPLES:
+        r += 1
+        _put(ws, r, 2, m, _INPUT, "0.0x")
+        _formula(ws, r, 6, f"=F{refs['EBITDA'][1:]}*B{r}+{refs['Net debt']}+{refs['Working capital']}", bold=True)
+    _finish(ws, [16, 58, 10, 34, 40, 18], "A5", 4, 6)
+
+
+def _top_issues(ws, a) -> None:
+    """Phase 4B: the top five deal issues with the typical protection and the moment, and the risk score."""
+    from .deal_layer import build
+    layer = build(a)
+    s = layer.score
+    _title(ws, "Top Issues", "EUR thousands. The five largest key issues by amount at stake, with the typical "
+                             "protection chosen by rule from the deal implication; for the deal team and its "
+                             "lawyers to decide. Below: the diligence risk score (finding intensity, not a "
+                             "recommendation) and its formula.")
+    _header(ws, 4, ["#", "Issue", "Area", "Severity", "Amount at stake", "What the amount is", "Typical protection",
+                    "When", "Evidence from the notes", "Document to request"])
+    r = 4
+    for d in layer.top:
+        r += 1
+        values = [d.rank, f"{d.key} · {d.title}" if d.kind == "Finding" else d.title, d.area or "–",
+                  d.severity or "–", d.amount if d.amount is not None else "not quantifiable", d.amount_label,
+                  d.protection, d.moment, d.evidence, d.request]
+        for col, value in enumerate(values, 1):
+            cell = _put(ws, r, col, value, _FORMULA, _NUM if col == 5 else None)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+    r += 2
+    _put(ws, r, 1, f"Diligence risk score: {s.score} / 100 ({s.label.lower()})", _BOLD)
+    r += 1
+    _put(ws, r, 1, s.formula).alignment = Alignment(wrap_text=True, vertical="top")
+    r += 1
+    _header(ws, r, ["Rule", "Area", "Severity × materiality", "Points"])
+    first = r + 1
+    for rule_id, area, why, pts in s.lines:
+        r += 1
+        for col, value in enumerate([rule_id, area, why], 1):
+            _put(ws, r, col, value)
+        _put(ws, r, 4, pts, _FORMULA, "0.00")
+    r += 1
+    _put(ws, r, 3, "Score (formula)", _BOLD)
+    _formula(ws, r, 4, f"=MIN(100,ROUND(100*SUM(D{first}:D{r - 1})/30,0))" if s.lines else "=0", fmt="0", bold=True)
+    r += 2
+    _header(ws, r, ["Area", "Score points", "", ""])
+    for area, pts in s.by_area.items():
+        r += 1
+        _put(ws, r, 1, area)
+        _put(ws, r, 2, pts, _FORMULA, "0.0")
+    _finish(ws, [6, 44, 18, 16, 16, 34, 26, 18, 30, 46], "A5", 4, 10)
+
+
+def _open_items(ws, a) -> None:
+    """Phase 4B: open items by who answers them, referrals to other workstreams, actions by moment, coverage."""
+    from .deal_layer import GROUPS, MODE_LINE, MOMENTS, build
+    layer = build(a)
+    cov = layer.coverage
+    _title(ws, "Open Items", f"Open items grouped by who answers them; referrals to other workstreams (routed, not "
+                             f"analysed); action items by moment of the deal; coverage: {cov.text} ({cov.mode}). "
+                             f"{MODE_LINE}")
+    _header(ws, 4, ["Group", "Item", "From"])
+    r = 4
+    for g in GROUPS:
+        for o in (x for x in layer.open_items if x.group == g):
+            r += 1
+            for col, value in enumerate([o.group, o.item, o.source], 1):
+                _put(ws, r, col, value).alignment = Alignment(wrap_text=True, vertical="top")
+    r += 2
+    _header(ws, r, ["Workstream", "Item", "Question"])
+    for ref in layer.referrals:
+        r += 1
+        for col, value in enumerate([f"Route to: {ref.workstream}", ref.item, ref.question], 1):
+            _put(ws, r, col, value).alignment = Alignment(wrap_text=True, vertical="top")
+    r += 2
+    _header(ws, r, ["When", "Action", ""])
+    for m in MOMENTS:
+        for item in layer.actions[m]:
+            r += 1
+            _put(ws, r, 1, m)
+            _put(ws, r, 2, item).alignment = Alignment(wrap_text=True, vertical="top")
+    r += 2
+    _header(ws, r, ["Rule", "Status", "Document that unblocks it"])
+    blocked = {rid: doc for rid, _, doc in cov.blocked}
+    for res in a.results:
+        r += 1
+        _put(ws, r, 1, f"{res.rule.id} · {res.rule.name}")
+        _put(ws, r, 2, "blocked ○" if res.rule.id in blocked else "run ✓")
+        _put(ws, r, 3, blocked.get(res.rule.id, "")).alignment = Alignment(wrap_text=True, vertical="top")
+    _finish(ws, [26, 70, 60], "A5", 4, 3)
 
 
 def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price=None) -> int:
@@ -897,7 +1012,8 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, 
     wb = Workbook()
     sheets = {name: (wb.active if i == 0 else wb.create_sheet(name)) for i, name in enumerate(
         ["Read Me", "Executive Summary", "Source Register", "Financials", "QoE", "NWC", "Net Debt", "EV to Equity",
-         "Leakage", "Monthly & LTM", "Key Issues", "Issues & Requests", "Checks"])}
+         "Leakage", "Monthly & LTM", "Key Issues", "Top Issues", "Valuation Impact", "Open Items",
+         "Issues & Requests", "Checks"])}
     sheets["Read Me"].title = "Read Me"
     fin_rows = _financials(sheets["Financials"], a)
     qoe = _qoe(sheets["QoE"], a, fin_rows)
@@ -912,6 +1028,9 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, 
         "Request: monthly management accounts (P&L) and month-end balances of receivables, inventories and payables "
         "for the last 24 months."])
     _key_issues(sheets["Key Issues"], a, reviews)
+    _top_issues(sheets["Top Issues"], a)
+    _valuation_impact(sheets["Valuation Impact"], a)
+    _open_items(sheets["Open Items"], a)
     _issues(sheets["Issues & Requests"], a, reviews)
     _checks(sheets["Checks"], a, qoe, nd, nwc, ev, price)
     _read_me(sheets["Read Me"], a, stamp)

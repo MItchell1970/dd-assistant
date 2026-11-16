@@ -141,6 +141,35 @@ def _issues_section(a) -> list[str]:
                          "Material", "Deal implication", "Evidence from the notes"], rows)
 
 
+def _deal_layer_section(a) -> list[str]:
+    """Phase 4B: risk score, valuation impact at illustrative multiples, top deal issues, coverage and open items,
+    so that every figure the site, the app or a memo quotes from the deal layer has a source here."""
+    from .deal_layer import ILLUSTRATIVE, MODE_LINE, MULTIPLES, build
+    layer = build(a)
+    s, vi, cov = layer.score, layer.impact, layer.coverage
+    out = ["## 1c. Deal layer (computed by rule; no recommendation)",
+           f"Diligence risk score: {s.score} out of 100 ({s.label}). {s.formula} Points: {fmt_value(s.points)}."]
+    out += _table(["Area", "Score points"], [[k, fmt_value(v)] for k, v in s.by_area.items()])
+    out += ["", f"Valuation impact ({ILLUSTRATIVE}), {fy(vi.year)}, EUR thousands:"]
+    out += _table(["Side", "Item", "Finding", "Amount"],
+                  [[c.kind, c.label, c.finding or "n/a", fmt_value(c.amount)] for c in vi.components])
+    out += _table(["Total", "Amount"], [["EBITDA change", fmt_value(vi.ebitda_change)],
+                                         ["Net debt items, effect on equity value", fmt_value(vi.net_debt_effect)],
+                                         ["Working capital against the indicative peg", fmt_value(vi.nwc_effect)]]
+                  + [[f"Equity value impact at {m:g}x", fmt_value(vi.at(m))] for m in MULTIPLES])
+    out += ["", "Top deal issues (by amount at stake) and the typical protection:"]
+    out += _table(["#", "Issue", "Area", "Amount at stake", "Typical protection", "When"],
+                  [[d.rank, d.title, d.area or "n/a", fmt_value(d.amount) if d.amount is not None else "n/a",
+                    d.protection, d.moment] for d in layer.top])
+    groups: dict[str, int] = {}
+    for o in layer.open_items:
+        groups[o.group] = groups.get(o.group, 0) + 1
+    out += ["", f"Coverage: {cov.text} ({cov.mode}). {MODE_LINE} Blocked: "
+                + ("; ".join(f"{rid} ({doc})" for rid, _, doc in cov.blocked) or "none") + ".",
+            "Open items: " + "; ".join(f"{g}: {n}" for g, n in groups.items()) + "."]
+    return out
+
+
 def _rules_section(results: list[RuleResult]) -> list[str]:
     years = sorted(results[0].values)
     rows = [[r.rule.id, r.rule.name, r.rule.limit_text()]
@@ -248,7 +277,7 @@ def build_material(d: CompanyData, metrics: Metrics, results: list[RuleResult], 
              "room references use the form Sheet!Cell (e.g. DRE!D5) or a page number.", ""]
     parts += _alerts_section(results, reviews or {}) + [""]
     if analysis is not None and analysis.issues:
-        parts += _issues_section(analysis) + [""]
+        parts += _issues_section(analysis) + [""] + _deal_layer_section(analysis) + [""]
     parts += _rules_section(results) + [""]
     parts += _metrics_section(metrics, d.years) + [""]
     parts += _input_section(d) + [""]
