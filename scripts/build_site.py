@@ -90,23 +90,27 @@ figure{margin:0}
 .demo figcaption{padding:10px 16px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
 .cases{display:grid;gap:28px}
 .case{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:32px;
-display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:40px}
+display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:40px}
 .case .co{font:600 1.35rem/1.25 var(--serif);color:var(--ink);margin:0}
 .case .acc{color:var(--muted);font-size:.85rem;margin:4px 0 22px}
 .big{font:600 clamp(2.6rem,6vw,3.6rem)/1 var(--serif);color:var(--ink);letter-spacing:-.02em}
 .big-label{color:var(--muted);font-size:.9rem;margin:8px 0 18px}
 .headline{margin:0 0 22px}
 .more{font-weight:600;font-size:.92rem}
-.chart-title{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin:0 0 12px}
-svg.bridge{display:block;overflow:visible}
-svg.bridge text{font-family:var(--sans);font-size:13px;fill:var(--text)}
-svg.bridge text.t{font-weight:600;fill:var(--ink)}
-svg.bridge text.val{font-variant-numeric:tabular-nums}
+.chart-title{font-size:.95rem;color:var(--ink);font-weight:600;margin:0 0 14px}
+.chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+svg.bridge{display:block;width:100%;height:auto;overflow:visible}
+svg.bridge text{font-family:var(--sans);fill:var(--text);font-variant-numeric:tabular-nums}
+svg.bridge text.val{font-size:12px;font-weight:500;fill:var(--ink)}
+svg.bridge text.val.t{font-weight:600}
+svg.bridge text.lbl{font-size:12px;fill:var(--muted)}
+svg.bridge text.axis{font-size:11px;fill:var(--muted)}
 svg.bridge rect.t{fill:var(--navy)}
 svg.bridge rect.up{fill:var(--accent)}
 svg.bridge rect.down{fill:var(--down)}
-svg.bridge line.link{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;opacity:.7}
-svg.bridge line.zero{stroke:var(--line);stroke-width:1}
+svg.bridge line.link{stroke:var(--muted);stroke-width:1;opacity:.55;shape-rendering:crispEdges}
+svg.bridge line.zero{stroke:var(--muted);stroke-width:1;opacity:.6;shape-rendering:crispEdges}
+.note{color:var(--muted);font-size:.78rem;margin:8px 0 0}
 .legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:.78rem;margin-top:10px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .dl{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
@@ -153,8 +157,8 @@ max-width:44em}
 .back{display:inline-block;color:var(--muted);text-decoration:none;font-size:.9rem;margin-bottom:28px}
 footer{padding:40px 0 56px;color:var(--muted);font-size:.85rem}
 footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
-@media (max-width:900px){.case{grid-template-columns:1fr;gap:28px}.steps{grid-template-columns:1fr 1fr}
-.stats{grid-template-columns:1fr 1fr}.insights{grid-template-columns:1fr}.bridges{grid-template-columns:1fr}}
+@media (max-width:900px){.case{grid-template-columns:minmax(0,1fr);gap:28px}.steps{grid-template-columns:1fr 1fr}
+.stats{grid-template-columns:1fr 1fr}.insights{grid-template-columns:1fr}.bridges{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:600px){.wrap{padding:0 16px}nav a:not(.cta){display:none}section{padding:52px 0}
 section.hero{padding:52px 0 40px}.case{padding:22px 18px}.steps{grid-template-columns:1fr}.cols{grid-template-columns:1fr}
 .stats{grid-template-columns:1fr 1fr;gap:28px 18px}.stat .n{font-size:2rem}.issue{grid-template-columns:1fr;gap:6px}
@@ -168,12 +172,44 @@ def minus(text: str) -> str:
     return text.replace("-€", "−€")
 
 
+SHORT = {  # short names under the columns (the full name stays in the column's title and aria-label)
+    "Reported EBITDA": "Reported EBITDA", "Change in net working capital": "Working capital",
+    "Tax, interest and other operating items": "Tax & interest",
+    "Working capital, tax and other operating items": "WC, tax & interest", "Operating cash flow": "Operating cash flow",
+    "Capex": "Capex", "Proceeds from asset disposals": "Disposals", "Free cash flow": "Free cash flow",
+    "Lease payments": "Lease payments", "Lease payments (cash flow statement)": "Lease payments",
+    "Free cash flow after leases": "FCF after leases", "EBITDA before IFRS 16": "EBITDA pre-IFRS 16",
+    "Borrowings less cash": "Net debt (ex-leases)", "Post-employment benefit obligations": "Pensions",
+    "Lease liabilities": "Leases", "Income tax payable": "Tax payable", "Adjusted net debt": "Adjusted net debt",
+    "Diligence-adjusted EBITDA": "Adjusted EBITDA"}
+
+
+def _two_lines(text: str, width: int = 11) -> list[str]:
+    """A short name on at most two lines of about `width` characters (the rest is cut with an ellipsis)."""
+    lines, cur = [], ""
+    for word in text.split():
+        if cur and len(cur) + 1 + len(word) > width:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = f"{cur} {word}".strip()
+    lines.append(cur)
+    if len(lines) > 2:
+        lines = [lines[0], " ".join(lines[1:])]
+    if len(lines[-1]) > width + 3:
+        lines[-1] = lines[-1][:width + 2].rstrip() + "\u2026"
+    return lines
+
+
 def bridge_svg(steps: list, money, title: str) -> str:
-    """A bridge as a horizontal waterfall: one row per step, the label and value on top, the bar below. The bar
-    positions are percentages of the width, so the chart reads the same at 375 and 1440 px. The steps come from the
-    engine (deal.py); this only places them."""
+    """A bridge as the vertical waterfall of a deal report: totals as full columns from the baseline, items as
+    floating columns (increase / decrease), the value on each column with an explicit sign on the items, short names
+    underneath, thin connectors in the gaps. The SVG scales with its viewBox but never below the width at which its
+    smallest text is 11 px; below that the chart slides sideways. The steps come from the engine (deal.py); this
+    only places them, and notes when the rounded items do not add up to the rounded total."""
     if len(steps) < 2:
         return ""
+    from dd_assistant.units import _round
     rows, level = [], 0.0
     for label, value, kind in steps:
         start, end = (0.0, value) if kind == "total" else (level, level + value)
@@ -182,23 +218,45 @@ def bridge_svg(steps: list, money, title: str) -> str:
     lo = min([0.0] + [min(s, e) for *_, s, e in rows])
     hi = max([0.0] + [max(s, e) for *_, s, e in rows])
     span = (hi - lo) or 1.0
-    pct = lambda v: (v - lo) / span * 70     # the bars use the left 70%; the value sits at the right of its bar row
-    row = 48
-    out = [f'<svg class="bridge" width="100%" height="{len(rows) * row}" role="img" aria-label="{E(title)}">'
-           f"<title>{E(title)}</title>"]
-    if lo < 0 < hi:
-        out.append(f'<line class="zero" x1="{pct(0):.2f}%" x2="{pct(0):.2f}%" y1="22" y2="{len(rows) * row - 8}"/>')
+    LEFT, SLOT, BAR, TOP, PLOT, BELOW, LINE = 26, 70, 40, 30, 190, 24, 14
+    W, H = LEFT + len(rows) * SLOT + 6, TOP + PLOT + BELOW + 2 * LINE + 8
+    y = lambda v: TOP + (hi - v) / span * PLOT
+    out = [f'<div class="chart-scroll"><svg class="bridge" viewBox="0 0 {W} {H}" '
+           f'style="min-width:{W * 11 / 12:.0f}px;max-width:{W * 1.25:.0f}px" role="group" aria-label="{E(title)}">']
+    if lo < 0:
+        out.append(f'<line class="zero" x1="{LEFT - 4}" x2="{W}" y1="{y(0):.1f}" y2="{y(0):.1f}"/>'
+                   f'<text class="axis" data-nocheck="1" x="{LEFT - 8}" y="{y(0) + 4:.1f}" text-anchor="end">0</text>')
     for i, (label, value, kind, start, end) in enumerate(rows):
-        y = i * row
+        x = LEFT + i * SLOT + (SLOT - BAR) / 2
         cls = "t" if kind == "total" else "up" if value > 0 else "down"
-        text = money.fmt(value) if kind == "total" else ("+" if value > 0 else "") + money.fmt(value)
-        x0, x1 = sorted((pct(start), pct(end)))
-        out.append(f'<text class="lbl {cls}" x="0" y="{y + 14}">{E(label)}</text>'
-                   f'<rect class="{cls}" x="{x0:.2f}%" y="{y + 21}" width="{max(x1 - x0, 0.4):.2f}%" height="14" rx="2"/>'
-                   f'<text class="val {cls}" x="100%" y="{y + 33}" text-anchor="end">{E(minus(text))}</text>')
+        text = minus(money.fmt(value) if kind == "total" else ("+" if value > 0 else "") + money.fmt(value))
+        top, bottom = y(max(start, end)), y(min(start, end))
+        ty = bottom + 15 if value < 0 else top - 7      # a negative total or a decrease: the value under its column
+        cx = x + BAR / 2
+        name = f"{label}: {text}"
+        names = "".join(f'<tspan x="{cx:.1f}" dy="{0 if k == 0 else LINE}">{E(s)}</tspan>'
+                        for k, s in enumerate(_two_lines(SHORT.get(label, label))))
+        out.append(f'<g role="img" aria-label="{E(name)}"><title>{E(name)}</title>'
+                   f'<rect class="{cls}" x="{x:.1f}" y="{top:.1f}" width="{BAR}" height="{max(bottom - top, 1.5):.1f}"/>'
+                   f'<text class="val {cls}" x="{cx:.1f}" y="{ty:.1f}" text-anchor="middle">{E(text)}</text>'
+                   f'<text class="lbl" x="{cx:.1f}" y="{TOP + PLOT + BELOW + LINE - 2}" text-anchor="middle">{names}</text></g>')
         if i < len(rows) - 1:
-            out.append(f'<line class="link" x1="{pct(end):.2f}%" x2="{pct(end):.2f}%" y1="{y + 35}" y2="{y + row + 21}"/>')
-    out.append("</svg>")
+            out.append(f'<line class="link" x1="{x + BAR:.1f}" x2="{x + SLOT:.1f}" y1="{y(end):.1f}" y2="{y(end):.1f}"/>')
+    out.append("</svg></div>")
+    # rounding: the items as shown, added to the total before them, against the next total as shown
+    r = lambda v: _round(v / 1000 if money.millions else v)
+    running, diff = None, 0
+    for label, value, kind, *_ in rows:
+        if kind == "total":
+            if running is not None and r(value) != running:
+                diff = max(diff, abs(r(value) - running))
+            running = r(value)
+        elif running is not None:
+            running += r(value)
+    if diff:
+        unit = "m" if money.millions else "k"
+        out.append(f'<p class="note" data-nocheck="1">Differences of {money.symbol}{diff}{unit} are due to '
+                   "rounding.</p>")
     return "".join(out)
 
 
@@ -218,6 +276,7 @@ def bridges(c, a) -> dict[str, tuple[str, list]]:
     out = {"ebitda": ebitda,
            "net debt": (f"Net debt bridge, {fy(B)}", net_debt_steps(a.view, B)),
            "cash": (f"From EBITDA to free cash flow, {fy(L)}", cash_steps(a.view, a.data, a.metrics, L))}
+    unit = f"{a.money.symbol}{'m' if a.money.millions else 'k'}"
     return {k: (f"{t} ({unit})", s) for k, (t, s) in out.items() if len(s) >= 2}
 
 
