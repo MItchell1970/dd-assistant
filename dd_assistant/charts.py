@@ -273,6 +273,8 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}}
 .ddc svg line.zero{{stroke:{MUTED};stroke-width:1;opacity:.6;shape-rendering:crispEdges}}
 .ddc-foot{{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;color:{MUTED};font-size:.75rem;margin-top:10px}}
 .ddc-foot i{{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}}
+.ddc-ann{{display:none;font-size:.85rem;font-weight:600;color:{TEXT};margin:-6px 0 12px}}
+@media (max-width:700px){{.ddc-ann{{display:block}}.ddc svg text.ann{{display:none}}}}
 """
 
 
@@ -321,6 +323,8 @@ def svg(b: Bridge, money, check: str = "") -> str:
     y = lambda v: TOP + (hi - v) / span * PLOT
     out = [f'<div class="ddc"{f" data-check={chr(34)}{check}{chr(34)}" if check else ""}>'
            f'<p class="ddc-title">{E(b.title)}</p><p class="ddc-sub">{E(b.subtitle)}</p>'
+           # on a narrow screen the annotation sits under the title, readable without sliding the chart
+           + (f'<p class="ddc-ann">{E(b.annotation)}</p>' if b.annotation else "") +
            f'<div class="ddc-scroll"><svg viewBox="0 0 {W} {H}" style="min-width:{W * 11 / 12:.0f}px;'
            f'max-width:{W * 1.25:.0f}px" role="group" aria-label="{E(b.title)}">']
     if lo < 0:

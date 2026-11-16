@@ -32,6 +32,11 @@ Executar por fases (A→D). No fim de CADA fase: commit local, capturas, resumo 
 - O título e a anotação vêm sempre de números do motor e passam pelo memo-checker. Nada escrito à mão.
 - Teste: alguém que veja o gráfico 5 segundos tem de conseguir dizer o número principal e o porquê.
 
+## Decisões do Bernardo sobre a Fase A
+- "Cash conversion 76.6%" aprovado como anotação da ponte de caixa.
+- Telemóvel: o número de destaque e a anotação veem-se sem arrastar (anotação por baixo do título em ecrãs estreitos).
+- App clara até à fase C e slides com fundo branco: aprovados.
+
 ## Fase B — Camada de deal (motor determinístico + testes)
 1. Valuation impact bridge: impacto dos achados = (ajustes de diligência ao EBITDA × múltiplo) + ajustes à net debt (debt-like/cash-like) + ajuste de NWC vs peg, quando calculado. Mostrar a 3 múltiplos ilustrativos (6x, 8x, 10x), rotulados "ilustrativo, não é valuation". Cada componente ligado ao achado e à fonte. Evitar dupla contagem: um achado entra em EBITDA OU em net debt, nunca nos dois; testar isto.
 2. Top 5 deal issues: ordenados por impacto em €; cada um com uma linha "Proteção típica" (ajuste de preço / debt-like no SPA / indemnity / escrow / completion accounts / pedir mais informação), escolhida por regra a partir da implicação de deal que o motor já tem.
@@ -39,6 +44,7 @@ Executar por fases (A→D). No fim de CADA fase: commit local, capturas, resumo 
 4. Áreas: Quality of earnings, Net debt, Working capital, Cash flow, Tax. Achados das notas que pertencem a outro workstream (litígios, garantias, pensões, ambiente) ganham etiqueta "Encaminhar: Legal / HR / Tax / Regulatory" com a pergunta. Não criar análises jurídicas.
 5. Open items: contar e agrupar em "Pedir à empresa", "Confirmar com auditor", "Fora do âmbito financeiro".
 6. Action items por momento: Antes do signing / SPA / Completion accounts / Pós-closing.
+7. Mapa de cobertura: para cada empresa, regras corridas e regras bloqueadas por falta de dados, com o documento que desbloqueia cada uma. Cada regra bloqueada gera um pedido na request list (sem duplicar). Mostrar como contagem ("X de Y regras corridas") e grelha (corrida ✓ / bloqueada ○ + documento a pedir). Uma linha de explicação: "Contas publicadas = modo outside-in (antes do data room); Duriva = modo data room (dados fictícios)." Testes: a Duriva corre mais regras que as empresas reais; cada regra bloqueada tem um pedido.
 Atualizar o databook (folhas: Valuation impact, Top issues, Open items) e o memo-checker para os números novos.
 
 ## Fase C — Streamlit = ferramenta
