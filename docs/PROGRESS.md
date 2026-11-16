@@ -215,3 +215,30 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Linhas 5 a 8, aprovadas e feitas:** coluna "Protection or next step"; a receita diferida de uma companhia aérea é um item de working capital (`sectors.OPERATING_ITEMS`, com a razão à vista; NWC e net debt não mudam); a R25 só dá escrow com uma nota de contingências fiscais; R05 e R06 ficam "not applicable" em contas publicadas. TAP: score 54 (Toyota 52, Amorim 32). 299 testes OK; databooks, slides, site e `deal_layer.md` regenerados.
 
 **Próximo passo exato:** com aprovação do Bernardo, a Fase C segundo `docs/FASE5_DESIGN.md`.
+
+## Fase 5 — fases C e D (docs/FASE5_DESIGN.md, 16 de novembro de 2026)
+
+**Feito**
+- **C, ferramenta** (`tool.py`, chamada pelo `app.py` em modo demo): cabeçalho (empresa, FY, unidade, modo, download), quatro vistas (Summary, Findings, Impact, Evidence), tema escuro com a paleta única (`.streamlit/config.toml`). Summary: faixa de estado, 4 KPIs com a fonte, 5 chips de área que abrem Findings filtrado, top 5. Findings: filtros, cartões com evidência citada, pergunta, documento, proteção e momento, decisão do revisor e comentário (na sessão). Impact: ponte de net debt em duas camadas (leasings a cinzento), valuation impact com slider 4x–12x, "Shown, not counted", ponte de caixa. Evidence: mapa de cobertura, open items, ações por momento, encaminhamentos, downloads (a request list só exporta os aceites).
+- **D, site**: página inicial com hero, três cartões (score, adjusted net debt, action title), verificação em 4 números e limites numa linha; página de empresa com faixa de estado, top 3, ponte de net debt e mapa de cobertura, e o botão para a ferramenta.
+- **Motor (sem mexer em métricas nem regras):** `charts` marca os leasings como item standard (cinzento, fora do destaque); título da ponte em duas camadas; anotações longas por baixo do título. `deal_layer.issue_title` e `coverage_title` geram os títulos dos visuais 2 e 3.
+- **Testes:** 304 OK. `tests/test_tool.py` (critérios 3 a 8 na ferramenta), `tests/test_site.py` (critérios 3, 7 e 9 no site); os testes da app antiga (página inicial, visita, glossário) saíram de `tests/test_demo.py`. `scripts/demo_review.py` mede os critérios 1, 2 e 9 no browser.
+
+**Critérios de aceitação (secção 6)**
+1. Summary a 1440×900 sem scroll: cumprido (top 5 acaba aos 817 px, nas três empresas).
+2. 375 px sem scroll horizontal, score e primeiro KPI no primeiro ecrã, tabelas em cartões: cumprido (ferramenta e site).
+3. Só as cores da paleta: cumprido (teste no CSS, nos SVG e no tema).
+4. Severidade com forma e cor; leasings a cinzento: cumprido.
+5. Cada cartão com fonte e documento a pedir: cumprido (teste nas três empresas).
+6. Slider: muda na Duriva, não muda na TAP, e a anotação diz que os leasings não contam: cumprido.
+7. Sem "Go", "No-Go", "recommend", "should buy": cumprido ("not a recommendation" fica, por ser o rótulo pedido; o teste procura a palavra "recommend" isolada).
+8. Números visíveis no material; títulos gerados: cumprido.
+9. Sem tabelas repetidas; página de empresa em 3 ecrãs: cumprido (1642 px).
+10. Suite OK, paridade e Velmora sem mudança: cumprido.
+
+**Decisões**
+- O modo local (upload e IA) continua com a app antiga; só o modo demo (o publicado) é a ferramenta nova. Com o tema escuro, os cartões brancos da app antiga ficam claros sobre fundo escuro (em GAPS).
+- A ferramenta usa um seletor de vistas (não separadores) para os chips e o top 5 poderem abrir Findings já filtrado.
+- Os números de ordem (1 a 5) e as somas agrupadas ficam fora da verificação de números (`data-nocheck`), como no site.
+
+**Próximo passo exato:** aprovação do Bernardo para o push; depois, ativar o GitHub Pages se ainda não estiver (passos em `docs/DEPLOY.md`).

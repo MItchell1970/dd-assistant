@@ -16,15 +16,15 @@
 
 **Live demo:** <https://dd-assistant-tickmark.streamlit.app> — three real companies on their published FY2025 accounts: [TAP Air Portugal](https://dd-assistant-tickmark.streamlit.app/?company=tap) · [Toyota Caetano Portugal](https://dd-assistant-tickmark.streamlit.app/?company=toyota-caetano) · [Corticeira Amorim](https://dd-assistant-tickmark.streamlit.app/?company=corticeira-amorim). **Nothing is uploaded and no AI is called in the demo:** the engine runs on the published accounts stored here, and the memos were written beforehand and checked by code.
 
-![20 seconds on TAP: net debt, a red flag with its report page, the Excel](docs/images/demo-tour.gif)
+![The tool on TAP Air Portugal: Summary](docs/images/tool-summary.png)
 
-*20 seconds on TAP Air Portugal: the headline figures with their report pages, the net debt bridge, the most severe red flag with the pages it comes from, and the databook in Excel.*
+*The tool on TAP Air Portugal, Summary: the diligence risk score (finding intensity, not a recommendation) with what is still open, four KPIs with their source page, the five areas and the top five deal issues with the protection or next step. Findings, Impact and Evidence are one click away.*
 
 It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings (QoE), net debt with debt-like items, net working capital (NWC), 30 red-flag rules with their sources, a two-page memo, the request list, an Excel databook with live formulas and a Red Flag Report in nine slides. European companies, euros only.
 
-![The net debt bridge of TAP Air Portugal, FY25](docs/images/demo-net-debt.png)
+![Impact: TAP's net debt bridge and valuation impact](docs/images/tool-impact.png)
 
-*TAP's net debt bridge, FY25, € millions: borrowings less cash are -€43m; the leased aircraft (€2,158m), pensions (€173m) and tax payable (€4m) bring adjusted net debt to €2,293m. Every bar is a value the engine computed.*
+*Impact, TAP, FY25: leases are a standard item (grey) and explain €2,158m of the €2,293m adjusted net debt; the diligence adds €177m (red). The valuation impact counts only diligence adjustments, at an illustrative multiple you can move from 4x to 12x. Every bar and title is computed by the engine.*
 
 ![A slide of the Red Flag Report: TAP's net debt](docs/images/slides-net-debt.png)
 
@@ -63,9 +63,7 @@ flowchart LR
     F -- a figure without a source --> E
 ```
 
-![The home page of the demo](docs/images/demo-home.png)
-
-*The home page of the demo: what it does and for whom, the three companies with one figure each, and how it is verified.*
+The website shows the conclusions (score, top three issues, one chart, coverage); the tool shows the evidence.
 
 ## How it is verified
 
