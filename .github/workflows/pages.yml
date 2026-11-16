@@ -1,0 +1,36 @@
+# Publishes the static site (site/) on GitHub Pages at every push to main that touches it.
+# The pages are built and committed on the author's PC (python scripts/build_site.py); here the downloads and
+# images are only copied next to them (standard library, no engine), then the folder is published.
+name: Publish the static site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "docs/examples/**", "docs/images/**", "scripts/build_site.py", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy the downloads and images next to the pages
+        run: python3 scripts/build_site.py --assets
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

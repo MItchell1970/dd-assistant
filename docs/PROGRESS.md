@@ -12,7 +12,7 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 - **M2e feito:** R27 (D&A muito acima do imobilizado), R28 (rubrica "outra" acima de 10% da receita, listada "a avaliar" no net debt), R29 (crescimento com aquisições), EBITDA antes da IFRS 16 (QoE) e nota IFRS 16 (Net Debt). Dividendos como possível leakage ficam para o M3.
 - **M3 feito:** `dd_assistant/price.py` (completion accounts, locked box, leakage, sensibilidade), candidatos a leakage lidos da DFC (dividendos pagos), folhas EV to Equity e Leakage no databook, secção "Price" na app (mecanismo obrigatório, sem escolha por defeito).
 - **Parado aqui, como pede a especificação:** fim do M3, à espera do resumo revisto pelo Bernardo. Depois, com aprovação: versão simples do M6.
-- **Comando para retomar:** `python -m unittest -v` (tem de dar 192 testes OK) e `python -m dd_assistant data\Duriva_data_room --databook`.
+- **Comando para retomar:** `python -m unittest -v` (268 testes) e `python scripts\build_site.py` (site estático). Último bloco: "Fecho da Fase 3", no fim deste ficheiro.
 
 ## Diagnóstico (4 de novembro de 2026)
 
@@ -162,3 +162,16 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Total de testes:** 262 OK.
 - **Não feito:** a ponte de caixa ainda não tem folha no databook (fica em GAPS); os slides da demo refletem a análise por defeito, como o memo.
 
+
+### Fecho da Fase 3 (docs/FASE3_FINAL.md, 16 de novembro de 2026): site, app e README
+
+| # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
+|---|---|---|---|---|---|
+| 1 | Site estático: `scripts/build_site.py` gera `site/index.html`, `tap.html`, `toyota.html`, `amorim.html` (HTML e CSS por página, só fontes Google; cascatas em SVG com posições em %, legíveis a 375 px; tema claro e escuro; Open Graph). Downloads e imagens copiados para `site/files` e `site/img` (fora do git). Workflow `.github/workflows/pages.yml`; passos em `docs/DEPLOY.md` | Sim | 6 testes em `tests/test_site.py`: cada número das partes de empresa está no material do memo para o ano citado; números de verificação contados agora; downloads existem; sem pedidos a terceiros; site atual | Números do motor; nenhum sem fonte | Pendente |
+| 2 | App: paleta e tipografia do site (navy #13294b, cobre #b4611a, Inter e Source Serif 4 via `.streamlit/config.toml`); tabelas do memo com scroll horizontal no telemóvel (antes ficavam cortadas a 375 px); menos espaço vazio no fim da página | Sim | `tests/test_demo.py` OK | — | Pendente |
+| 3 | README com links para o site e a demo e a imagem da página inicial (`docs/images/site-home.png`, `build_site.py --screenshot`); imagens da demo e GIF refeitos com a paleta nova (`scripts/demo_screenshots.py`) | Sim | — | — | Pendente |
+
+- **Zona em branco na TAP (~800 px): não reproduzida.** Varri os 9 separadores a 760, 800 e 840 px (pontos da janela sem nenhum elemento por baixo, de 300 em 300 px de scroll): nenhum vazio acima de 200 px. O único vazio era o padding do Streamlit depois do rodapé (~140 px), que reduzi. Se voltares a ver a zona, diz-me o separador e a largura exata.
+- **Ponte de caixa no databook: não feita.** Precisa de folha com fórmulas, linha no Checks, databooks guardados recalculados pelo Excel e o teste de igualdade; não cabe "sem esforço". Fica em GAPS.
+- **Fora deste fecho, por decisão:** slides, kit de candidaturas, regras novas.
+- **Pendente:** push com aprovação do Bernardo; ativar o GitHub Pages (passos em `docs/DEPLOY.md`); nome público ("DD Assistant" mantido).

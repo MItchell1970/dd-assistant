@@ -3,9 +3,14 @@
 **A first-pass financial due diligence on published accounts. Every figure traced to its source.**
 <br>*Limits: annual accounts only, euros only, financial due diligence only, a first pass for an analyst to review.*
 
-[![Open the TAP analysis](https://img.shields.io/badge/Open_the_TAP_analysis-live_demo-0b3d91?style=for-the-badge)](https://dd-assistant-tickmark.streamlit.app/?company=tap)
+[![Website](https://img.shields.io/badge/Website-the_three_cases-13294b?style=for-the-badge)](https://mitchell1970.github.io/dd-assistant/)
+[![Interactive demo](https://img.shields.io/badge/Interactive_demo-Streamlit-b4611a?style=for-the-badge)](https://dd-assistant-tickmark.streamlit.app/?company=tap)
 [![Download the Excel](https://img.shields.io/badge/Download_the_Excel-TAP_databook-1d6b3e?style=for-the-badge)](https://github.com/MItchell1970/dd-assistant/raw/main/docs/examples/tap/databook.xlsx)
 [![See the code](https://img.shields.io/badge/See_the_code-this_repository-1b2333?style=for-the-badge)](#details)
+
+**Website:** <https://mitchell1970.github.io/dd-assistant/> (opens at once: the three cases, how it works, how it is verified) · **Interactive demo:** <https://dd-assistant-tickmark.streamlit.app> (may take a few seconds to wake up)
+
+[![The website's home page](docs/images/site-home.png)](https://mitchell1970.github.io/dd-assistant/)
 
 **For** deal teams, lenders and analysts who need the first pass of a financial due diligence fast, and want to check every number.
 

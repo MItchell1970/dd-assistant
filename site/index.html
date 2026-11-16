@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DD Assistant: financial due diligence on published accounts</title>
+<meta name="description" content="A first-pass financial due diligence on published accounts. Every figure traced to its source. Three real European companies, every figure traced to its source.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d131e" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://mitchell1970.github.io/dd-assistant/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DD Assistant">
+<meta property="og:title" content="DD Assistant: financial due diligence on published accounts">
+<meta property="og:description" content="A first-pass financial due diligence on published accounts. Every figure traced to its source. Three real European companies, every figure traced to its source.">
+<meta property="og:url" content="https://mitchell1970.github.io/dd-assistant/">
+<meta property="og:image" content="https://mitchell1970.github.io/dd-assistant/img/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2313294b'/%3E%3Cpath d='M9 17l5 5 9-11' stroke='%23e39a57' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{--bg:#fbfaf7;--surface:#fff;--ink:#13233f;--text:#2c3546;--muted:#5f6878;--line:#e4e1da;--navy:#13294b;
+--accent:#b4611a;--accent-soft:#f5e9da;--down:#aab4c3;--chip:#eef0f3;--high:#b42318;--medium:#a15c07;--low:#5f6878;
+--serif:"Source Serif 4",Georgia,"Times New Roman",serif;--sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d131e;--surface:#141c2a;--ink:#edf1f7;
+--text:#cdd3dd;--muted:#959eae;--line:#273145;--navy:#9fb7e0;--accent:#e39a57;--accent-soft:#2b2117;--down:#4b5669;
+--chip:#1d2637;--high:#f18c84;--medium:#e8b45e;--low:#959eae}}
+:root[data-theme="dark"]{--bg:#0d131e;--surface:#141c2a;--ink:#edf1f7;--text:#cdd3dd;--muted:#959eae;--line:#273145;
+--navy:#9fb7e0;--accent:#e39a57;--accent-soft:#2b2117;--down:#4b5669;--chip:#1d2637;--high:#f18c84;--medium:#e8b45e;
+--low:#959eae}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--sans);
+font-variant-numeric:tabular-nums lining-nums;overflow-x:hidden}
+a{color:var(--navy);text-underline-offset:3px}
+a:hover{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+header.top{border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:60px}
+.brand{font:600 1.05rem/1 var(--serif);color:var(--ink);text-decoration:none;letter-spacing:.01em}
+nav a{color:var(--muted);text-decoration:none;font-size:.9rem;margin-left:22px}
+nav a:hover{color:var(--ink)}
+nav a.cta{color:var(--ink);font-weight:600}
+h1,h2,h3{font-family:var(--serif);color:var(--ink);font-weight:600;letter-spacing:-.01em}
+h1{font-size:clamp(2.1rem,5.2vw,3.4rem);line-height:1.08;margin:0 0 18px}
+h2{font-size:clamp(1.5rem,3vw,2rem);line-height:1.2;margin:0 0 8px}
+h3{font-size:1.25rem;line-height:1.3;margin:0}
+.eyebrow{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 14px}
+.lede{font-size:1.2rem;line-height:1.55;color:var(--text);max-width:40em;margin:0}
+.by{color:var(--muted);font-size:.92rem;margin:18px 0 0}
+section{padding:72px 0;border-bottom:1px solid var(--line)}
+section.hero{padding:80px 0 56px}
+.sub{color:var(--muted);max-width:44em;margin:0 0 36px}
+.btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.btn{display:inline-block;padding:11px 18px;border-radius:8px;font-weight:600;font-size:.95rem;text-decoration:none;
+border:1px solid var(--line);color:var(--ink);background:var(--surface)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:var(--bg)}
+.btn.primary:hover{color:var(--bg);opacity:.92}
+.btn:hover{border-color:var(--ink)}
+.hint{display:block;color:var(--muted);font-size:.82rem;margin-top:8px}
+figure{margin:0}
+.demo{margin-top:48px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.demo img{display:block;width:100%;height:auto}
+.demo figcaption{padding:10px 16px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
+.cases{display:grid;gap:28px}
+.case{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:32px;
+display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:40px}
+.case .co{font:600 1.35rem/1.25 var(--serif);color:var(--ink);margin:0}
+.case .acc{color:var(--muted);font-size:.85rem;margin:4px 0 22px}
+.big{font:600 clamp(2.6rem,6vw,3.6rem)/1 var(--serif);color:var(--ink);letter-spacing:-.02em}
+.big-label{color:var(--muted);font-size:.9rem;margin:8px 0 18px}
+.headline{margin:0 0 22px}
+.more{font-weight:600;font-size:.92rem}
+.chart-title{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin:0 0 12px}
+svg.bridge{display:block;overflow:visible}
+svg.bridge text{font-family:var(--sans);font-size:13px;fill:var(--text)}
+svg.bridge text.t{font-weight:600;fill:var(--ink)}
+svg.bridge text.val{font-variant-numeric:tabular-nums}
+svg.bridge rect.t{fill:var(--navy)}
+svg.bridge rect.up{fill:var(--accent)}
+svg.bridge rect.down{fill:var(--down)}
+svg.bridge line.link{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;opacity:.7}
+svg.bridge line.zero{stroke:var(--line);stroke-width:1}
+.legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:.78rem;margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.dl{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.dl a{display:block;flex:1 1 180px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;
+color:var(--ink);background:var(--bg)}
+.dl a:hover{border-color:var(--ink)}
+.dl b{display:block;font-weight:600;font-size:.92rem}
+.dl span{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+.steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:24px;
+counter-reset:s}
+.steps li{counter-increment:s;border-top:2px solid var(--ink);padding-top:14px}
+.steps li::before{content:counter(s,decimal-leading-zero);font:600 .85rem/1 var(--serif);color:var(--accent);display:block;
+margin-bottom:10px}
+.steps b{display:block;color:var(--ink);font-weight:600;margin-bottom:4px}
+.steps span{color:var(--muted);font-size:.9rem;line-height:1.5}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+.stat .n{font:600 2.4rem/1 var(--serif);color:var(--ink);letter-spacing:-.02em}
+.stat .t{color:var(--ink);font-weight:600;margin:10px 0 4px}
+.stat p{color:var(--muted);font-size:.88rem;margin:0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+ul.plain{margin:0;padding-left:18px}
+ul.plain li{margin:0 0 8px}
+.muted{color:var(--muted)}
+.insights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.insight{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px}
+.insight h3{font-size:1.1rem;margin-bottom:10px}
+.insight p{margin:0 0 10px;font-size:.92rem}
+.insight .q{color:var(--muted);font-style:italic;margin:0}
+.issues{border-top:1px solid var(--line)}
+.issue{display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;padding:20px 0;border-bottom:1px solid var(--line)}
+.issue .amt{font:600 1.5rem/1.1 var(--serif);color:var(--ink)}
+.issue .al{color:var(--muted);font-size:.78rem;margin-top:4px}
+.issue .h{font-weight:600;color:var(--ink);margin:0 0 4px}
+.issue p{margin:0 0 6px;font-size:.92rem}
+.issue .imp{color:var(--accent);font-weight:600;font-size:.85rem}
+.tag{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;
+border-radius:4px;background:var(--chip);color:var(--muted);margin-right:6px;vertical-align:2px}
+.tag.High{color:var(--high)} .tag.Medium{color:var(--medium)}
+.bridges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px}
+.panel.wide{grid-column:1/-1}
+.context{border-left:3px solid var(--accent);padding:4px 0 4px 16px;color:var(--muted);font-size:.9rem;margin:28px 0 0;
+max-width:44em}
+.back{display:inline-block;color:var(--muted);text-decoration:none;font-size:.9rem;margin-bottom:28px}
+footer{padding:40px 0 56px;color:var(--muted);font-size:.85rem}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
+@media (max-width:900px){.case{grid-template-columns:1fr;gap:28px}.steps{grid-template-columns:1fr 1fr}
+.stats{grid-template-columns:1fr 1fr}.insights{grid-template-columns:1fr}.bridges{grid-template-columns:1fr}}
+@media (max-width:600px){.wrap{padding:0 16px}nav a:not(.cta){display:none}section{padding:52px 0}
+section.hero{padding:52px 0 40px}.case{padding:22px 18px}.steps{grid-template-columns:1fr}.cols{grid-template-columns:1fr}
+.stats{grid-template-columns:1fr 1fr;gap:28px 18px}.stat .n{font-size:2rem}.issue{grid-template-columns:1fr;gap:6px}
+.lede{font-size:1.08rem}.panel{padding:18px 14px}.dl a{flex-basis:100%}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="index.html">DD Assistant</a>
+<nav><a href="index.html#cases">Cases</a><a href="index.html#how">How it works</a><a href="index.html#verified">Verification</a><a class="cta" href="https://dd-assistant-tickmark.streamlit.app">Interactive demo</a></nav></div></header>
+<main>
+<section class="hero"><div class="wrap">
+<p class="eyebrow">Financial due diligence · European companies · euros</p>
+<h1>DD Assistant</h1>
+<p class="lede">A first-pass financial due diligence on published accounts. Every figure traced to its source.</p>
+<p class="by">Built by Bernardo Espinola, Economics, University of Porto · former intern in International Tax and Transaction Services at EY.</p>
+<div class="btns"><a class="btn primary" href="#cases">See the three cases</a><a class="btn" href="https://dd-assistant-tickmark.streamlit.app">Interactive demo</a><a class="btn" href="https://github.com/MItchell1970/dd-assistant">Code on GitHub</a></div>
+<figure class="demo"><img src="img/demo-tour.gif" width="1000" height="625" alt="The interactive demo: the reading checks, the key insight, the net debt bridge, a red flag with its source and the databook">
+<figcaption>The interactive demo on TAP Air Portugal: reading checks, key insight, net debt bridge, a red flag with its source.</figcaption></figure>
+</div></section>
+<section id="cases"><div class="wrap">
+<p class="eyebrow">Three real companies</p><h2>Published accounts, read end to end</h2>
+<p class="sub">Consolidated accounts for FY2023 to FY2025, read line by line from the annual reports. The figures below come from the engine; the memos were written beforehand and checked by code against the same material.</p>
+<div class="cases"><article class="case" data-check="tap">
+<div><p class="co">TAP Air Portugal</p><p class="acc">Consolidated accounts FY2023 to FY2025, 2025 Integrated Report and 2024 annual report</p>
+<div class="big">€2,293m</div><p class="big-label">adjusted net debt, vs −⁠€43m borrowings less cash</p>
+<p class="headline">More cash than bank debt, yet €2,293m of net debt (3.16x EBITDA) once the leased aircraft (IFRS 16) and pensions are counted.</p>
+<a class="more" href="tap.html">Key issues and all bridges →</a></div>
+<div><p class="chart-title">Net debt bridge, FY25 (EUR m)</p><svg class="bridge" width="100%" height="240" role="img" aria-label="Net debt bridge, FY25 (EUR m)"><title>Net debt bridge, FY25 (EUR m)</title><line class="zero" x1="1.28%" x2="1.28%" y1="22" y2="232"/><text class="lbl t" x="0" y="14">Borrowings less cash</text><rect class="t" x="0.00%" y="21" width="1.28%" height="14" rx="2"/><text class="val t" x="100%" y="33" text-anchor="end">−€43m</text><line class="link" x1="0.00%" x2="0.00%" y1="35" y2="69"/><text class="lbl up" x="0" y="62">Post-employment benefit obligations</text><rect class="up" x="0.00%" y="69" width="5.19%" height="14" rx="2"/><text class="val up" x="100%" y="81" text-anchor="end">+€173m</text><line class="link" x1="5.19%" x2="5.19%" y1="83" y2="117"/><text class="lbl up" x="0" y="110">Lease liabilities</text><rect class="up" x="5.19%" y="117" width="64.69%" height="14" rx="2"/><text class="val up" x="100%" y="129" text-anchor="end">+€2,158m</text><line class="link" x1="69.88%" x2="69.88%" y1="131" y2="165"/><text class="lbl up" x="0" y="158">Income tax payable</text><rect class="up" x="69.88%" y="165" width="0.40%" height="14" rx="2"/><text class="val up" x="100%" y="177" text-anchor="end">+€4m</text><line class="link" x1="70.00%" x2="70.00%" y1="179" y2="213"/><text class="lbl t" x="0" y="206">Adjusted net debt</text><rect class="t" x="1.28%" y="213" width="68.72%" height="14" rx="2"/><text class="val t" x="100%" y="225" text-anchor="end">€2,293m</text></svg><div class="legend"><span><i style="background:var(--navy)"></i>Total</span><span><i style="background:var(--accent)"></i>Increase</span><span><i style="background:var(--down)"></i>Decrease</span></div><div class="dl"><a href="files/tap/databook.xlsx" download><b>Databook</b><span>Excel · live formulas, every source cell</span></a><a href="files/tap/red_flag_report.pdf" download><b>Red flag report</b><span>PDF · slides for the deal team</span></a><a href="files/tap/memo.md" download><b>Memo and request list</b><span>Markdown · every figure checked by code</span></a></div></div>
+</article><article class="case" data-check="toyota-caetano">
+<div><p class="co">Toyota Caetano Portugal</p><p class="acc">Consolidated accounts FY2023 to FY2025, 2025 and 2024 annual reports (ESEF)</p>
+<div class="big">60.5%</div><p class="big-label">of FY25 EBITDA is other income</p>
+<p class="headline">Other income is 60.5% of FY25 EBITDA; note 22 shows €48,078k of stock financing outside reported debt.</p>
+<a class="more" href="toyota.html">Key issues and all bridges →</a></div>
+<div><p class="chart-title">EBITDA and the lease payments, FY25 (EUR k)</p><svg class="bridge" width="100%" height="144" role="img" aria-label="EBITDA and the lease payments, FY25 (EUR k)"><title>EBITDA and the lease payments, FY25 (EUR k)</title><text class="lbl t" x="0" y="14">Reported EBITDA</text><rect class="t" x="0.00%" y="21" width="70.00%" height="14" rx="2"/><text class="val t" x="100%" y="33" text-anchor="end">€66,187k</text><line class="link" x1="70.00%" x2="70.00%" y1="35" y2="69"/><text class="lbl down" x="0" y="62">Lease payments (cash flow statement)</text><rect class="down" x="62.26%" y="69" width="7.74%" height="14" rx="2"/><text class="val down" x="100%" y="81" text-anchor="end">−€7,322k</text><line class="link" x1="62.26%" x2="62.26%" y1="83" y2="117"/><text class="lbl t" x="0" y="110">EBITDA before IFRS 16</text><rect class="t" x="0.00%" y="117" width="62.26%" height="14" rx="2"/><text class="val t" x="100%" y="129" text-anchor="end">€58,865k</text></svg><div class="legend"><span><i style="background:var(--navy)"></i>Total</span><span><i style="background:var(--accent)"></i>Increase</span><span><i style="background:var(--down)"></i>Decrease</span></div><div class="dl"><a href="files/toyota-caetano/databook.xlsx" download><b>Databook</b><span>Excel · live formulas, every source cell</span></a><a href="files/toyota-caetano/red_flag_report.pdf" download><b>Red flag report</b><span>PDF · slides for the deal team</span></a><a href="files/toyota-caetano/memo.md" download><b>Memo and request list</b><span>Markdown · every figure checked by code</span></a></div></div>
+</article><article class="case" data-check="corticeira-amorim">
+<div><p class="co">Corticeira Amorim</p><p class="acc">Consolidated accounts FY2023 to FY2025, 2025 and 2024 annual reports (ESEF)</p>
+<div class="big">155.3%</div><p class="big-label">cash conversion, as stock was released</p>
+<p class="headline">Cash came from releasing stock as sales fell 8.3%; short-term debt fell from 56.3% to 28.7% of debt.</p>
+<a class="more" href="amorim.html">Key issues and all bridges →</a></div>
+<div><p class="chart-title">From EBITDA to free cash flow, FY25 (EUR k)</p><svg class="bridge" width="100%" height="336" role="img" aria-label="From EBITDA to free cash flow, FY25 (EUR k)"><title>From EBITDA to free cash flow, FY25 (EUR k)</title><text class="lbl t" x="0" y="14">Reported EBITDA</text><rect class="t" x="0.00%" y="21" width="40.89%" height="14" rx="2"/><text class="val t" x="100%" y="33" text-anchor="end">€140,983k</text><line class="link" x1="40.89%" x2="40.89%" y1="35" y2="69"/><text class="lbl up" x="0" y="62">Change in net working capital</text><rect class="up" x="40.89%" y="69" width="29.11%" height="14" rx="2"/><text class="val up" x="100%" y="81" text-anchor="end">+€100,349k</text><line class="link" x1="70.00%" x2="70.00%" y1="83" y2="117"/><text class="lbl down" x="0" y="110">Tax, interest and other operating items</text><rect class="down" x="63.53%" y="117" width="6.47%" height="14" rx="2"/><text class="val down" x="100%" y="129" text-anchor="end">−€22,317k</text><line class="link" x1="63.53%" x2="63.53%" y1="131" y2="165"/><text class="lbl t" x="0" y="158">Operating cash flow</text><rect class="t" x="0.00%" y="165" width="63.53%" height="14" rx="2"/><text class="val t" x="100%" y="177" text-anchor="end">€219,015k</text><line class="link" x1="63.53%" x2="63.53%" y1="179" y2="213"/><text class="lbl down" x="0" y="206">Capex</text><rect class="down" x="51.41%" y="213" width="12.12%" height="14" rx="2"/><text class="val down" x="100%" y="225" text-anchor="end">−€41,784k</text><line class="link" x1="51.41%" x2="51.41%" y1="227" y2="261"/><text class="lbl up" x="0" y="254">Proceeds from asset disposals</text><rect class="up" x="51.41%" y="261" width="0.40%" height="14" rx="2"/><text class="val up" x="100%" y="273" text-anchor="end">+€1,392k</text><line class="link" x1="51.81%" x2="51.81%" y1="275" y2="309"/><text class="lbl t" x="0" y="302">Free cash flow</text><rect class="t" x="0.00%" y="309" width="51.81%" height="14" rx="2"/><text class="val t" x="100%" y="321" text-anchor="end">€178,623k</text></svg><div class="legend"><span><i style="background:var(--navy)"></i>Total</span><span><i style="background:var(--accent)"></i>Increase</span><span><i style="background:var(--down)"></i>Decrease</span></div><div class="dl"><a href="files/corticeira-amorim/databook.xlsx" download><b>Databook</b><span>Excel · live formulas, every source cell</span></a><a href="files/corticeira-amorim/red_flag_report.pdf" download><b>Red flag report</b><span>PDF · slides for the deal team</span></a><a href="files/corticeira-amorim/memo.md" download><b>Memo and request list</b><span>Markdown · every figure checked by code</span></a></div></div>
+</article></div>
+</div></section>
+<section id="how"><div class="wrap">
+<p class="eyebrow">How it works</p><h2>Five steps, the order a deal team follows</h2>
+<p class="sub">The code does every calculation and raises every finding. AI only writes the memo, and a checker rejects any figure it cannot trace.</p>
+<ol class="steps"><li><b>Read the accounts</b><span>Every line of the statements, with its sheet and cell</span></li><li><b>Check the reading</b><span>Rebuild the published subtotals before trusting a figure</span></li><li><b>Flag what matters</b><span>30 rules, each with evidence, source and a question</span></li><li><b>Build the bridges</b><span>EBITDA, net debt and working capital, as a deal team asks</span></li><li><b>Export to Excel</b><span>A databook with live formulas and every source</span></li></ol>
+</div></section>
+<section id="verified"><div class="wrap">
+<p class="eyebrow">How it is verified</p><h2>Evidence before conclusions</h2>
+<p class="sub">Counted when this page was built, from the same code and data.</p>
+<div class="stats">
+<div class="stat"><div class="n">268</div><p class="t">automated tests</p><p>Including parity with the reference spreadsheet and zero red flags on a clean test company.</p></div>
+<div class="stat"><div class="n">10 of 10</div><p class="t">published subtotals rebuilt</p><p>Gross margin, EBITDA and operating profit rebuilt from the lines read, before any figure is trusted.</p></div>
+<div class="stat"><div class="n">48 of 49</div><p class="t">planted distortions detected</p><p>The miss: 20 extra days of supplier credit at TAP, hidden by a real fall of 96 days in its payables and below its materiality. Published, not tuned away.</p></div>
+<div class="stat"><div class="n">415</div><p class="t">memo figures checked</p><p>Each figure in the three memos traced to the material for the year it cites; 0 without a source.</p></div>
+</div>
+</div></section>
+<section id="limits"><div class="wrap cols">
+<div><p class="eyebrow">Limits</p><h2>What it does not do</h2><ul class="plain"><li>Annual accounts only (no monthly figures, LTM or budget).</li><li>Euros only.</li><li>Financial due diligence only (no legal, tax, commercial or IT review).</li><li>A first pass for an analyst to review, not a conclusion.</li></ul></div>
+<div><p class="eyebrow">Not measured</p><h2>What is not proven yet</h2><ul class="plain"><li>Time saved against a manual review: not measured.</li><li>Distortions nobody thought of, smaller ones, or several at once: the benchmark plants one known distortion at a time.</li><li>Review by a practitioner: the classification of the findings is proposed by the agent and not yet reviewed by a person.</li></ul></div>
+</div></section>
+<section id="demo"><div class="wrap">
+<p class="eyebrow">Try it</p><h2>Open the interactive demo</h2>
+<p class="sub">The same engine on the same three companies: change the reviewer's decisions, follow any figure to its cell, download the databook. Nothing is uploaded and no AI is called.</p>
+<div class="btns"><span><a class="btn primary" href="https://dd-assistant-tickmark.streamlit.app">Interactive demo</a><span class="hint">May take a few seconds to wake up.</span></span>
+<a class="btn" href="https://github.com/MItchell1970/dd-assistant">GitHub</a><a class="btn" href="https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/">LinkedIn</a></div>
+</div></section>
+</main>
+<footer><div class="wrap"><span>DD Assistant · preliminary analysis on published accounts, not an opinion.</span>
+<span><a href="https://github.com/MItchell1970/dd-assistant">GitHub</a> · <a href="https://www.linkedin.com/in/bernardo-mitchell-de-arvellos-espinola/">LinkedIn</a></span></div></footer>
+</body>
+</html>

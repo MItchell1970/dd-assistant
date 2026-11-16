@@ -62,3 +62,28 @@ What the cloud needs is already in the repository:
 - **The app sleeps:** a free app that nobody opens for a while goes to sleep; the first visitor wakes it in about a minute.
 
 Every push to `main` redeploys the app automatically.
+
+# Publishing the static site on GitHub Pages
+
+The link for the CV: a static page that always opens at once, with the interactive demo one click away. It will be at <https://mitchell1970.github.io/dd-assistant/>.
+
+- **Pages:** `site/index.html`, `site/tap.html`, `site/toyota.html`, `site/amorim.html`, built by `python scripts/build_site.py` from the engine and `docs/examples/`. `tests/test_site.py` checks every figure against the memo material and fails if the stored pages are stale.
+- **Downloads and images** (databook, red flag report, memo, demo GIF, social preview) are copied into `site/files/` and `site/img/` by the same script; those two folders are in `.gitignore`, and the workflow copies them again before publishing (`--assets`, standard library only).
+- **Workflow:** `.github/workflows/pages.yml` publishes `site/` at every push to `main` that touches it, or by hand (Actions → Publish the static site → Run workflow).
+
+## Turn it on (once)
+
+1. Push the commit that adds `.github/workflows/pages.yml` (`git push`).
+2. On GitHub: the repository → **Settings** → **Pages** (left menu).
+3. Under **Build and deployment → Source**, choose **GitHub Actions**. Nothing else to fill in.
+4. Go to **Actions** → **Publish the static site** → **Run workflow** → **Run workflow** (the first push ran before Pages was on, so run it once by hand).
+5. Wait for the green tick (about a minute). The address appears in the run and in Settings → Pages.
+6. Open <https://mitchell1970.github.io/dd-assistant/> and click a case, a download and the Interactive demo button.
+
+## After a change
+
+1. `python scripts/build_site.py` (rebuilds the pages; run it after `python scripts/demo_examples.py` if the examples changed).
+2. `python -m unittest tests.test_site` (figures checked, pages current).
+3. Commit and push: the workflow republishes the site.
+
+**LinkedIn preview:** the pages carry Open Graph tags with `img/social-preview.png`. LinkedIn caches the preview: after the first publish, paste the link in <https://www.linkedin.com/post-inspector/> to refresh it.

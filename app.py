@@ -78,90 +78,98 @@ SUMMARY_ROWS = ["vendas", "g_vendas", "cagr_vendas", "gm", "ebitda", "ebitda_m",
 CSS = """
 <style>
 [data-testid="stAppDeployButton"], #MainMenu {display: none;}
-.block-container {padding-top: 3.2rem; max-width: 1240px;}
-.dd-eyebrow {font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: #5b6474; font-weight: 600;}
-.dd-title {font-size: 2.1rem; font-weight: 700; color: #1b2333; margin: .1rem 0 .2rem;}
-.dd-sub {color: #5b6474; font-size: .92rem; margin-bottom: 1rem;}
-.dd-legal {color: #5b6474; font-size: .85rem; margin: -.2rem 0 .3rem;}
+.block-container {padding-top: 3.2rem; padding-bottom: 2.5rem; max-width: 1240px;}
+.dd-eyebrow {font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: #5f6878; font-weight: 600;}
+.dd-title {font-size: 2.1rem; font-weight: 700; color: #13233f; margin: .1rem 0 .2rem;}
+.dd-sub {color: #5f6878; font-size: .92rem; margin-bottom: 1rem;}
+.dd-legal {color: #5f6878; font-size: .85rem; margin: -.2rem 0 .3rem;}
 .dd-kpis {display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: .4rem 0 1.4rem;}
-.dd-kpi {border: 1px solid #e3e7ee; border-radius: 12px; padding: 14px 16px; background: #fff;}
-.dd-kpi .l {font-size: .8rem; color: #5b6474;}
-.dd-kpi .v {font-size: 1.5rem; font-weight: 650; color: #1b2333; margin: 2px 0; white-space: nowrap;}
-.dd-kpi .s {font-size: .8rem; color: #5b6474;}
+.dd-kpi {border: 1px solid #e4e1da; border-radius: 12px; padding: 14px 16px; background: #fff;}
+.dd-kpi .l {font-size: .8rem; color: #5f6878;}
+.dd-kpi .v {font-size: 1.5rem; font-weight: 650; color: #13233f; margin: 2px 0; white-space: nowrap;}
+.dd-kpi .s {font-size: .8rem; color: #5f6878;}
 .dd-kpi .n {font-size: .76rem; color: #1d6b3e; margin-top: 4px;}
-.dd-pill {display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e3e7ee; border-radius: 999px;
-          padding: 1px 10px; font-size: .78rem; font-weight: 600; color: #1b2333; background: #fff; white-space: nowrap;}
+.dd-pill {display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e4e1da; border-radius: 999px;
+          padding: 1px 10px; font-size: .78rem; font-weight: 600; color: #13233f; background: #fff; white-space: nowrap;}
 .dd-dot {width: 8px; height: 8px; border-radius: 50%; display: inline-block;}
 .dd-find {display: grid; grid-template-columns: 92px 44px 1fr 180px 64px; gap: 12px; align-items: center;
-          padding: 9px 4px; border-bottom: 1px solid #eef1f5; font-size: .92rem;}
-.dd-find .id {color: #5b6474; font-variant-numeric: tabular-nums;}
-.dd-find .area, .dd-find .yr {color: #5b6474; font-size: .84rem;}
-.dd-find .plain {display: block; color: #5b6474; font-size: .8rem; margin-top: 1px;}
-.dd-section {font-weight: 650; font-size: 1.05rem; color: #1b2333; margin: 1.2rem 0 .4rem;}
+          padding: 9px 4px; border-bottom: 1px solid #eeebe5; font-size: .92rem;}
+.dd-find .id {color: #5f6878; font-variant-numeric: tabular-nums;}
+.dd-find .area, .dd-find .yr {color: #5f6878; font-size: .84rem;}
+.dd-find .plain {display: block; color: #5f6878; font-size: .8rem; margin-top: 1px;}
+.dd-section {font-weight: 650; font-size: 1.05rem; color: #13233f; margin: 1.2rem 0 .4rem;}
 .dd-kpi.bad {border-color: #efb3b3; background: #fff7f7;}
 .dd-kpi.warn {border-color: #f3d48b; background: #fffbf0;}
 .dd-kpi.ok {border-color: #bfe2cc;}
 .dd-tag {display: inline-block; font-size: .72rem; font-weight: 650; border-radius: 6px; padding: 1px 7px; margin-top: 6px;}
 .dd-tag.bad {background: #fbe1e1; color: #8f1f1f;} .dd-tag.warn {background: #fcefcc; color: #7a5200;}
-.dd-tag.ok {background: #e3f4ea; color: #1d6b3e;} .dd-tag.muted {background: #eef0f4; color: #5b6474;}
+.dd-tag.ok {background: #e3f4ea; color: #1d6b3e;} .dd-tag.muted {background: #eeebe5; color: #5f6878;}
 .dd-steps {display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: .3rem 0 1.2rem;}
-.dd-step {border: 1px solid #e3e7ee; border-radius: 12px; padding: 10px 14px; background: #fff;}
+.dd-step {border: 1px solid #e4e1da; border-radius: 12px; padding: 10px 14px; background: #fff;}
 .dd-step.ok {border-color: #bfe2cc; background: #f5fbf7;} .dd-step.warn {border-color: #f3d48b; background: #fffbf0;}
 .dd-step.bad {border-color: #efb3b3; background: #fff7f7;}
-.dd-step .n {font-size: .72rem; color: #5b6474; text-transform: uppercase; letter-spacing: .06em; font-weight: 650;}
-.dd-step .t {font-weight: 650; color: #1b2333; margin: 2px 0;} .dd-step .d {font-size: .8rem; color: #5b6474;}
+.dd-step .n {font-size: .72rem; color: #5f6878; text-transform: uppercase; letter-spacing: .06em; font-weight: 650;}
+.dd-step .t {font-weight: 650; color: #13233f; margin: 2px 0;} .dd-step .d {font-size: .8rem; color: #5f6878;}
 .dd-issue {display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: start; padding: 12px 14px;
-           border: 1px solid #e3e7ee; border-left: 4px solid #8a8f98; border-radius: 10px; margin-bottom: 8px; background: #fff;}
+           border: 1px solid #e4e1da; border-left: 4px solid #8a8f98; border-radius: 10px; margin-bottom: 8px; background: #fff;}
 .dd-issue.High {border-left-color: #d03b3b;} .dd-issue.Medium {border-left-color: #fab219;}
-.dd-issue.Item {border-left-color: #0b3d91;}
-.dd-issue .big {font-size: 1.35rem; font-weight: 700; color: #1b2333; line-height: 1.2; font-variant-numeric: tabular-nums;}
-.dd-issue .vs {font-size: .76rem; color: #5b6474;}
-.dd-issue .h {font-weight: 650; color: #1b2333;} .dd-issue .p {font-size: .88rem; color: #3b4457; margin: 2px 0;}
-.dd-issue .w {font-size: .78rem; color: #0b3d91; font-weight: 600;}
-.dd-effect {background: #eef4ff; border: 1px solid #d6e2fb; border-radius: 8px; padding: 6px 9px; font-size: .78rem;
-            color: #1b2b4d; margin: -2px 0 12px; line-height: 1.4;}
+.dd-issue.Item {border-left-color: #13294b;}
+.dd-issue .big {font-size: 1.35rem; font-weight: 700; color: #13233f; line-height: 1.2; font-variant-numeric: tabular-nums;}
+.dd-issue .vs {font-size: .76rem; color: #5f6878;}
+.dd-issue .h {font-weight: 650; color: #13233f;} .dd-issue .p {font-size: .88rem; color: #2c3546; margin: 2px 0;}
+.dd-issue .w {font-size: .78rem; color: #13294b; font-weight: 600;}
+.dd-effect {background: #f5e9da; border: 1px solid #e4e1da; border-radius: 8px; padding: 6px 9px; font-size: .78rem;
+            color: #13233f; margin: -2px 0 12px; line-height: 1.4;}
 @container (max-width: 620px) {.dd-issue {grid-template-columns: 1fr;}}
 .dd-list {container-type: inline-size;}
 @container (max-width: 620px) {.dd-find {grid-template-columns: 88px 1fr;} .dd-find .id, .dd-find .area, .dd-find .yr {display: none;}}
 .dd-wrap {overflow-x: auto;}
 .dd-br {width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; margin-bottom: .6rem;}
-.dd-br th {text-align: right; color: #5b6474; font-weight: 600; border-bottom: 1px solid #c9d0db; padding: 6px 8px;}
+.dd-br th {text-align: right; color: #5f6878; font-weight: 600; border-bottom: 1px solid #d6d2c9; padding: 6px 8px;}
 .dd-br th:first-child, .dd-br td.l, .dd-br th.note, .dd-br td.note {text-align: left;}
-.dd-br td {padding: 5px 8px; border-bottom: 1px solid #f1f3f6; text-align: right; white-space: nowrap; color: #1b2333;}
+.dd-br td {padding: 5px 8px; border-bottom: 1px solid #eeebe5; text-align: right; white-space: nowrap; color: #13233f;}
 .dd-br td.l {white-space: normal; min-width: 240px;}
 .dd-br tr.item td.l {padding-left: 20px;}
-.dd-br tr.header td {font-weight: 650; color: #0b3d91; padding-top: 12px; border-bottom: none;}
-.dd-br tr.subtotal td {font-weight: 650; border-top: 1px solid #c9d0db;}
-.dd-br tr.total td {font-weight: 700; border-top: 1.5px solid #1b2333; background: #f5f7fb;}
-.dd-br tr.memo td {color: #5b6474; font-style: italic;}
-.dd-br td.note {color: #5b6474; font-size: .8rem; white-space: normal; min-width: 160px;}
+.dd-br tr.header td {font-weight: 650; color: #13294b; padding-top: 12px; border-bottom: none;}
+.dd-br tr.subtotal td {font-weight: 650; border-top: 1px solid #d6d2c9;}
+.dd-br tr.total td {font-weight: 700; border-top: 1.5px solid #13233f; background: #f3f1ec;}
+.dd-br tr.memo td {color: #5f6878; font-style: italic;}
+.dd-br td.note {color: #5f6878; font-size: .8rem; white-space: normal; min-width: 160px;}
 .dd-banner {border: 1px solid #f3d48b; background: #fffbf0; color: #5c4300; border-radius: 10px; padding: 8px 14px;
             font-size: .9rem; font-weight: 600; margin: .4rem 0 1rem;}
-.dd-card-co {font-weight: 700; font-size: 1.15rem; color: #1b2333;}
-.dd-card-acc {font-size: .8rem; color: #5b6474; margin-bottom: .5rem;}
-.dd-card-find {font-size: .95rem; color: #1b2333; min-height: 4.4em;}
+.dd-card-co {font-weight: 700; font-size: 1.15rem; color: #13233f;}
+.dd-card-acc {font-size: .8rem; color: #5f6878; margin-bottom: .5rem;}
+.dd-card-find {font-size: .95rem; color: #13233f; min-height: 4.4em;}
 .dd-insights {display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: .2rem 0 1.2rem;}
-.dd-insight {border: 1px solid #d6e2fb; border-top: 4px solid #0b3d91; border-radius: 12px; padding: 12px 16px; background: #fff;}
-.dd-insight .t {font-weight: 700; color: #1b2333; font-size: 1rem; margin-bottom: 4px;}
-.dd-insight .num {color: #1b2333; font-size: .9rem; margin-bottom: 6px;}
-.dd-insight .why {color: #3b4457; font-size: .84rem; margin-bottom: 6px;}
-.dd-insight .q {color: #0b3d91; font-size: .82rem; font-weight: 600;}
-.dd-chart-title {font-weight: 600; color: #1b2333; font-size: .9rem; margin: .6rem 0 0;}
-.dd-hero {font-size: 1.3rem; color: #1b2333; font-weight: 600; margin: .2rem 0 .3rem; max-width: 900px;}
-.dd-by {font-size: .85rem; color: #0b3d91; font-weight: 600; margin-bottom: .5rem;}
+.dd-insight {border: 1px solid #e4e1da; border-top: 4px solid #13294b; border-radius: 12px; padding: 12px 16px; background: #fff;}
+.dd-insight .t {font-weight: 700; color: #13233f; font-size: 1rem; margin-bottom: 4px;}
+.dd-insight .num {color: #13233f; font-size: .9rem; margin-bottom: 6px;}
+.dd-insight .why {color: #2c3546; font-size: .84rem; margin-bottom: 6px;}
+.dd-insight .q {color: #13294b; font-size: .82rem; font-weight: 600;}
+.dd-chart-title {font-weight: 600; color: #13233f; font-size: .9rem; margin: .6rem 0 0;}
+.dd-hero {font-size: 1.3rem; color: #13233f; font-weight: 600; margin: .2rem 0 .3rem; max-width: 900px;}
+.dd-by {font-size: .85rem; color: #13294b; font-weight: 600; margin-bottom: .5rem;}
 .dd-co {display: flex; gap: 10px; align-items: center; margin-bottom: .4rem;}
-.dd-initial {width: 38px; height: 38px; border-radius: 50%; background: #0b3d91; color: #fff; display: inline-flex;
+.dd-initial {width: 38px; height: 38px; border-radius: 50%; background: #13294b; color: #fff; display: inline-flex;
              align-items: center; justify-content: center; font-weight: 700; flex: none;}
-.dd-big {font-size: 2rem; font-weight: 750; color: #0b3d91; line-height: 1.1; margin-top: .3rem;}
-.dd-big-l {font-size: .85rem; color: #3b4457; margin-bottom: .5rem;}
+.dd-big {font-size: 2rem; font-weight: 750; color: #13294b; line-height: 1.1; margin-top: .3rem;}
+.dd-big-l {font-size: .85rem; color: #2c3546; margin-bottom: .5rem;}
 .dd-tiles {display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: .3rem 0 1rem;}
-.dd-tile {border: 1px solid #d6e2fb; border-radius: 12px; padding: 12px 16px; background: #f7f9fe;}
-.dd-tile .v {font-size: 1.7rem; font-weight: 750; color: #0b3d91;} .dd-tile .l {font-size: .84rem; color: #3b4457;}
+.dd-tile {border: 1px solid #e4e1da; border-radius: 12px; padding: 12px 16px; background: #ffffff;}
+.dd-tile .v {font-size: 1.7rem; font-weight: 750; color: #13294b;} .dd-tile .l {font-size: .84rem; color: #2c3546;}
 abbr.dd-term {text-decoration: underline dotted #8a8f98; text-underline-offset: 3px; cursor: help;}
-.dd-src {display: block; font-size: .72rem; color: #5b6474; margin-top: 4px;}
-.dd-nav {font-size: .85rem; margin-bottom: .6rem;} .dd-nav a {color: #0b3d91; text-decoration: none;}
-.dd-foot {border-top: 1px solid #e3e7ee; margin-top: 2.4rem; padding-top: .8rem; font-size: .8rem; color: #5b6474;}
-.dd-foot a {color: #0b3d91;}
+.dd-src {display: block; font-size: .72rem; color: #5f6878; margin-top: 4px;}
+.dd-nav {font-size: .85rem; margin-bottom: .6rem;} .dd-nav a {color: #13294b; text-decoration: none;}
+.dd-foot {border-top: 1px solid #e4e1da; margin-top: 2.4rem; padding-top: .8rem; font-size: .8rem; color: #5f6878;}
+.dd-foot a {color: #13294b;}
+/* the static site's type: serif for titles and big numbers, tabular figures */
+.dd-title, .dd-hero, .dd-card-co, .dd-big, .dd-kpi .v, .dd-issue .big, .dd-tile .v, .dd-insight .t {
+  font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif; font-weight: 600; letter-spacing: -.01em;}
+.dd-title {font-size: 2.3rem;} .dd-big {color: #13233f; font-size: 2.3rem;} .dd-tile .v {color: #13233f;}
+.dd-insight {border-top-color: #b4611a;} .dd-eyebrow {color: #b4611a;}
+[data-testid='stAppViewContainer'] {font-variant-numeric: tabular-nums lining-nums;}
+/* markdown tables (the memo) scroll sideways on a phone instead of being cut at the edge */
+[data-testid='stMarkdownContainer'] table:not([class]) {display: block; max-width: 100%; overflow-x: auto;}
 </style>
 """
 
@@ -259,7 +267,7 @@ def show_stored_memo(c: demo.Case) -> None:
     st.markdown(re.sub(r"^(#+) ", lambda h: "#" * min(len(h.group(1)) + 2, 6) + " ", text, flags=re.M))
 
 
-NAVY, BLUE, GREY = "#0b3d91", "#5b7fc4", "#a9b6cc"
+NAVY, BLUE, GREY = "#13294b", "#b4611a", "#aab4c3"
 
 
 def waterfall(steps: list[tuple[str, float, str]], money, title: str, key: str) -> None:
@@ -292,7 +300,7 @@ def waterfall(steps: list[tuple[str, float, str]], money, title: str, key: str) 
     bars = alt.Chart(df).mark_bar(cornerRadius=3).encode(
         x=x, y=alt.Y("start:Q", axis=None), y2="end:Q", color=alt.Color("colour:N", scale=None),
         tooltip=[alt.Tooltip("name:N", title=" "), alt.Tooltip("text:N", title="Value")])
-    labels = alt.Chart(df).mark_text(dy=-8, fontSize=12, fontWeight=600, color="#1b2333").encode(
+    labels = alt.Chart(df).mark_text(dy=-8, fontSize=12, fontWeight=600, color="#13233f").encode(
         x=x, y=alt.Y("top:Q", axis=None), text="text:N")
     st.markdown(f"<div class='dd-chart-title'>{html.escape(title)}</div>", unsafe_allow_html=True)
     st.altair_chart((bars + labels).properties(height=260).configure_view(stroke=None), width="stretch", key=key)
@@ -307,7 +315,7 @@ def nwc_chart(view, money, key: str) -> None:
                        for y in years])
     base = alt.Chart(df).encode(x=alt.X("year:N", title=None, axis=alt.Axis(labelAngle=0)))
     bars = base.mark_bar(color=NAVY, cornerRadius=3, size=48).encode(y=alt.Y("nwc:Q", axis=None))
-    text = base.mark_text(dy=-8, fontSize=12, fontWeight=600, color="#1b2333").encode(y="nwc:Q", text="text:N")
+    text = base.mark_text(dy=-8, fontSize=12, fontWeight=600, color="#13233f").encode(y="nwc:Q", text="text:N")
     avg = alt.Chart(pd.DataFrame([{"avg": view.nwc_average}])).mark_rule(color="#fab219", strokeDash=[6, 4],
                                                                           size=2).encode(y="avg:Q")
     st.markdown(f"<div class='dd-chart-title'>Net working capital at year-end ({money.unit}); dashed line: "
@@ -763,7 +771,7 @@ with tab_ov:
     # ---- where it goes wrong: the figure, the threshold, in plain words, and where to look
     st.markdown(f"<div class='dd-section'>Key issues, by amount at stake · {len(al)} "
                 f"{term('red flags', 'Red flag')} and {len(a.issues) - len(al)} net debt items</div>"
-                + " ".join(f"{pill(k)} <span style='color:#5b6474;font-size:.85rem'>{by[k]}</span>&nbsp;&nbsp;"
+                + " ".join(f"{pill(k)} <span style='color:#5f6878;font-size:.85rem'>{by[k]}</span>&nbsp;&nbsp;"
                            for k in SEVERITIES), unsafe_allow_html=True)
     if not a.issues:
         st.success("No rule fired: no red flags on the data provided.")

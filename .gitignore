@@ -7,3 +7,7 @@ output/*
 *gabarito*
 ~$*.xlsx
 .claude/launch.json
+
+# static site: copied by scripts/build_site.py (and by the Pages workflow), not committed twice
+site/files/
+site/img/
