@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from dd_assistant.__main__ import main  # noqa: E402
+from dd_assistant import demo  # noqa: E402
 from dd_assistant.demo import CASES  # noqa: E402
 
 
@@ -54,6 +55,10 @@ def run() -> int:
             if case.memo_path.exists():
                 shutil.copyfile(Path(tmp) / f"{case.memo_path.stem}_check.md", case.check_path)
         slides(case)
+        from dd_assistant import deal_layer
+        (case.folder / "deal_layer.md").write_text(deal_layer.report_md(demo.analysis(case), case.company),
+                                                   encoding="utf-8", newline="\n")
+        print(f"Deal layer: {case.folder.name}/deal_layer.md")
     return worst
 
 

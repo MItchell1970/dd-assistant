@@ -93,6 +93,26 @@ display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:40px}
 .headline{margin:0 0 22px}
 .more{font-weight:600;font-size:.92rem}
 .chart-title{font-size:.95rem;color:var(--ink);font-weight:600;margin:0 0 14px}
+.deal{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:28px;margin:0 0 28px}
+.deal + .bridges{margin-bottom:28px}
+.big small{font-size:1.2rem;color:var(--muted)}
+.small{font-size:.85rem}
+.bars{display:grid;gap:8px;margin:18px 0 12px}
+.bar{display:grid;grid-template-columns:150px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:.85rem}
+.bar i{display:block;height:8px;border-radius:4px;background:var(--red);min-width:2px}
+.bar b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+table.top{width:100%;border-collapse:collapse;font-size:.9rem}
+table.top th{text-align:left;color:var(--muted);font-weight:500;font-size:.78rem;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.top td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.top td span{display:block;color:var(--muted);font-size:.78rem}
+table.top .n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.grid{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+.grid span{font-size:.75rem;padding:3px 7px;border-radius:4px;border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.grid .on{color:var(--green)}.grid .off{color:var(--muted)}
+details{margin-top:10px;color:var(--muted)}summary{cursor:pointer;font-size:.85rem}
+.stats.three{grid-template-columns:repeat(3,minmax(0,1fr));margin:14px 0}
+@media (max-width:900px){.deal{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:600px){.bar{grid-template-columns:110px minmax(0,1fr) 40px}.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .dl{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
 .dl a{display:block;flex:1 1 180px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;
 color:var(--ink);background:var(--bg)}
@@ -270,6 +290,51 @@ def index(cases: list) -> str:
                 f"{demo.TAGLINE}. Three real European companies, every figure traced to its source.", body)
 
 
+def deal_section(c, a) -> str:
+    """Phase 4B: risk score, top five deal issues with the typical protection, valuation impact, coverage and open
+    items. Every figure comes from dd_assistant/deal_layer.py and is in the memo material (section 1c)."""
+    from dd_assistant import charts, deal_layer as dl
+    layer = dl.build(a)
+    s, cov = layer.score, layer.coverage
+    top = max(s.by_area.values()) or 1
+    bars = "".join(f'<div class="bar"><span>{E(k)}</span><i style="width:{100 * v / top:.0f}%"></i><b>{v:g}</b></div>'
+                   for k, v in s.by_area.items())
+    m = lambda x: a.money.fmt(x).replace("-€", "−€")
+    rows = "".join(f"<tr><td>{d.rank}</td><td>{E(d.title)}<span>{E(d.area or '')}</span></td>"
+                   f"<td class=\"n\">{E(m(d.amount)) if d.amount is not None else 'n/q'}</td>"
+                   f"<td>{E(d.protection)}<span>{E(d.moment)}</span></td></tr>" for d in layer.top)
+    blocked = {rid: doc for rid, _, doc in cov.blocked}
+    grid = "".join(f'<span class="{"off" if r.rule.id in blocked else "on"}" title="{E(r.rule.name)}'
+                   f'{": request " + E(blocked[r.rule.id]) if r.rule.id in blocked else ""}">'
+                   f'{"○" if r.rule.id in blocked else "✓"} {r.rule.id}</span>' for r in a.results)
+    asks = "".join(f"<li><b>{rid}</b> {E(doc)}</li>" for rid, _, doc in cov.blocked)
+    groups = {g: [o for o in layer.open_items if o.group == g] for g in dl.GROUPS}
+    counts = "".join(f'<div class="stat"><div class="n">{len(v)}</div><p class="t">{E(g)}</p></div>'
+                     for g, v in groups.items())
+    refs = "".join(f"<li><b>Route to {E(r.workstream)}</b> · {E(r.item)}</li>" for r in layer.referrals)
+    b = charts.valuation(a)
+    return f"""<section data-check="{c.slug}"><div class="wrap">
+<p class="eyebrow">Deal view</p><h2>What it means for the deal</h2>
+<div class="deal">
+<div class="panel"><p class="chart-title">Diligence risk score</p><div class="big">{s.score}<small> / 100</small></div>
+<p class="muted small">{E(s.label)}</p><div class="bars">{bars}</div>
+<details><summary>How it is computed</summary><p class="small">{E(s.formula)}</p></details></div>
+<div class="panel"><p class="chart-title">Top deal issues, by amount at stake</p>
+<table class="top"><thead><tr><th>#</th><th>Issue</th><th class="n">Amount</th><th>Typical protection</th></tr></thead>
+<tbody>{rows}</tbody></table></div>
+</div>
+<div class="bridges"><div class="wide">{charts.svg(b, a.money) if b else ""}</div></div>
+<div class="deal">
+<div class="panel"><p class="chart-title">Coverage: {E(cov.text)}</p><p class="muted small">{E(dl.MODE_LINE)}</p>
+<div class="grid">{grid}</div>
+<details><summary>Documents that unblock the other rules</summary><ul class="plain small">{asks}</ul></details></div>
+<div class="panel"><p class="chart-title">Open items</p><div class="stats three">{counts}</div>
+<details><summary>Outside the financial scope: routed, not analysed</summary><ul class="plain small">{refs}</ul></details></div>
+</div>
+</div></section>
+"""
+
+
 def company(c, a) -> str:
     from dd_assistant import demo
     from dd_assistant.rules import fy
@@ -310,7 +375,7 @@ def company(c, a) -> str:
 <p class="sub">Each with the figure, why it matters in a deal and the question for management.</p>
 <div class="insights">{insights}</div>
 </div></section>
-<section data-check="{c.slug}"><div class="wrap">
+{deal_section(c, a)}<section data-check="{c.slug}"><div class="wrap">
 <p class="eyebrow">Key issues</p><h2>By amount at stake</h2>
 <p class="sub">Findings and net debt items in one list, ordered by the euros behind them, each with what a deal team typically does about it.</p>
 <div class="issues">{''.join(rows)}</div>

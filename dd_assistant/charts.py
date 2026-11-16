@@ -34,7 +34,8 @@ SHORT = {   # names under the columns; the full name stays in the column's title
     "Free cash flow after leases": "FCF after leases", "EBITDA before IFRS 16": "EBITDA pre-IFRS 16",
     "Borrowings less cash": "Net debt (ex-leases)", "Post-employment benefit obligations": "Pensions",
     "Lease liabilities": "Leases", "Income tax payable": "Tax payable", "Adjusted net debt": "Adjusted net debt",
-    "Diligence-adjusted EBITDA": "Adjusted EBITDA", "Net capex": "Net capex", "Others": "Others"}
+    "Diligence-adjusted EBITDA": "Adjusted EBITDA", "Net capex": "Net capex", "Others": "Others",
+    "Working capital vs peg": "NWC vs peg", "Equity value impact": "Equity value impact"}
 # what a title calls the largest item ("Leases take net debt from …")
 NOUN = {"Lease liabilities": "Leases", "Post-employment benefit obligations": "Pensions",
         "Income tax payable": "Tax payable", "Change in net working capital": "Working capital",
@@ -135,7 +136,7 @@ def _style(cols: list[Column], worse_if_up: bool) -> None:
 
 def _rounding(cols: list[Column], money) -> str:
     r = lambda v: _round(v / 1000 if money.millions else v)
-    running, diff = None, 0
+    running, diff = (0 if cols and cols[0].kind == "delta" else None), 0     # a bridge may start from zero
     for c in cols:
         if c.kind == "total":
             if running is not None and r(c.value) != running:
@@ -245,6 +246,23 @@ def ifrs16(a, year: int | None = None) -> Bridge | None:
 def ebitda(a, year: int | None = None) -> Bridge | None:
     """The EBITDA chart of a company: the diligence adjustments if there are any, otherwise the lease effect."""
     return qoe(a, year) or ifrs16(a, year)
+
+
+def valuation(a, multiple: float = 8.0) -> Bridge | None:
+    """Phase 4B: the findings in equity value terms at an illustrative multiple (deal_layer.valuation_impact)."""
+    from .deal_layer import ILLUSTRATIVE, MULTIPLES, impact_steps, valuation_impact
+    from .rules import fy
+    vi = valuation_impact(a)
+    steps = impact_steps(vi, multiple)
+    if len(steps) < 2:
+        return None
+    m = lambda x: a.money.fmt(x).replace("-€", "−€")
+    low, high = MULTIPLES[0], MULTIPLES[-1]
+    annotation = (f"{low:g}x: {m(vi.at(low))} · {high:g}x: {m(vi.at(high))}" if vi.ebitda_change else
+                  "Same at every multiple: no EBITDA adjustment")
+    return make(steps, a.money, "value", f"Valuation impact bridge at {multiple:g}x, {fy(vi.year)} "
+                f"({_unit(a.money)}), {ILLUSTRATIVE.lower()}",
+                f"At {multiple:g}x, the findings move equity value by {m(vi.at(multiple))}", annotation)
 
 
 def all_bridges(a) -> dict[str, Bridge]:
@@ -357,8 +375,8 @@ def svg(b: Bridge, money, check: str = "") -> str:
         if i < len(rows) - 1:
             out.append(f'<line class="link" x1="{x + BAR:.1f}" x2="{x + SLOT:.1f}" y1="{y(end):.1f}" y2="{y(end):.1f}"/>')
     out.append("</svg></div>")
-    worse, better = ("Increases net debt", "Reduces net debt") if b.kind == "net debt" else \
-        ("Reduces cash" if b.kind == "cash" else "Reduces EBITDA", "Adds cash" if b.kind == "cash" else "Adds EBITDA")
+    worse, better = {"net debt": ("Increases net debt", "Reduces net debt"), "cash": ("Reduces cash", "Adds cash"),
+                     "value": ("Reduces equity value", "Adds equity value")}.get(b.kind, ("Reduces EBITDA", "Adds EBITDA"))
     out.append(f'<div class="ddc-foot"><span><i style="background:{GREY}"></i>Total</span>'
                f'<span><i style="background:{RED}"></i>{worse} (worse for the buyer)</span>'
                f'<span><i style="background:{GREEN}"></i>{better}</span>'

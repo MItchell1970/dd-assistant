@@ -70,6 +70,26 @@ display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:40px}
 .headline{margin:0 0 22px}
 .more{font-weight:600;font-size:.92rem}
 .chart-title{font-size:.95rem;color:var(--ink);font-weight:600;margin:0 0 14px}
+.deal{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:28px;margin:0 0 28px}
+.deal + .bridges{margin-bottom:28px}
+.big small{font-size:1.2rem;color:var(--muted)}
+.small{font-size:.85rem}
+.bars{display:grid;gap:8px;margin:18px 0 12px}
+.bar{display:grid;grid-template-columns:150px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:.85rem}
+.bar i{display:block;height:8px;border-radius:4px;background:var(--red);min-width:2px}
+.bar b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+table.top{width:100%;border-collapse:collapse;font-size:.9rem}
+table.top th{text-align:left;color:var(--muted);font-weight:500;font-size:.78rem;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.top td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.top td span{display:block;color:var(--muted);font-size:.78rem}
+table.top .n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.grid{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+.grid span{font-size:.75rem;padding:3px 7px;border-radius:4px;border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.grid .on{color:var(--green)}.grid .off{color:var(--muted)}
+details{margin-top:10px;color:var(--muted)}summary{cursor:pointer;font-size:.85rem}
+.stats.three{grid-template-columns:repeat(3,minmax(0,1fr));margin:14px 0}
+@media (max-width:900px){.deal{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:600px){.bar{grid-template-columns:110px minmax(0,1fr) 40px}.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .dl{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
 .dl a{display:block;flex:1 1 180px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;
 color:var(--ink);background:var(--bg)}
@@ -189,7 +209,7 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 <p class="eyebrow">How it is verified</p><h2>Evidence before conclusions</h2>
 <p class="sub">Counted when this page was built, from the same code and data.</p>
 <div class="stats">
-<div class="stat"><div class="n">278</div><p class="t">automated tests</p><p>Including parity with the reference spreadsheet and zero red flags on a clean test company.</p></div>
+<div class="stat"><div class="n">294</div><p class="t">automated tests</p><p>Including parity with the reference spreadsheet and zero red flags on a clean test company.</p></div>
 <div class="stat"><div class="n">10 of 10</div><p class="t">published subtotals rebuilt</p><p>Gross margin, EBITDA and operating profit rebuilt from the lines read, before any figure is trusted.</p></div>
 <div class="stat"><div class="n">48 of 49</div><p class="t">planted distortions detected</p><p>The miss: 20 extra days of supplier credit at TAP, hidden by a real fall of 96 days in its payables and below its materiality. Published, not tuned away.</p></div>
 <div class="stat"><div class="n">415</div><p class="t">memo figures checked</p><p>Each figure in the three memos traced to the material for the year it cites; 0 without a source.</p></div>

@@ -183,3 +183,29 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - Testes: `tests/test_charts.py` (10); títulos e anotações passam pelo verificador do memo; as somas agrupadas (Net capex, Others) não estão no material e são testadas como soma das partes (marcadas `data-nocheck` no site).
 - Na app, o SVG vai por `st.markdown` (o `st.html` remove SVG). Slides e PDF da demo regenerados.
 - Nota: no telemóvel, os gráficos com mais colunas deslizam para manter o texto a 11 px; a anotação do total final fica do lado direito, visível ao deslizar.
+
+### Fase B — camada de deal (feita a 16 de novembro de 2026, à espera da revisão)
+
+**Feito**
+- Antes da B (decisão do Bernardo sobre a A): no telemóvel, a anotação do gráfico aparece por baixo do título, fora do SVG; o número de destaque já estava no título. Ponto 7 (mapa de cobertura) acrescentado à `docs/FASE4_SPEC.md`.
+- `dd_assistant/deal_layer.py` (pontos 1–7): valuation impact (EBITDA × 6x/8x/10x + itens de net debt + NWC contra o peg indicativo, "Illustrative, not a valuation"); top 5 deal issues com proteção típica e momento; risk score 0–100 com fórmula e decomposição por 5 áreas; encaminhamentos (Legal, HR, Tax, Regulatory) a partir das notas; open items em 3 grupos; ações por momento; mapa de cobertura com o documento que desbloqueia cada regra. Uma só request list (`request_list`) para o databook e os open items, com as regras bloqueadas, sem duplicados.
+- Databook: folhas Top Issues, Valuation Impact (fórmulas; Excel = Python nas três empresas) e Open Items (com a grelha de cobertura). Material do memo: secção 1c, para o verificador conhecer os números novos. Gráfico `charts.valuation` (mesmo gerador). Site: secção "Deal view" em cada página de empresa. `docs/examples/<empresa>/deal_layer.md` gerado por `scripts/demo_examples.py`.
+- Resultados: risk score TAP 50, Toyota 62, Amorim 30; Duriva 100 (problemas plantados), Velmora 0. Cobertura: 22 de 30 regras nas três cotadas, 29 de 30 na Duriva. Impacto a 8x: TAP −€2,547m, Toyota +€16,013k, Amorim −€79,293k (sem ajustes de EBITDA: igual a qualquer múltiplo).
+- Testes: `tests/test_deal_layer.py` (16; 294 testes no total, todos OK), incluindo a dupla contagem, a fórmula do score, a Duriva a correr mais regras e um pedido por regra bloqueada.
+
+**Decisões (a opção mais conservadora)**
+- Score: pesos High 3 / Medium 2 / Low 1 × materialidade (material 1, não quantificável 0,75, abaixo 0,5); 100 = 30 pontos (dez achados High materiais); teto 100. A R18 (documentos em falta) fica fora do score e entra na cobertura e nos open items. Os itens de net debt não contam: o score mede achados das regras.
+- Top 5: ordem pelo montante em causa (não pelo montante × múltiplo, para não depender de um múltiplo ilustrativo).
+- Proteção típica por implicação: Price: EBITDA → ajuste de preço; Price: net debt → debt-like no SPA; Price: working capital → completion accounts; SPA protection → indemnity, ou escrow/retention quando material e sem explicação nas notas; Further diligence e Post-deal → pedir mais informação. Momento: Price/Further → antes do signing; net debt e SPA protection → SPA; NWC → completion accounts; Post-deal → pós-closing.
+- Valuation impact: o lado EBITDA só tem ajustes já aceites ou aplicados por regra (visão prudente do comprador), a partir do EBITDA do vendedor (o ajustado pela gestão, quando existe). NWC só com dois fechos ou mais, contra a média dos fechos, rotulada como peg indicativo. Dupla contagem: cada linha entra uma vez; os itens de net debt já estão fora do NWC (deal.py).
+- Áreas: as regras de consistência vão para a demonstração que testam (R12, R17 → Net debt; R13, R14 → Cash flow; R15, R16, R30 → Quality of earnings).
+- Encaminhamentos só por palavras das notas transcritas; garantias a clientes (provisão operacional) não são encaminhadas; uma nota fiscal fica em Tax mesmo com processos judiciais. Não há análise jurídica: só o item e a pergunta.
+- Open items: "Confirm with the auditor" = o que uma nota publicada explica (o número é público, o tratamento não está confirmado); os pedidos de achados totalmente explicados pela nota saem de "Ask the company".
+- Modo do mapa de cobertura: "outside-in" quando os ficheiros são contas publicadas ou há notas transcritas; senão "data room".
+
+**Por fazer / limites**
+- A app Streamlit ainda não mostra a camada de deal (é a Fase C: Resumo, Áreas, Impacto com slider de múltiplo, Evidência).
+- A página inicial do site ainda não tem o risk score por empresa (Fase D).
+- Os encaminhamentos dependem das notas transcritas; sem notas, só a pensão (item de net debt) é encaminhada.
+
+**Próximo passo exato:** colar `docs/FABLE_REVIEW_PROMPT.md` numa sessão nova (revisão só de leitura pelo Fable); corrigir o que for aceite; depois, com aprovação, a Fase C.
