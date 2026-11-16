@@ -32,6 +32,10 @@ FONTS = ("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&"
 E = html.escape
 
 
+def fy(year: int) -> str:
+    return f"FY{str(year)[2:]}"
+
+
 def copy_assets() -> None:
     for slug in PAGES:
         folder = SITE / "files" / slug
@@ -46,7 +50,7 @@ def copy_assets() -> None:
 # ---------------------------------------------------------------- style (inlined in each page)
 CSS = """
 :root{--bg:#0d1117;--surface:#161b22;--ink:#e6edf3;--text:#e6edf3;--muted:#8b949e;--line:#30363d;--navy:#e6edf3;
---accent:#8b949e;--accent-soft:#161b22;--down:#8b949e;--chip:#21262d;--high:#f85149;--medium:#c9d1d9;--low:#8b949e;
+--accent:#8b949e;--accent-soft:#161b22;--down:#8b949e;--chip:#161b22;--high:#f85149;--medium:#e6edf3;--low:#8b949e;
 --red:#f85149;--green:#3fb950;
 --serif:"Source Serif 4",Georgia,"Times New Roman",serif;--sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box}
@@ -113,6 +117,26 @@ details{margin-top:10px;color:var(--muted)}summary{cursor:pointer;font-size:.85r
 .stats.three{grid-template-columns:repeat(3,minmax(0,1fr));margin:14px 0}
 @media (max-width:900px){.deal{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:600px){.bar{grid-template-columns:110px minmax(0,1fr) 40px}.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.band{display:flex;gap:24px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 20px;margin-top:24px}
+.band .s{font:600 3rem/1 var(--sans);color:var(--ink);white-space:nowrap}.band .s span,.score span{font-size:1rem;color:var(--muted);font-weight:400}
+.band .l{font-weight:600;color:var(--ink);margin:0}
+.band .c{font-size:.82rem;color:var(--muted);margin:2px 0 0}
+.score{font:600 2.6rem/1 var(--sans);color:var(--ink);margin-top:14px}
+.kv{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:10px;margin:14px 0 8px;font-size:.9rem;color:var(--muted)}.kv b{color:var(--ink);font-variant-numeric:tabular-nums}
+.action{font:600 1.5rem/1.3 var(--serif);color:var(--ink);margin:6px 0 12px}
+p.action{font-size:1.05rem}
+.limits{color:var(--muted);font-size:.82rem;margin-top:24px}
+.issues3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.issue-card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+.issue-card .k{font-size:.8rem;color:var(--muted);margin:0 0 6px}.issue-card h3{font-size:1.1rem;margin:0 0 8px}
+.issue-card .m{font-size:.8rem;color:var(--muted);margin:0}
+section.tight{padding:28px 0;border-bottom:none}section.hero.tight{padding:32px 0 8px}
+.grid{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.grid span{font-size:.75rem;padding:3px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+.grid .on{color:var(--green)}.small{font-size:.85rem}
+.cases{grid-template-columns:repeat(3,minmax(0,1fr))}.case{display:block;padding:24px}
+@media (max-width:900px){.issues3,.cases{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:600px){.band{flex-direction:column;align-items:flex-start;gap:8px}}
 .dl{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
 .dl a{display:block;flex:1 1 180px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;
 color:var(--ink);background:var(--bg)}
@@ -219,7 +243,7 @@ def page(title: str, description: str, body: str, path: str = "") -> str:
 </head>
 <body>
 <header class="top"><div class="wrap"><a class="brand" href="index.html">{NAME}</a>
-<nav><a href="index.html#cases">Cases</a><a href="index.html#how">How it works</a><a href="index.html#verified">Verification</a><a class="cta" href="{DEMO_URL}">Interactive demo</a></nav></div></header>
+<nav><a href="index.html#cases">Cases</a><a href="index.html#verified">Verification</a><a class="cta" href="{DEMO_URL}">Open the tool</a></nav></div></header>
 <main>
 {body}
 </main>
@@ -230,171 +254,119 @@ def page(title: str, description: str, body: str, path: str = "") -> str:
 """
 
 
-# ---------------------------------------------------------------- pages
+# ---------------------------------------------------------------- pages (docs/FASE5_DESIGN.md: the site shows conclusions)
+SHAPE = {"High": "▲", "Medium": "●", "Low": "○"}
+
+
+def short_name(c) -> str:
+    return c.company.split()[0]
+
+
+def band(c, a, layer) -> str:
+    """The status band: the score, what it is, and three counts from the engine."""
+    from dd_assistant import deal_layer as dl
+    s, cov = layer.score, layer.coverage
+    issues = [d for d in dl.deal_issues(a) if d.key not in dl.INFORMATION_RULES]
+    open_n = sum(not d.evidence.startswith("explained") for d in issues)
+    before = len(layer.actions["Before signing"])
+    return (f'<div class="band"><div class="s">{s.score}<span> / 100</span></div><div><p class="l">{E(s.label)}</p>'
+            f'<p class="c">{open_n} open issues · {before} actions before signing · {E(cov.text)}</p>'
+            f'<details><summary>How the score is computed</summary><p class="c">{E(s.formula)}</p></details>'
+            '</div></div>')
+
+
+def issue_card(d, a) -> str:
+    """Signature visual 3: one deal issue, its amount, the evidence state and what a deal team does about it."""
+    from dd_assistant import deal_layer as dl
+    shape = SHAPE.get(d.severity, "–")
+    colour = "var(--red)" if d.severity == "High" else "var(--ink)" if d.severity == "Medium" else "var(--muted)"
+    tip = E(d.severity or "no rule severity")
+    return (f'<article class="issue-card"><p class="k"><span style="color:{colour}" title="{tip}">{shape}</span> '
+            f'{E(d.key if d.kind == "Finding" else d.kind)} · {E(d.area or "")}</p>'
+            f'<h3>{E(dl.issue_title(d, a.money))}</h3>'
+            f'<p class="m">{E(d.protection)}{"" if d.moment == d.protection else " · " + E(d.moment)} · '
+            f'evidence {E(d.evidence)}</p></article>')
+
+
+def coverage_grid(a, layer) -> str:
+    """Signature visual 2: the rules run, blocked (with the document that unlocks each) and not applicable."""
+    from dd_assistant import deal_layer as dl
+    cov = layer.coverage
+    marks = []
+    for r in a.results:
+        status, doc = cov.status(r.rule.id)
+        marks.append(f'<span class="{"on" if status.startswith("run") else ""}" title="{E(r.rule.name)}'
+                     f'{": " + E(doc) if doc else ""}">{E(status.split()[-1])} {r.rule.id}</span>')
+    return (f'<h2 class="action">{E(dl.coverage_title(cov))}</h2><p class="muted small">{E(dl.MODE_LINE)}</p>'
+            f'<div class="grid">{"".join(marks)}</div>')
+
+
 def index(cases: list) -> str:
-    from dd_assistant import demo
+    from dd_assistant import charts, demo
+    from dd_assistant import deal_layer as dl
     v, d = demo.verification(), demo.detection()
     cards = []
     for c, a in cases:
-        bridge = bridges(c, a)[MAIN_BRIDGE[c.slug]]
+        layer = dl.build(a)
+        b = charts.net_debt(a, company=short_name(c))
+        B = a.view.bs_years[-1]
         cards.append(f"""<article class="case" data-check="{c.slug}">
-<div><p class="co">{E(c.company)}</p><p class="acc">{E(c.accounts)}</p>
-<div class="big">{E(c.big)}</div><p class="big-label">{E(c.big_label)}</p>
-<p class="headline">{E(c.headline)}</p>
-<a class="more" href="{PAGES[c.slug]}">Key issues and all bridges →</a></div>
-<div>{chart(bridge, a.money)}{downloads(c.slug)}</div>
+<p class="co">{E(c.company)}</p>
+<div class="score">{layer.score.score}<span> / 100</span></div><p class="muted small">{E(layer.score.label)}</p>
+<p class="kv"><span>Adjusted net debt, {E(fy(B))}</span><b>{E(a.money.fmt(a.view.net_debt_adjusted[B]).replace("-€", "−€"))}</b></p>
+<p class="action">{E(b.title) if b else ""}</p>
+<a class="more" href="{PAGES[c.slug]}">The case →</a>
 </article>""")
-    steps = "".join(f"<li><b>{E(t)}</b><span>{E(s)}</span></li>" for _, t, s in demo.PROCESS)
-    limits = "".join(f"<li>{E(x)}.</li>" for x in demo.LIMITS)
-    unmeasured = "".join(f"<li>{E(x)}</li>" for x in demo.NOT_MEASURED)
+    limits = " · ".join(demo.LIMITS)
     body = f"""<section class="hero"><div class="wrap">
 <p class="eyebrow">Financial due diligence · European companies · euros</p>
 <h1>{NAME}</h1>
 <p class="lede">{E(demo.TAGLINE)}.</p>
 <p class="by">{E(demo.BUILT_BY)}.</p>
-<div class="btns"><a class="btn primary" href="#cases">See the three cases</a><a class="btn" href="{DEMO_URL}">Interactive demo</a><a class="btn" href="{demo.GITHUB}">Code on GitHub</a></div>
-<figure class="demo"><img src="img/demo-tour.gif" width="1000" height="625" alt="The interactive demo: the reading checks, the key insight, the net debt bridge, a red flag with its source and the databook">
-<figcaption>The interactive demo on TAP Air Portugal: reading checks, key insight, net debt bridge, a red flag with its source.</figcaption></figure>
+<div class="btns"><a class="btn primary" href="{DEMO_URL}">Open the tool</a><a class="btn" href="#cases">The three cases</a></div>
+<p class="hint">The tool may take a few seconds to wake up.</p>
 </div></section>
 <section id="cases"><div class="wrap">
-<p class="eyebrow">Three real companies</p><h2>Published accounts, read end to end</h2>
-<p class="sub">Consolidated accounts for FY2023 to FY2025, read line by line from the annual reports. The figures below come from the engine; the memos were written beforehand and checked by code against the same material.</p>
-<div class="cases">{''.join(cards)}</div>
-</div></section>
-<section id="how"><div class="wrap">
-<p class="eyebrow">How it works</p><h2>Five steps, the order a deal team follows</h2>
-<p class="sub">The code does every calculation and raises every finding. AI only writes the memo, and a checker rejects any figure it cannot trace.</p>
-<ol class="steps">{steps}</ol>
+<p class="eyebrow">Three real companies, published accounts FY2023 to FY2025</p>
+<div class="cases">{"".join(cards)}</div>
 </div></section>
 <section id="verified"><div class="wrap">
-<p class="eyebrow">How it is verified</p><h2>Evidence before conclusions</h2>
-<p class="sub">Counted when this page was built, from the same code and data.</p>
+<p class="eyebrow">How it is verified</p>
 <div class="stats">
-<div class="stat"><div class="n">{v['tests']}</div><p class="t">automated tests</p><p>Including parity with the reference spreadsheet and zero red flags on a clean test company.</p></div>
-<div class="stat"><div class="n">{v['checks_passed']} of {v['checks']}</div><p class="t">published subtotals rebuilt</p><p>Gross margin, EBITDA and operating profit rebuilt from the lines read, before any figure is trusted.</p></div>
-<div class="stat"><div class="n">{d.get('detected', 0)} of {d.get('scored', 0)}</div><p class="t">planted distortions detected</p><p>The miss: 20 extra days of supplier credit at TAP, hidden by a real fall of 96 days in its payables and below its materiality. Published, not tuned away.</p></div>
-<div class="stat"><div class="n">{v['figures']}</div><p class="t">memo figures checked</p><p>Each figure in the three memos traced to the material for the year it cites; {v['unmatched']} without a source.</p></div>
+<div class="stat"><div class="n">{v['tests']}</div><p class="t">automated tests</p></div>
+<div class="stat"><div class="n">{v['checks_passed']} of {v['checks']}</div><p class="t">published subtotals rebuilt</p></div>
+<div class="stat"><div class="n">{d.get('detected', 0)} of {d.get('scored', 0)}</div><p class="t">planted distortions detected</p></div>
+<div class="stat"><div class="n">{v['figures']}</div><p class="t">memo figures checked, {v['unmatched']} without a source</p></div>
 </div>
-</div></section>
-<section id="limits"><div class="wrap cols">
-<div><p class="eyebrow">Limits</p><h2>What it does not do</h2><ul class="plain">{limits}</ul></div>
-<div><p class="eyebrow">Not measured</p><h2>What is not proven yet</h2><ul class="plain">{unmeasured}</ul></div>
-</div></section>
-<section id="demo"><div class="wrap">
-<p class="eyebrow">Try it</p><h2>Open the interactive demo</h2>
-<p class="sub">The same engine on the same three companies: change the reviewer's decisions, follow any figure to its cell, download the databook. Nothing is uploaded and no AI is called.</p>
-<div class="btns"><span><a class="btn primary" href="{DEMO_URL}">Interactive demo</a><span class="hint">May take a few seconds to wake up.</span></span>
-<a class="btn" href="{demo.GITHUB}">GitHub</a><a class="btn" href="{demo.LINKEDIN}">LinkedIn</a></div>
+<p class="limits">Limits: {E(limits)}.</p>
 </div></section>"""
     return page(f"{NAME}: financial due diligence on published accounts",
                 f"{demo.TAGLINE}. Three real European companies, every figure traced to its source.", body)
 
 
-def deal_section(c, a) -> str:
-    """Phase 4B: risk score, top five deal issues with the typical protection, valuation impact, coverage and open
-    items. Every figure comes from dd_assistant/deal_layer.py and is in the memo material (section 1c)."""
-    from dd_assistant import charts, deal_layer as dl
-    layer = dl.build(a)
-    s, cov = layer.score, layer.coverage
-    top = max(s.by_area.values()) or 1
-    bars = "".join(f'<div class="bar"><span>{E(k)}</span><i style="width:{100 * v / top:.0f}%"></i><b>{v:g}</b></div>'
-                   for k, v in s.by_area.items())
-    m = lambda x: a.money.fmt(x).replace("-€", "−€")
-    rows = "".join(f"<tr><td>{d.rank}</td><td>{E(d.title)}<span>{E(d.area or '')}</span></td>"
-                   f"<td class=\"n\">{E(m(d.amount)) if d.amount is not None else 'n/q'}</td>"
-                   f"<td>{E(d.protection)}<span>{E(d.moment)}</span></td></tr>" for d in layer.top)
-    blocked = {rid: doc for rid, _, doc in cov.blocked}
-    na = {rid: why for rid, _, why in cov.not_applicable}
-    grid = "".join(f'<span class="{"on" if r.rule.id in cov.run else "off"}" title="{E(r.rule.name)}'
-                   f'{": request " + E(blocked[r.rule.id]) if r.rule.id in blocked else ""}'
-                   f'{": not applicable, " + E(na[r.rule.id]) if r.rule.id in na else ""}">'
-                   f'{"○" if r.rule.id in blocked else "–" if r.rule.id in na else "✓"} {r.rule.id}</span>'
-                   for r in a.results)
-    asks = "".join(f"<li><b>{rid}</b> {E(doc)}</li>" for rid, _, doc in cov.blocked)
-    groups = {g: [o for o in layer.open_items if o.group == g] for g in dl.GROUPS}
-    counts = "".join(f'<div class="stat"><div class="n">{len(v)}</div><p class="t">{E(g)}</p></div>'
-                     for g, v in groups.items())
-    refs = "".join(f"<li><b>Route to {E(r.workstream)}</b> · {E(r.item)}</li>" for r in layer.referrals)
-    b = charts.valuation(a)
-    aside = "; ".join(f"{E(x.label.lower())} {E(m(x.amount))} ({E(x.nature.lower())})" for x in layer.impact.not_counted)
-    aside = f'<p class="muted small">Shown, not counted as findings: {aside}.</p>' if aside else ""
-    return f"""<section data-check="{c.slug}"><div class="wrap">
-<p class="eyebrow">Deal view</p><h2>What it means for the deal</h2>
-<div class="deal">
-<div class="panel"><p class="chart-title">Diligence risk score</p><div class="big">{s.score}<small> / 100</small></div>
-<p class="muted small">{E(s.label)}</p><div class="bars">{bars}</div>
-<details><summary>How it is computed</summary><p class="small">{E(s.formula)}</p></details></div>
-<div class="panel"><p class="chart-title">Top deal issues, by amount at stake</p>
-<table class="top"><thead><tr><th>#</th><th>Issue</th><th class="n">Amount</th><th>Protection or next step</th></tr></thead>
-<tbody>{rows}</tbody></table></div>
-</div>
-<div class="bridges"><div class="wide">{charts.svg(b, a.money) if b else ""}</div></div>
-{aside}
-<div class="deal">
-<div class="panel"><p class="chart-title">Coverage: {E(cov.text)}</p><p class="muted small">{E(dl.MODE_LINE)}</p>
-<div class="grid">{grid}</div>
-<details><summary>Documents that unblock the other rules</summary><ul class="plain small">{asks}</ul></details></div>
-<div class="panel"><p class="chart-title">Open items</p><div class="stats three">{counts}</div>
-<details><summary>Outside the financial scope: routed, not analysed</summary><ul class="plain small">{refs}</ul></details></div>
-</div>
-</div></section>
-"""
-
-
 def company(c, a) -> str:
-    from dd_assistant import demo
-    from dd_assistant.rules import fy
-    fired = {r.rule.id for r in a.findings}
-    insights = "".join(f'<article class="insight"><h3>{E(i["title"])}</h3><p>{E(i["number"][:1].upper() + i["number"][1:])}</p>'
-                       f'<p>{E(i["why"][:1].upper() + i["why"][1:])}</p><p class="q">“{E(i["question"])}”</p></article>'
-                       for i in demo.insights(c))
-    rows = []
-    for i in a.issues[:8]:
-        amount = minus(a.money.fmt(i.amount)) if i.amount is not None else "Not quantified"
-        label = (f"{i.amount_label}, {fy(i.year)}" if i.key in fired and i.amount is not None else
-                 "not quantifiable from the accounts" if i.amount is None else i.amount_label)
-        head = (f'<span class="tag {E(i.severity)}">{E(i.severity)}</span>{E(i.key)} · {E(i.title)}' if i.key in fired
-                else f'<span class="tag">{E(i.kind)}</span>{E(i.title)}')
-        plain = next(r.rule.plain for r in a.findings if r.rule.id == i.key) if i.key in fired else i.treatment
-        state = (f" Evidence: {i.evidence_state}" + (f" by {i.evidence_note}" if i.evidence_note else "") + "."
-                 if i.evidence_state else "")
-        rows.append(f'<div class="issue"><div><div class="amt">{E(amount)}</div><div class="al">{E(label)}</div></div>'
-                    f'<div><p class="h">{head}</p><p>{E(plain)}{E(state)}</p>'
-                    f'<p class="imp">{E(i.implication)}</p></div></div>')
-    more = len(a.issues) - len(rows)
-    panels = "".join(f'<div class="{"wide" if k == "cash" else ""}">{chart(b, a.money)}</div>'
-                     for k, b in bridges(c, a).items())
-    context = (f'<p class="context">Outside context, not used by the engine or the memo: {E(c.context)} '
-               f'<a href="{c.context_source[1]}">{E(c.context_source[0])}</a></p>' if c.context else "")
-    body = f"""<section class="hero"><div class="wrap">
+    from dd_assistant import charts
+    from dd_assistant import deal_layer as dl
+    layer = dl.build(a)
+    b = charts.net_debt(a, company=short_name(c))
+    top3 = "".join(issue_card(d, a) for d in layer.top[:3])
+    body = f"""<section class="hero tight"><div class="wrap" data-check="{c.slug}">
 <a class="back" href="index.html#cases">← All cases</a>
-<div data-check="{c.slug}">
-<p class="eyebrow">Case · {E(a.sector.name)}</p>
+<p class="eyebrow">{E(a.sector.name)} · {E(c.accounts)}</p>
 <h1>{E(c.company)}</h1>
-<p class="lede">{E(c.headline)}</p>
-<p class="by">{E(c.accounts)} · {E(c.pages)}</p>
-<div class="btns"><a class="btn primary" href="{DEMO_URL}/?company={c.slug}">Open in the interactive demo</a><a class="btn" href="#downloads">Downloads</a></div>
-</div>{context}
+{band(c, a, layer)}
 </div></section>
-<section data-check="{c.slug}"><div class="wrap">
-<p class="eyebrow">Key insights</p><h2>Three points for the first call</h2>
-<p class="sub">Each with the figure, why it matters in a deal and the question for management.</p>
-<div class="insights">{insights}</div>
+<section class="tight" data-check="{c.slug}"><div class="wrap">
+<p class="eyebrow">Top 3 deal issues, by amount at stake</p>
+<div class="issues3">{top3}</div>
 </div></section>
-{deal_section(c, a)}<section data-check="{c.slug}"><div class="wrap">
-<p class="eyebrow">Key issues</p><h2>By amount at stake</h2>
-<p class="sub">Findings and net debt items in one list, ordered by the euros behind them, each with what a deal team typically does about it.</p>
-<div class="issues">{''.join(rows)}</div>
-<p class="muted">{f"And {more} more in the databook." if more > 0 else ""}</p>
+<section class="tight" data-check="{c.slug}"><div class="wrap">
+{charts.svg(b, a.money) if b else ""}
 </div></section>
-<section data-check="{c.slug}"><div class="wrap">
-<p class="eyebrow">Bridges</p><h2>EBITDA, net debt and cash</h2>
-<p class="sub">Each step computed by the engine from the published lines; the databook holds the same bridges with live formulas.</p>
-<div class="bridges">{panels}</div>
-</div></section>
-<section id="downloads"><div class="wrap">
-<p class="eyebrow">Downloads</p><h2>The deliverables</h2>
-{downloads(c.slug)}
+<section class="tight" data-check="{c.slug}"><div class="wrap">
+{coverage_grid(a, layer)}
+<div class="btns"><a class="btn primary" href="{DEMO_URL}/?company={c.slug}">Open {E(short_name(c))} in the tool</a></div>
+<p class="hint">Findings with their evidence, the valuation impact, open items and downloads are in the tool.</p>
 </div></section>"""
     return page(f"{c.company}: {NAME}", c.headline, body, PAGES[c.slug])
 

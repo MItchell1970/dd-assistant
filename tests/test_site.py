@@ -70,7 +70,7 @@ class SiteTest(unittest.TestCase):
             for slug, text in parts.items():
                 with self.subTest(page=name, company=slug):
                     checked, unmatched, misdated, _ = _check_numbers(text, self.material[slug])
-                    self.assertGreater(checked, 5)
+                    self.assertGreater(checked, 3)
                     self.assertEqual((unmatched, misdated), ([], []))
 
     def test_verification_figures_are_counted_now(self):
@@ -99,6 +99,21 @@ class SiteTest(unittest.TestCase):
                 self.assertEqual([u for u in loaded if not u.startswith(build_site.SITE_URL)], [], name)
                 self.assertNotIn("<script", page)
                 self.assertTrue(external)
+
+    def test_design_criteria(self):
+        """docs/FASE5_DESIGN.md: only the palette (3), no investment wording (7), no table the tool also shows and
+        the company page limited to its five blocks (9)."""
+        from dd_assistant import charts
+        palette = {charts.BG, charts.CARD, charts.TEXT, charts.MUTED, charts.LINE, charts.RED, charts.GREEN}
+        for name, page in self.pages.items():
+            with self.subTest(name):
+                self.assertLessEqual({x.lower() for x in re.findall(r"#[0-9a-fA-F]{6}", page)}, palette)
+                visible = re.sub(r"<[^>]+>", " ", re.sub(r"<(style|head)>.*?</>", " ", page, flags=re.S))
+                self.assertIsNone(re.search(r"no-go|go|recommend|should buy", visible, re.I))
+                self.assertNotIn("<table", page)
+                if name != "index.html":
+                    self.assertEqual(page.count('class="ddc"'), 1)          # one chart: the net debt bridge
+                    self.assertEqual(page.count('class="issue-card"'), 3)   # top three
 
     def test_stored_site_is_current(self):
         for name, text in self.pages.items():
