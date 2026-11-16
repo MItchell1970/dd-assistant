@@ -13,7 +13,7 @@ class ModelTest(unittest.TestCase):
     money = Money(millions=True)
 
     def test_colour_follows_the_buyer_not_the_sign(self):
-        steps = [("Borrowings less cash", 100.0, "total"), ("Lease liabilities", 50.0, "delta"),
+        steps = [("Borrowings less cash", 100.0, "total"), ("Post-employment benefit obligations", 50.0, "delta"),
                  ("Cash-like item", -20.0, "delta"), ("Adjusted net debt", 130.0, "total")]
         nd = charts.make(steps, self.money, "net debt", "s", "t")
         self.assertEqual([c.effect for c in nd.columns], ["", "worse", "better", ""])
@@ -64,7 +64,8 @@ class ModelTest(unittest.TestCase):
     def test_tap(self):
         a = demo.analysis(demo.CASE_BY_SLUG["tap"])
         nd, cash = charts.net_debt(a), charts.cash(a)
-        self.assertEqual(nd.title, "Leases take net debt from −€43m to €2,293m")
+        self.assertEqual(nd.title, "Leases, a standard item, explain €2,158m of the €2,293m adjusted net debt; "
+                                   "diligence adds €177m")
         self.assertEqual(nd.annotation, "3.16x EBITDA")
         self.assertEqual(nd.note, "Differences of €1m are due to rounding.")    # -43 + 173 + 2,158 + 4 = 2,292
         self.assertEqual(cash.title, "After lease payments, free cash flow is −€272m")
@@ -80,7 +81,7 @@ class DrawingTest(unittest.TestCase):
     def test_values_signed_on_items_and_full_names_for_screen_readers(self):
         self.assertIn(">+€2,158m<", self.html)
         self.assertIn(">€2,293m<", self.html)
-        self.assertIn('aria-label="Lease liabilities: +€2,158m, worse for the buyer"', self.html)
+        self.assertIn('aria-label="Lease liabilities: +€2,158m, standard item, not a finding"', self.html)
         self.assertIn("Income tax payable", self.html)          # the part inside "Others"
 
     def test_connectors_only_in_the_gaps(self):

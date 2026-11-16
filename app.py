@@ -50,6 +50,10 @@ except ImportError:   # the demo, and every analysis without a PDF or the memo, 
                                                              "APIStatusError", "APIConnectionError")})
 
 DEMO = demo.enabled()   # DD_DEMO=1: three real companies, no upload, no API (see dd_assistant/demo.py)
+if DEMO:   # the public tool (docs/FASE5_DESIGN.md): Summary · Findings · Impact · Evidence
+    import tool
+    tool.main()
+    st.stop()
 DATA = Path(__file__).parent / "data"
 SAMPLES = {"Duriva — data room in 5 documents, planted issues": DATA / "Duriva_data_room",
            "Velmora — clean company": DATA / "Velmora_data_room.xlsx",

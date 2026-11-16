@@ -425,7 +425,7 @@ def action_items(a) -> dict[str, list[str]]:
     for d in deal_issues(a):
         if d.key in INFORMATION_RULES:
             continue
-        out[d.moment].append(f"{d.title}: {d.protection.lower()}")
+        out[d.moment].append(f"{d.title}: {d.protection[:1].lower() + d.protection[1:]}")
     return out
 
 
@@ -486,3 +486,37 @@ def report_md(a, company: str = "") -> str:
     out += ["## Referrals (routed, not analysed)", ""]
     out += [f"- **{r.workstream}** · {r.item}: {r.question}" for r in layer.referrals]
     return "\n".join(out) + "\n"
+
+
+# ---------------------------------------------------------------- titles for the signature visuals (Phase 5)
+ISSUE_PHRASE = {    # what the amount at stake is, as a sentence (the amount comes from the engine)
+    "R04": "Other income of {amt} sits within EBITDA",
+    "R07": "Receivables grew {amt} ahead of revenue",
+    "R09": "Inventory grew {amt} ahead of cost of sales",
+    "R10": "Operating cash fell {amt} short of the conversion threshold",
+    "R11": "{amt} of borrowings falls due within 12 months",
+    "R22": "Interest of {amt} is covered less than four times by EBITDA",
+    "R24": "Capex ran {amt} below depreciation",
+    "R28": "{amt} sits in an 'other' working capital line"}
+PROTECTION_PHRASE = {"Completion accounts": "completion accounts, not price", "Price adjustment": "a price adjustment",
+                     "Debt-like item in the SPA": "debt-like in the SPA",
+                     "Net debt definition in the SPA": "net debt definition in the SPA",
+                     "Request more information": "more information before signing"}
+
+
+def issue_title(d: DealIssue, money) -> str:
+    """Signature visual 3: the issue in one sentence with its amount, then what a deal team does about it."""
+    amt = money.fmt(d.amount).replace("-€", "−€") if d.amount is not None else ""
+    head = ISSUE_PHRASE.get(d.key, "{title} of {amt}" if amt else "{title}").format(amt=amt, title=d.title)
+    return f"{head}: {PROTECTION_PHRASE.get(d.protection, d.protection[:1].lower() + d.protection[1:])}"
+
+
+def coverage_title(cov: Coverage) -> str:
+    """Signature visual 2: how many rules ran, and what the others need."""
+    where = "published accounts" if cov.mode.startswith("outside-in") else "the data room"
+    out = f"{len(cov.run)} of {cov.total} rules run on {where}"
+    if cov.blocked:
+        out += f"; {len(cov.blocked)} name the document that unlocks them"
+    if cov.not_applicable:
+        out += f", {len(cov.not_applicable)} do not apply"
+    return out

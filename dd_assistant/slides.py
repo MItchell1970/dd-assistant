@@ -26,6 +26,8 @@ def charts_colour(c) -> str:
     the items other than the largest at 45%, blended with white (PowerPoint has no per-bar opacity)."""
     if c.kind == "total":
         return charts.GREY.lstrip("#").upper()
+    if c.effect == "standard":      # a standard item (leases): grey, as on the site
+        return "C5CAD1"
     full = (charts.RED if c.effect == "worse" else charts.GREEN).lstrip("#")
     if c.lead:
         return full.upper()

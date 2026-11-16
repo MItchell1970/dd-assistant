@@ -126,12 +126,23 @@ def group(steps: list[tuple[str, float, str]]) -> list[Column]:
     return cols
 
 
-def _style(cols: list[Column], worse_if_up: bool) -> None:
+def _standard() -> tuple[str, ...]:
+    from .deal_layer import STANDARD_ITEMS
+    return STANDARD_ITEMS
+
+
+def _style(cols: list[Column], worse_if_up: bool, kind: str = "") -> None:
+    """Red worse, green better for the buyer; in the net debt bridge, a standard EV-to-equity item (leases, with an
+    EBITDA after IFRS 16) is grey: it is in any net debt definition, not a finding. The largest finding leads."""
     items = [c for c in cols if c.kind == "delta"]
     for c in items:
-        c.effect = "worse" if (c.value > 0) == worse_if_up else "better"
-    if items:
-        max(items, key=lambda c: abs(c.value)).lead = True
+        if kind == "net debt" and c.label in _standard():
+            c.effect = "standard"
+        else:
+            c.effect = "worse" if (c.value > 0) == worse_if_up else "better"
+    found = [c for c in items if c.effect != "standard"]
+    if found:
+        max(found, key=lambda c: abs(c.value)).lead = True
 
 
 def _rounding(cols: list[Column], money) -> str:
@@ -156,7 +167,7 @@ def make(steps, money, kind: str, subtitle: str, title: str, annotation: str = "
     if len(steps) < 2:
         return None
     cols = group(steps)
-    _style(cols, worse_if_up=kind == "net debt")
+    _style(cols, worse_if_up=kind == "net debt", kind=kind)
     return Bridge(kind, title, subtitle, cols, annotation, _rounding(cols, money))
 
 
@@ -165,7 +176,7 @@ def _noun(c: Column) -> str:
     return NOUN.get(c.label, c.short)
 
 
-def net_debt(a, year: int | None = None) -> Bridge | None:
+def net_debt(a, year: int | None = None, company: str = "") -> Bridge | None:
     from .deal import net_debt_steps
     from .rules import fy
     v, f = a.view, a.money.fmt
@@ -177,7 +188,13 @@ def net_debt(a, year: int | None = None) -> Bridge | None:
     start, end = steps[0][1], steps[-1][1]
     items = [s for s in steps if s[2] == "delta"]
     m = lambda x: f(x).replace("-€", "−€")
-    if items:
+    standard = [s for s in items if s[0] in _standard()]
+    if standard:          # two layers: the standard item, then what the diligence adds
+        std, found = sum(s[1] for s in standard), sum(s[1] for s in items if s[0] not in _standard())
+        noun = " and ".join(NOUN.get(s[0], s[0]) for s in standard)
+        title = (f"{noun}, a standard item, explain{'' if noun.endswith('s') else 's'} {m(std)} of "
+                 f"{company + chr(39) + 's' if company else 'the'} {m(end)} adjusted net debt; diligence adds {m(found)}")
+    elif items:
         lead = max(items, key=lambda s: abs(s[1]))
         noun = NOUN.get(lead[0], lead[0])
         if abs(lead[1]) >= 0.5 * abs(end - start):
@@ -288,6 +305,7 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}}
 .ddc svg rect.total{{fill:{GREY}}}
 .ddc svg rect.worse{{fill:{RED}}}
 .ddc svg rect.better{{fill:{GREEN}}}
+.ddc svg rect.standard{{fill:{GREY};opacity:.55}}
 .ddc svg rect.fade{{opacity:{FADE}}}
 .ddc svg line.link{{stroke:{LINE};stroke-width:1;stroke-dasharray:3 3;shape-rendering:crispEdges}}
 .ddc svg line.zero{{stroke:{MUTED};stroke-width:1;opacity:.6;shape-rendering:crispEdges}}
@@ -295,6 +313,7 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}}
 .ddc-foot i{{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}}
 .ddc-ann{{display:none;font-size:.85rem;font-weight:600;color:{TEXT};margin:-6px 0 12px}}
 @media (max-width:700px){{.ddc-ann{{display:block}}.ddc svg text.ann{{display:none}}}}
+.ddc-ann.always{{display:block}}
 """
 
 
@@ -319,7 +338,7 @@ def full_name(b: Bridge, money, c: Column) -> str:
     if c.parts:
         name += " (" + "; ".join(f"{label} {money.fmt(value).replace('-€', '−€')}" for label, value in c.parts) + ")"
     if c.effect:
-        name += f", {c.effect} for the buyer"
+        name += ", standard item, not a finding" if c.effect == "standard" else f", {c.effect} for the buyer"
     return name
 
 
@@ -341,10 +360,11 @@ def svg(b: Bridge, money, check: str = "") -> str:
     BAR = round(SLOT * 0.6)
     W, H = LEFT + len(rows) * SLOT + 6, TOP + PLOT + BELOW + 2 * LH + 8
     y = lambda v: TOP + (hi - v) / span * PLOT
+    wide_note = len(b.annotation) * 7 > W - LEFT    # too long for the chart: under the title, at every width
     out = [f'<div class="ddc"{f" data-check={chr(34)}{check}{chr(34)}" if check else ""}>'
            f'<p class="ddc-title">{E(b.title)}</p><p class="ddc-sub">{E(b.subtitle)}</p>'
            # on a narrow screen the annotation sits under the title, readable without sliding the chart
-           + (f'<p class="ddc-ann">{E(b.annotation)}</p>' if b.annotation else "") +
+           + (f'<p class="ddc-ann{" always" if wide_note else ""}">{E(b.annotation)}</p>' if b.annotation else "") +
            f'<div class="ddc-scroll"><svg viewBox="0 0 {W} {H}" style="min-width:{W * 11 / 12:.0f}px;'
            f'max-width:{W * 1.25:.0f}px" role="group" aria-label="{E(b.title)}">']
     if lo < 0:
@@ -360,7 +380,7 @@ def svg(b: Bridge, money, check: str = "") -> str:
                 bottom = top + 6
             else:
                 top = bottom - 6
-        cls = "total" if c.kind == "total" else c.effect + ("" if c.lead else " fade")
+        cls = "total" if c.kind == "total" else c.effect + ("" if c.lead or c.effect == "standard" else " fade")
         below = c.value < 0
         ty = bottom + 15 if below else top - 7
         name = full_name(b, money, c)
@@ -371,7 +391,7 @@ def svg(b: Bridge, money, check: str = "") -> str:
                    f'<rect class="{cls}" x="{x:.1f}" y="{top:.1f}" width="{BAR}" height="{bottom - top:.1f}" rx="3"/>'
                    f'<text class="val"{nocheck} x="{cx:.1f}" y="{ty:.1f}" text-anchor="middle">{E(b.text(money, c))}</text>'
                    f'<text class="lbl" x="{cx:.1f}" y="{TOP + PLOT + BELOW + LH - 2}" text-anchor="middle">{names}</text>')
-        if i == len(rows) - 1 and b.annotation:      # top right, above the final total, clear of every value
+        if i == len(rows) - 1 and b.annotation and not wide_note:      # top right, above the final total, clear of every value
             out.append(f'<text class="ann" x="{W - 6}" y="14" text-anchor="end">{E(b.annotation)}</text>')
         out.append("</g>")
         if i < len(rows) - 1:
@@ -382,5 +402,7 @@ def svg(b: Bridge, money, check: str = "") -> str:
     out.append(f'<div class="ddc-foot"><span><i style="background:{GREY}"></i>Total</span>'
                f'<span><i style="background:{RED}"></i>{worse} (worse for the buyer)</span>'
                f'<span><i style="background:{GREEN}"></i>{better}</span>'
+               + (f'<span><i style="background:{GREY};opacity:.55"></i>Standard item, not a finding</span>'
+                  if any(c.effect == "standard" for c in cols) else "")
                + (f'<span data-nocheck="1">{E(b.note)}</span>' if b.note else "") + "</div></div>")
     return "".join(out)

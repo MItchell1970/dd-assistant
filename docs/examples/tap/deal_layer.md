@@ -153,10 +153,10 @@ Published accounts = outside-in mode (before the data room); Duriva = data room 
 - Other financial assets: request more information
 
 ### SPA
-- Lease liabilities: net debt definition in the spa
-- Post-employment benefit obligations: debt-like item in the spa
+- Lease liabilities: net debt definition in the SPA
+- Post-employment benefit obligations: debt-like item in the SPA
 - Effective tax rate far from the statutory rate: escrow or retention
-- Income tax payable: debt-like item in the spa
+- Income tax payable: debt-like item in the SPA
 
 ### Completion accounts
 - Deferred revenue and customer advances: completion accounts

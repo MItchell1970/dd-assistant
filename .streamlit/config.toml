@@ -7,17 +7,21 @@ gatherUsageStats = false
 address = "localhost"
 
 [theme]
-# the static site's palette and type (site/, scripts/build_site.py): navy, one copper accent, warm white
-base = "light"
-primaryColor = "#13294b"
-backgroundColor = "#fbfaf7"
-secondaryBackgroundColor = "#f3f1ec"
-textColor = "#13233f"
-linkColor = "#13294b"
-borderColor = "#e4e1da"
+# the single palette (docs/FASE4_SPEC.md): background, cards, text, secondary, lines; red worse, green better, grey neutral
+base = "dark"
+primaryColor = "#e6edf3"
+backgroundColor = "#0d1117"
+secondaryBackgroundColor = "#161b22"
+textColor = "#e6edf3"
+linkColor = "#e6edf3"
+borderColor = "#30363d"
+redColor = "#f85149"
+greenColor = "#3fb950"
+grayColor = "#8b949e"
 font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
 headingFont = "Source Serif 4:https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap, Georgia, serif"
 headingFontWeights = 600
+baseRadius = "8px"
 
 [client]
 # minimal toolbar: no developer menu and no Deploy button; the app is shown to visitors

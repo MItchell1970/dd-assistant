@@ -143,8 +143,8 @@ Published accounts = outside-in mode (before the data room); Duriva = data room 
 - Provisions: request more information
 
 ### SPA
-- Income tax payable: debt-like item in the spa
-- Post-employment benefit obligations: debt-like item in the spa
+- Income tax payable: debt-like item in the SPA
+- Post-employment benefit obligations: debt-like item in the SPA
 
 ### Completion accounts
 
