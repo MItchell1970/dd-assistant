@@ -258,11 +258,13 @@ def valuation(a, multiple: float = 8.0) -> Bridge | None:
         return None
     m = lambda x: a.money.fmt(x).replace("-€", "−€")
     low, high = MULTIPLES[0], MULTIPLES[-1]
-    annotation = (f"{low:g}x: {m(vi.at(low))} · {high:g}x: {m(vi.at(high))}" if vi.ebitda_change else
+    names = " and ".join(c.label.lower() for c in vi.standard)
+    annotation = (f"Not counted: {names} {m(-vi.standard_effect)}, standard EV-to-equity item" if vi.standard else
+                  f"{low:g}x: {m(vi.at(low))} · {high:g}x: {m(vi.at(high))}" if vi.ebitda_change else
                   "Same at every multiple: no EBITDA adjustment")
     return make(steps, a.money, "value", f"Valuation impact bridge at {multiple:g}x, {fy(vi.year)} "
                 f"({_unit(a.money)}), {ILLUSTRATIVE.lower()}",
-                f"At {multiple:g}x, the findings move equity value by {m(vi.at(multiple))}", annotation)
+                f"At {multiple:g}x, the diligence adjustments move equity value by {m(vi.at(multiple))}", annotation)
 
 
 def all_bridges(a) -> dict[str, Bridge]:

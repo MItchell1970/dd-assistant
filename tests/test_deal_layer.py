@@ -27,7 +27,34 @@ class ValuationImpactTest(unittest.TestCase):
         for name in ALL:
             vi = dl.valuation_impact(company(name))
             for m in dl.MULTIPLES:
-                self.assertAlmostEqual(vi.at(m), vi.ebitda_change * m + vi.net_debt_effect + vi.nwc_effect, delta=0.01)
+                self.assertAlmostEqual(vi.at(m), vi.ebitda_change * m + vi.net_debt_effect, delta=0.01)
+                self.assertAlmostEqual(vi.at(m), sum(c.amount * (m if c.kind == "EBITDA" else 1) for c in vi.counted),
+                                       delta=0.01)
+
+    def test_only_diligence_adjustments_count(self):
+        """Leases are a standard EV-to-equity item (EBITDA is after IFRS 16) and working capital against the peg is
+        the completion accounts mechanism: both are shown, neither is an impact of the findings."""
+        for name in ALL:
+            vi = dl.valuation_impact(company(name))
+            self.assertTrue(all(c.nature == dl.DILIGENCE for c in vi.counted), name)
+            self.assertTrue(all(c.nature in (dl.STANDARD, dl.MECHANISM) for c in vi.not_counted), name)
+            self.assertNotIn("Lease liabilities", [c.label for c in vi.counted])
+            self.assertNotIn("Working capital", [c.kind for c in vi.counted])
+        tap = dl.valuation_impact(company("tap"))
+        self.assertEqual([c.label for c in tap.standard], ["Lease liabilities"])
+        self.assertAlmostEqual(tap.standard_effect, -2158302, delta=1)
+        self.assertAlmostEqual(tap.at(8), -(173154 + 3873), delta=2)          # pensions and income tax payable
+        self.assertEqual(tap.at(6), tap.at(10))                              # no EBITDA adjustment
+
+    def test_more_working_capital_is_not_good_news(self):
+        """Toyota's working capital is above the average of the year-ends (an inventory build): it used to show as a
+        positive impact of the findings."""
+        vi = dl.valuation_impact(company("toyota-caetano"))
+        self.assertGreater(vi.nwc_effect, 0)
+        self.assertEqual(vi.nwc.nature, dl.MECHANISM)
+        self.assertLess(vi.at(8), 0)
+        self.assertAlmostEqual(vi.at(8), -(1377 + 131), delta=2)
+        self.assertNotIn("Working capital", " ".join(label for label, *_ in dl.impact_steps(vi, 8)))
 
     def test_no_double_counting_between_ebitda_and_net_debt(self):
         """A source line or a finding enters the EBITDA side or the net debt side, never both."""
@@ -45,8 +72,8 @@ class ValuationImpactTest(unittest.TestCase):
         a = company("tap")
         vi = dl.valuation_impact(a)
         B = a.view.bs_years[-1]
-        self.assertAlmostEqual(-vi.net_debt_effect, a.view.net_debt_adjusted[B] - a.view.net_debt_reported[B],
-                               delta=1)
+        self.assertAlmostEqual(-(vi.net_debt_effect + vi.standard_effect),
+                               a.view.net_debt_adjusted[B] - a.view.net_debt_reported[B], delta=1)
 
     def test_duriva_ebitda_side_is_the_diligence_adjustment(self):
         a = company("duriva")
@@ -72,12 +99,14 @@ class TopIssuesAndScoreTest(unittest.TestCase):
             self.assertEqual(known, sorted(known, reverse=True))
             for d in top:
                 self.assertIn(d.protection, ("Price adjustment", "Debt-like item in the SPA", "Specific indemnity",
-                                             "Escrow or retention", "Completion accounts", "Request more information"))
+                                             "Escrow or retention", "Completion accounts", "Request more information",
+                                             dl.PROTECTION_STANDARD))
                 self.assertIn(d.moment, dl.MOMENTS)
 
     def test_protection_follows_the_implication(self):
         top = {d.key: d for d in dl.deal_issues(company("tap"))}
-        self.assertEqual(top["ND: Lease liabilities"].protection, "Debt-like item in the SPA")
+        self.assertEqual(top["ND: Lease liabilities"].protection, dl.PROTECTION_STANDARD)     # standard, not a finding
+        self.assertEqual(top["ND: Post-employment benefit obligations"].protection, "Debt-like item in the SPA")
         self.assertEqual(top["R28"].protection, "Completion accounts")
         toyota = {d.key: d for d in dl.deal_issues(company("toyota-caetano"))}
         self.assertEqual(toyota["R04"].protection, "Price adjustment")
@@ -97,6 +126,25 @@ class TopIssuesAndScoreTest(unittest.TestCase):
                 self.assertAlmostEqual(sum(s.by_area.values()), 100 * s.points / dl.CAP, delta=0.3)
             self.assertNotIn("R18", [r for r, *_ in s.lines])
             self.assertEqual(s.label, "Finding intensity, not a recommendation")
+
+    def test_score_counts_what_is_still_open(self):
+        """Severity × materiality × evidence: a finding a published note explains scores half; a balance sheet item
+        still to classify scores as Medium; an item already in adjusted net debt is priced, not scored."""
+        a = company("tap")
+        pts = {key: p for key, _, _, p in dl.risk_score(a).lines}
+        self.assertEqual(pts["R07"], 3.0)                                        # High, material, open
+        self.assertEqual(pts["R22"], 1.0)                                        # Medium, material, explained by note 19
+        self.assertEqual(pts["R11"], 2.25)                                       # High, material, partly explained
+        self.assertEqual(pts["ND: Deferred revenue and customer advances"], 2.0)  # to classify, material, open
+        self.assertEqual(pts["ND: Provisions"], 1.0)                             # to classify, explained by note 18
+        self.assertNotIn("ND: Lease liabilities", pts)
+        self.assertNotIn("ND: Post-employment benefit obligations", pts)
+        for name in ALL:                                                         # every line is its three factors
+            issues = {i.key: i for i in company(name).issues}
+            for key, _, _, p in dl.risk_score(company(name)).lines:
+                i = issues[key]
+                self.assertAlmostEqual(p, dl.WEIGHT[i.severity or dl.ITEM_SEVERITY] * dl.FACTOR[i.material]
+                                       * dl.EVIDENCE.get(i.evidence_state, 1.0))
 
 
 class AreasOpenItemsCoverageTest(unittest.TestCase):

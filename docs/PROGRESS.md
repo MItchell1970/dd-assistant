@@ -208,4 +208,10 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - A página inicial do site ainda não tem o risk score por empresa (Fase D).
 - Os encaminhamentos dependem das notas transcritas; sem notas, só a pensão (item de net debt) é encaminhada.
 
-**Próximo passo exato:** colar `docs/FABLE_REVIEW_PROMPT.md` numa sessão nova (revisão só de leitura pelo Fable); corrigir o que for aceite; depois, com aprovação, a Fase C.
+### Revisão da Fase B (16 de novembro de 2026, `docs/FABLE_REVIEW.md`)
+- **Corrigido:** o valuation impact só conta ajustes de diligence. Os leasings passam a "Standard EV-to-equity item" (o EBITDA é pós-IFRS 16) e o NWC contra o peg a "Price mechanism" (completion accounts): mostram-se, não contam. Impacto a qualquer múltiplo: TAP −€177m (antes −€2,547m), Toyota −€1,508k (antes +€16,013k), Amorim −€7,779k (antes −€79,293k). Os resultados da Fase B acima ficam como registo histórico.
+- **Risk score novo:** severidade × materialidade × evidência (aberto 1, parcialmente explicado 0,75, explicado 0,5), sobre achados e itens de balanço por classificar. TAP 61, Toyota 52, Amorim 32, Duriva 100, Velmora 0.
+- **Testes:** 297 OK. Databooks, `deal_layer.md` e site regenerados; slides não mudam.
+- **Por decidir (linhas 5 a 8 da revisão):** coluna "Next step" em vez de proteção; receita diferida das companhias aéreas no NWC; escrow da R25; estado "not applicable" na cobertura.
+
+**Próximo passo exato:** o Bernardo decide as linhas 5 a 8 de `docs/FABLE_REVIEW.md`; depois, com aprovação, a Fase C segundo `docs/FASE5_DESIGN.md`.

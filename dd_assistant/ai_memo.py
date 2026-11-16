@@ -151,12 +151,19 @@ def _deal_layer_section(a) -> list[str]:
            f"Diligence risk score: {s.score} out of 100 ({s.label}). {s.formula} Points: {fmt_value(s.points)}."]
     out += _table(["Area", "Score points"], [[k, fmt_value(v)] for k, v in s.by_area.items()])
     out += ["", f"Valuation impact ({ILLUSTRATIVE}), {fy(vi.year)}, EUR thousands:"]
-    out += _table(["Side", "Item", "Finding", "Amount"],
-                  [[c.kind, c.label, c.finding or "n/a", fmt_value(c.amount)] for c in vi.components])
-    out += _table(["Total", "Amount"], [["EBITDA change", fmt_value(vi.ebitda_change)],
-                                         ["Net debt items, effect on equity value", fmt_value(vi.net_debt_effect)],
-                                         ["Working capital against the indicative peg", fmt_value(vi.nwc_effect)]]
-                  + [[f"Equity value impact at {m:g}x", fmt_value(vi.at(m))] for m in MULTIPLES])
+    out += ["Only diligence adjustments count as the impact of the findings. Standard EV-to-equity items (lease "
+            "liabilities: reported EBITDA is after IFRS 16) and working capital against the indicative peg (the "
+            "completion accounts mechanism) are shown but not counted."]
+    out += _table(["Side", "Item", "Treatment", "Finding", "Amount"],
+                  [[c.kind, c.label, c.nature, c.finding or "n/a", fmt_value(c.amount)] for c in vi.components])
+    out += _table(["Total", "Amount"],
+                  [["EBITDA change (counted)", fmt_value(vi.ebitda_change)],
+                   ["Diligence net debt items, effect on equity value (counted)", fmt_value(vi.net_debt_effect)]]
+                  + [[f"Impact of diligence adjustments on equity value at {m:g}x", fmt_value(vi.at(m))]
+                     for m in MULTIPLES]
+                  + [["Standard EV-to-equity items (not counted)", fmt_value(vi.standard_effect)],
+                     ["Standard EV-to-equity items, as a liability (not counted)", fmt_value(-vi.standard_effect)],
+                     ["Working capital against the indicative peg (not counted)", fmt_value(vi.nwc_effect)]])
     out += ["", "Top deal issues (by amount at stake) and the typical protection:"]
     out += _table(["#", "Issue", "Area", "Amount at stake", "Typical protection", "When"],
                   [[d.rank, d.title, d.area or "n/a", fmt_value(d.amount) if d.amount is not None else "n/a",

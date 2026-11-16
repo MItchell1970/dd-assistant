@@ -313,6 +313,8 @@ def deal_section(c, a) -> str:
                      for g, v in groups.items())
     refs = "".join(f"<li><b>Route to {E(r.workstream)}</b> · {E(r.item)}</li>" for r in layer.referrals)
     b = charts.valuation(a)
+    aside = "; ".join(f"{E(x.label.lower())} {E(m(x.amount))} ({E(x.nature.lower())})" for x in layer.impact.not_counted)
+    aside = f'<p class="muted small">Shown, not counted as findings: {aside}.</p>' if aside else ""
     return f"""<section data-check="{c.slug}"><div class="wrap">
 <p class="eyebrow">Deal view</p><h2>What it means for the deal</h2>
 <div class="deal">
@@ -324,6 +326,7 @@ def deal_section(c, a) -> str:
 <tbody>{rows}</tbody></table></div>
 </div>
 <div class="bridges"><div class="wide">{charts.svg(b, a.money) if b else ""}</div></div>
+{aside}
 <div class="deal">
 <div class="panel"><p class="chart-title">Coverage: {E(cov.text)}</p><p class="muted small">{E(dl.MODE_LINE)}</p>
 <div class="grid">{grid}</div>

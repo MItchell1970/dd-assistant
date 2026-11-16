@@ -1,9 +1,10 @@
 """The deal layer (Phase 4B): what a deal team asks after the findings, computed by rule from the engine's output.
 
-- valuation impact bridge: the diligence adjustments to EBITDA × an illustrative multiple, the debt-like and
-  cash-like items one for one, and net working capital against the indicative peg; never a valuation;
+- valuation impact bridge: the diligence adjustments to EBITDA × an illustrative multiple and the debt-like and
+  cash-like items the diligence identified, one for one; standard EV-to-equity items (leases) and working capital
+  against the indicative peg are shown but not counted; never a valuation;
 - top five deal issues, each with the typical protection chosen by rule from its deal implication;
-- diligence risk score 0–100: the intensity of the findings, with its formula and its split by area;
+- diligence risk score 0–100: what is still open, by severity × materiality × evidence, with its split by area;
 - five areas, and the notes that belong to another workstream (Legal, HR, Tax, Regulatory), with the question;
 - open items grouped by who answers them, and action items by moment of the deal;
 - coverage: the rules run and the rules blocked by missing data, with the document that unblocks each.
@@ -39,14 +40,29 @@ MOMENT = {"Price: EBITDA": "Before signing", "Further diligence": "Before signin
           "SPA protection": "SPA", "Price: working capital / peg": "Completion accounts", "Post-deal": "Post-closing"}
 MOMENTS = ("Before signing", "SPA", "Completion accounts", "Post-closing")
 
-# risk score: severity × materiality, normalised, capped
+# valuation impact: what counts as an impact of the findings, and what does not
+DILIGENCE = "Diligence adjustment"                 # counted: found or reclassified by the diligence
+STANDARD = "Standard EV-to-equity item"            # not counted: in any net debt definition consistent with the EBITDA
+MECHANISM = "Price mechanism"                      # not counted: settled by completion accounts, not a finding
+STANDARD_ITEMS = ("Lease liabilities",)            # reported EBITDA is after IFRS 16, so the multiple already assumes them
+PROTECTION_STANDARD = "Net debt definition in the SPA"
+NOT_COUNTED_WHY = {STANDARD: "Standard EV-to-equity item: reported EBITDA is after IFRS 16, so the multiple already "
+                             "assumes it is deducted",
+                   MECHANISM: "Price mechanism: settled euro for euro by completion accounts; the average of the "
+                              "year-ends is not a negotiated peg"}
+
+# risk score: what is still open, weighted by severity, materiality and evidence; normalised, capped
 WEIGHT = {"High": 3.0, "Medium": 2.0, "Low": 1.0}
+ITEM_SEVERITY = "Medium"                           # a balance sheet item still to classify has no rule severity
 FACTOR = {True: 1.0, None: 0.75, False: 0.5}      # material · not quantifiable · below materiality
-CAP = 30.0                                         # points for 100: ten material High findings
+EVIDENCE = {"explained": 0.5, "partly explained": 0.75}     # a published note explains it; otherwise 1 (open)
+CAP = 30.0                                         # points for 100: ten open, material High findings
 SCORE_LABEL = "Finding intensity, not a recommendation"
-SCORE_FORMULA = ("Score = min(100, 100 × points / 30); points per finding = severity weight (High 3, Medium 2, "
-                 "Low 1) × materiality factor (material 1, not quantifiable 0.75, below materiality 0.5). "
-                 "R18 (documents missing) is left to coverage.")
+SCORE_FORMULA = ("Score = min(100, 100 × points / 30); points per open issue = severity (High 3, Medium 2, Low 1) "
+                 "× materiality (material 1, not quantifiable 0.75, below materiality 0.5) × evidence (open 1, "
+                 "partly explained by a note 0.75, explained 0.5). Issues = the findings and the balance sheet items "
+                 "still to classify (Medium); items already in adjusted net debt are priced, not scored. 100 = ten "
+                 "open, material High findings. R18 (documents missing) is left to coverage.")
 
 GROUPS = ("Ask the company", "Confirm with the auditor", "Outside financial scope")
 WORKSTREAMS = ("Legal", "HR", "Tax", "Regulatory")
@@ -77,24 +93,36 @@ class Component:
     finding: str = ""  # the rule behind it, when there is one
     source: str = ""
     basis: str = ""
+    nature: str = DILIGENCE     # only diligence adjustments count as the impact of the findings
 
 
 @dataclass
 class ValuationImpact:
-    ebitda: list[Component]
-    net_debt: list[Component]
-    nwc: Component | None
+    ebitda: list[Component]        # diligence adjustments to EBITDA
+    net_debt: list[Component]      # debt-like and cash-like items identified by the diligence
+    standard: list[Component]      # standard EV-to-equity items (leases): shown, not counted
+    nwc: Component | None          # working capital against the indicative peg: shown, not counted
     year: int
     ebitda_change: float
     net_debt_effect: float
+    standard_effect: float
     nwc_effect: float
 
     def at(self, multiple: float) -> float:
-        return self.ebitda_change * multiple + self.net_debt_effect + self.nwc_effect
+        """The impact of the findings: diligence adjustments only."""
+        return self.ebitda_change * multiple + self.net_debt_effect
+
+    @property
+    def counted(self) -> list[Component]:
+        return self.ebitda + self.net_debt
+
+    @property
+    def not_counted(self) -> list[Component]:
+        return self.standard + ([self.nwc] if self.nwc else [])
 
     @property
     def components(self) -> list[Component]:
-        return self.ebitda + self.net_debt + ([self.nwc] if self.nwc else [])
+        return self.counted + self.not_counted
 
 
 def _finding_of(label: str) -> str:
@@ -105,9 +133,14 @@ def _finding_of(label: str) -> str:
 def valuation_impact(a) -> ValuationImpact:
     """EBITDA: the diligence adjustments after the seller's figure (the management-adjusted EBITDA when presented,
     otherwise the reported one); adjustments still pending stay out (prudent buyer's view). Net debt: the debt-like
-    and cash-like items included in adjusted net debt, one for one, negative for the equity. NWC: latest year-end
-    against the average of the year-ends (indicative peg), only with two year-ends or more. Each source line enters
-    once: items in net debt are already out of working capital (deal.py), and no EBITDA line is a balance."""
+    and cash-like items included in adjusted net debt, one for one, negative for the equity. Each source line enters
+    once: items in net debt are already out of working capital (deal.py), and no EBITDA line is a balance.
+
+    Two things are shown but are not an impact of the findings. Lease liabilities are a standard EV-to-equity item:
+    reported EBITDA is after IFRS 16 (no lease cost in it), so a multiple of that EBITDA gives an enterprise value
+    that already assumes the leases are deducted. Working capital against the indicative peg (latest year-end against
+    the average of the year-ends, with two year-ends or more) is the completion accounts mechanism: more working
+    capital delivered is paid for euro for euro, so it is neither good nor bad news about the company."""
     from .issues import _bridge_items
     v = a.view
     L, B = v.pl_years[-1], v.bs_years[-1]
@@ -120,24 +153,27 @@ def valuation_impact(a) -> ValuationImpact:
             continue
         if after and value:
             ebitda.append(Component("EBITDA", f"QoE: {label}", label, value, _finding_of(label), "QoE", fy(L)))
-    net_debt = [Component("Net debt", f"ND: {cat}", cat, -total, "", source, f"balance at {fy(B)}")
-                for kind, cat, total, source, _ in _bridge_items(v, B) if kind == "Net debt item"]
+    items = [Component("Net debt", f"ND: {cat}", cat, -total, "", source, f"balance at {fy(B)}",
+                       STANDARD if cat in STANDARD_ITEMS else DILIGENCE)
+             for kind, cat, total, source, _ in _bridge_items(v, B) if kind == "Net debt item"]
+    net_debt = [c for c in items if c.nature == DILIGENCE]
+    standard = [c for c in items if c.nature == STANDARD]
     nwc = None
     now = v.nwc_values.get(B)
     if now is not None and v.nwc_average is not None and len(v.bs_years) > 1:
         nwc = Component("Working capital", "NWC", "Net working capital against the indicative peg", now - v.nwc_average,
-                        "", "NWC", f"{fy(B)} against the average of the year-ends (not a negotiated peg)")
-    return ValuationImpact(ebitda, net_debt, nwc, L, sum(c.amount for c in ebitda),
-                           sum(c.amount for c in net_debt), nwc.amount if nwc else 0.0)
+                        "", "NWC", f"{fy(B)} against the average of the year-ends (not a negotiated peg)", MECHANISM)
+    return ValuationImpact(ebitda, net_debt, standard, nwc, L, sum(c.amount for c in ebitda),
+                           sum(c.amount for c in net_debt), sum(c.amount for c in standard),
+                           nwc.amount if nwc else 0.0)
 
 
 def impact_steps(vi: ValuationImpact, multiple: float) -> list[tuple[str, float, str]]:
-    """The bridge for the chart, from zero: EBITDA adjustments × multiple, each net debt item, NWC, the total."""
+    """The bridge for the chart, from zero: EBITDA adjustments × multiple, each diligence net debt item, the total.
+    Standard EV-to-equity items and working capital against the peg are not steps: they are not findings."""
     steps = [(f"{c.label} (×{multiple:g})", c.amount * multiple, "delta") for c in vi.ebitda]
     steps += [(c.label, c.amount, "delta") for c in vi.net_debt]
-    if vi.nwc and vi.nwc.amount:
-        steps.append(("Working capital vs peg", vi.nwc.amount, "delta"))
-    steps.append(("Equity value impact", vi.at(multiple), "total"))
+    steps.append(("Impact of diligence adjustments", vi.at(multiple), "total"))
     return steps
 
 
@@ -160,6 +196,8 @@ class DealIssue:
 
 
 def _protection(i) -> str:
+    if i.kind == "Net debt item" and i.title in STANDARD_ITEMS:
+        return PROTECTION_STANDARD         # not a finding: the definition must match the EBITDA the multiple uses
     p = PROTECTION.get(i.implication, "Request more information")
     if p == "Specific indemnity" and i.material and i.evidence_state in ("", "open"):
         return "Escrow or retention"       # material, unexplained exposure: money held back, not only a promise
@@ -201,14 +239,24 @@ class RiskScore:
 
 
 def risk_score(a) -> RiskScore:
+    """Every open issue (a finding, or a balance sheet item still to classify) scores severity × materiality ×
+    evidence. Items already included in adjusted net debt are quantified and priced: they are not scored."""
+    by_rule = {r.rule.id: r for r in a.findings}
     lines, by_area = [], {x: 0.0 for x in AREAS}
-    for r in a.findings:
-        area = area_of(r.rule.id, r.rule.area)
+    for i in a.issues:
+        if i.kind == "Finding":
+            r = by_rule.get(i.key)
+            area, severity = area_of(i.key, r.rule.area if r else ""), i.severity
+        elif i.kind == "To assess":
+            area, severity = "Net debt", ITEM_SEVERITY
+        else:
+            continue
         if area is None:
             continue
-        pts = WEIGHT[r.rule.severity] * FACTOR[r.material]
-        why = f"{r.rule.severity} × {'material' if r.material else 'not quantifiable' if r.material is None else 'below materiality'}"
-        lines.append((r.rule.id, area, why, pts))
+        pts = WEIGHT[severity] * FACTOR[i.material] * EVIDENCE.get(i.evidence_state, 1.0)
+        why = (f"{severity} × {'material' if i.material else 'not quantifiable' if i.material is None else 'below materiality'}"
+               f" × {i.evidence_state if i.evidence_state in EVIDENCE else 'open'}")
+        lines.append((i.key, area, why, pts))
         by_area[area] += pts
     points = sum(p for *_, p in lines)
     score = min(100, round(100 * points / CAP))
@@ -386,13 +434,17 @@ def report_md(a, company: str = "") -> str:
            f"## Diligence risk score: {s.score} / 100", f"*{s.label}.* {s.formula}", "",
            "| Area | Score points |", "|---|---|"]
     out += [f"| {k} | {v:g} |" for k, v in s.by_area.items()]
-    out += ["", "| Rule | Area | Severity × materiality | Points |", "|---|---|---|---|"]
+    out += ["", "| Issue | Area | Severity × materiality × evidence | Points |", "|---|---|---|---|"]
     out += [f"| {rid} | {area} | {why} | {pts:g} |" for rid, area, why, pts in s.lines]
     out += ["", f"## Valuation impact ({ILLUSTRATIVE.lower()}), {fy(vi.year)}", "",
+            "Only diligence adjustments count as the impact of the findings.", "",
             "| Side | Item | Finding | Amount |", "|---|---|---|---|"]
-    out += [f"| {c.kind} | {c.label} | {c.finding or '–'} | {f(c.amount)} |" for c in vi.components]
-    out += ["", "| Multiple | Equity value impact |", "|---|---|"]
+    out += [f"| {c.kind} | {c.label} | {c.finding or '–'} | {f(c.amount)} |" for c in vi.counted]
+    out += ["", "| Multiple | Impact of diligence adjustments on equity value |", "|---|---|"]
     out += [f"| {m:g}x | {f(vi.at(m))} |" for m in MULTIPLES]
+    if vi.not_counted:
+        out += ["", "Shown, not counted (not findings):", "", "| Item | Why it is not counted | Amount |", "|---|---|---|"]
+        out += [f"| {c.label} | {NOT_COUNTED_WHY[c.nature]} | {f(c.amount)} |" for c in vi.not_counted]
     out += ["", "## Top 5 deal issues", "", "| # | Issue | Area | Amount at stake | Typical protection | When | "
             "Evidence |", "|---|---|---|---|---|---|---|"]
     out += [f"| {d.rank} | {d.key} · {d.title} | {d.area or '–'} | {f(d.amount)} | {d.protection} | {d.moment} | "

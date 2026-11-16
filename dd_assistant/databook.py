@@ -724,38 +724,51 @@ def _valuation_impact(ws, a) -> None:
     """Phase 4B: the findings in equity value terms at three illustrative multiples, with live formulas."""
     from .deal_layer import ILLUSTRATIVE, MULTIPLES, valuation_impact
     vi = valuation_impact(a)
-    _title(ws, "Valuation Impact", f"EUR thousands. {ILLUSTRATIVE}: the diligence adjustments to EBITDA × a multiple, "
-                                   "the debt-like and cash-like items one for one, and working capital against the "
-                                   "indicative peg (average of the year-ends, not a negotiated peg). Each item enters "
-                                   "once: items in net debt are out of working capital.")
-    _header(ws, 4, ["Side", "Item", "Finding", "Basis", "Source", "Amount"])
-    r, rows = 4, {"EBITDA": [], "Net debt": [], "Working capital": []}
+    from .deal_layer import DILIGENCE, MECHANISM, STANDARD
+    _title(ws, "Valuation Impact", f"EUR thousands. {ILLUSTRATIVE}. Only diligence adjustments count as the impact of "
+                                   "the findings: adjustments to EBITDA × a multiple, and the debt-like and cash-like "
+                                   "items identified by the diligence, one for one. Shown but not counted: standard "
+                                   "EV-to-equity items (lease liabilities: reported EBITDA is after IFRS 16, so the "
+                                   "multiple already assumes them) and working capital against the indicative peg "
+                                   "(the completion accounts mechanism; average of the year-ends, not a negotiated "
+                                   "peg). Each item enters once.")
+    _header(ws, 4, ["Side", "Item", "Finding", "Basis", "Source", "Amount", "Treatment"])
+    r, rows = 4, {("EBITDA", DILIGENCE): [], ("Net debt", DILIGENCE): [], ("Net debt", STANDARD): [],
+                  ("Working capital", MECHANISM): []}
     for c in vi.components:
         r += 1
         for col, value in enumerate([c.kind, c.label, c.finding or "–", c.basis, c.source], 1):
             _put(ws, r, col, value).alignment = Alignment(wrap_text=True, vertical="top")
         _put(ws, r, 6, c.amount, _FORMULA, _NUM)
-        rows[c.kind].append(r)
+        _put(ws, r, 7, c.nature)
+        rows[(c.kind, c.nature)].append(r)
     r += 2
-    total = lambda side: f"=SUM({','.join(f'F{x}' for x in rows[side])})" if rows[side] else "=0"
-    labels = [("EBITDA change (diligence-adjusted less the seller's EBITDA)", "EBITDA"),
-              ("Net debt items: effect on equity value", "Net debt"),
-              ("Working capital against the indicative peg", "Working capital")]
+    total = lambda key: f"=SUM({','.join(f'F{x}' for x in rows[key])})" if rows[key] else "=0"
+    labels = [("EBITDA change (diligence-adjusted less the seller's EBITDA)", ("EBITDA", DILIGENCE)),
+              ("Diligence net debt items: effect on equity value", ("Net debt", DILIGENCE))]
     refs = {}
-    for label, side in labels:
+    for label, key in labels:
         _put(ws, r, 2, label, _BOLD)
-        _formula(ws, r, 6, total(side), bold=True)
-        refs[side] = f"F{r}"
+        _formula(ws, r, 6, total(key), bold=True)
+        refs[key[0]] = f"F{r}"
         r += 1
     r += 1
-    _put(ws, r, 2, f"Equity value impact of the findings ({ILLUSTRATIVE.lower()})", _BOLD)
+    _put(ws, r, 2, f"Impact of diligence adjustments on equity value ({ILLUSTRATIVE.lower()})", _BOLD)
     r += 1
-    _header(ws, r, ["", "Multiple (x)", "", "", "", "Equity value impact"])
+    _header(ws, r, ["", "Multiple (x)", "", "", "", "Equity value impact", ""])
     for m in MULTIPLES:
         r += 1
         _put(ws, r, 2, m, _INPUT, "0.0x")
-        _formula(ws, r, 6, f"=F{refs['EBITDA'][1:]}*B{r}+{refs['Net debt']}+{refs['Working capital']}", bold=True)
-    _finish(ws, [16, 58, 10, 34, 40, 18], "A5", 4, 6)
+        _formula(ws, r, 6, f"=F{refs['EBITDA'][1:]}*B{r}+{refs['Net debt']}", bold=True)
+    r += 2
+    _put(ws, r, 2, "Shown, not counted (not findings)", _BOLD)
+    for label, key in [("Standard EV-to-equity items (lease liabilities)", ("Net debt", STANDARD)),
+                       ("Working capital against the indicative peg (completion accounts)",
+                        ("Working capital", MECHANISM))]:
+        r += 1
+        _put(ws, r, 2, label)
+        _formula(ws, r, 6, total(key))
+    _finish(ws, [16, 58, 10, 34, 40, 18, 28], "A5", 4, 7)
 
 
 def _top_issues(ws, a) -> None:
@@ -783,7 +796,7 @@ def _top_issues(ws, a) -> None:
     r += 1
     _put(ws, r, 1, s.formula).alignment = Alignment(wrap_text=True, vertical="top")
     r += 1
-    _header(ws, r, ["Rule", "Area", "Severity × materiality", "Points"])
+    _header(ws, r, ["Issue", "Area", "Severity × materiality × evidence", "Points"])
     first = r + 1
     for rule_id, area, why, pts in s.lines:
         r += 1
