@@ -780,7 +780,7 @@ def _top_issues(ws, a) -> None:
                              "protection chosen by rule from the deal implication; for the deal team and its "
                              "lawyers to decide. Below: the diligence risk score (finding intensity, not a "
                              "recommendation) and its formula.")
-    _header(ws, 4, ["#", "Issue", "Area", "Severity", "Amount at stake", "What the amount is", "Typical protection",
+    _header(ws, 4, ["#", "Issue", "Area", "Severity", "Amount at stake", "What the amount is", "Protection or next step",
                     "When", "Evidence from the notes", "Document to request"])
     r = 4
     for d in layer.top:
@@ -844,13 +844,13 @@ def _open_items(ws, a) -> None:
             _put(ws, r, 1, m)
             _put(ws, r, 2, item).alignment = Alignment(wrap_text=True, vertical="top")
     r += 2
-    _header(ws, r, ["Rule", "Status", "Document that unblocks it"])
-    blocked = {rid: doc for rid, _, doc in cov.blocked}
+    _header(ws, r, ["Rule", "Status", "Document that unblocks it, or why it does not apply"])
     for res in a.results:
         r += 1
+        status, doc = cov.status(res.rule.id)
         _put(ws, r, 1, f"{res.rule.id} · {res.rule.name}")
-        _put(ws, r, 2, "blocked ○" if res.rule.id in blocked else "run ✓")
-        _put(ws, r, 3, blocked.get(res.rule.id, "")).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 2, status)
+        _put(ws, r, 3, doc).alignment = Alignment(wrap_text=True, vertical="top")
     _finish(ws, [26, 70, 60], "A5", 4, 3)
 
 

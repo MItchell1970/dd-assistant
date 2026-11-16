@@ -13,7 +13,7 @@ Especificação, não código. Vale o que está em `docs/FASE4_SPEC.md` (princí
 | **Impact** | 1. Ponte de net debt · 2. Valuation impact com slider 4x–12x · 3. "Shown, not counted" · 4. Ponte de caixa | Ligar os achados ao preço, sem fazer valuation. |
 | **Evidence** | 1. Mapa de cobertura · 2. Open items em 3 grupos · 3. Action items por momento · 4. Encaminhamentos · 5. Downloads | Mostrar o que falta pedir, a quem e quando. |
 
-- **Faixa de estado** (substitui o veredicto da referência): `61 / 100 · Finding intensity, not a recommendation` + três contagens do motor: questões em aberto, ações "Before signing", `22 of 30 rules run`. A fórmula abre num popover de uma linha.
+- **Faixa de estado** (substitui o veredicto da referência): `54 / 100 · Finding intensity, not a recommendation` + três contagens do motor: questões em aberto, ações "Before signing", `22 of 30 rules run`. A fórmula abre num popover de uma linha.
 - **KPIs:** Adjusted net debt · Leverage (x EBITDA) · Free cash flow after leases · Risk score. Cada um com a fonte por baixo (página ou célula).
 - **Chips de área** (5): forma da pior severidade + nome + n.º de questões. Clicar abre Findings já filtrado.
 - **Top 5:** uma linha por issue: n.º · título · montante · proteção/próximo passo · momento. Clicar abre o cartão.
@@ -74,4 +74,4 @@ O visual 1 substitui o valuation impact bridge como assinatura: depois da revis�
 9. O site não tem nenhuma tabela que exista na app; a página de empresa cabe em 3 ecrãs a 1440 px.
 10. Suite completa OK; a paridade e a Velmora (0 alertas) não mudam.
 
-**Antes de começar a Fase C:** decidir as linhas 5 a 8 de `docs/FABLE_REVIEW.md` (mudam rótulos do Top 5 e do mapa de cobertura).
+**Já no motor (não refazer):** a coluna "Protection or next step", o estado "not applicable –" do mapa de cobertura (terceiro símbolo da grelha) e o tipo "Working capital item" (`docs/FABLE_REVIEW.md`, linhas 5 a 8).

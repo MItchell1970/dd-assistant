@@ -100,7 +100,7 @@ class TopIssuesAndScoreTest(unittest.TestCase):
             for d in top:
                 self.assertIn(d.protection, ("Price adjustment", "Debt-like item in the SPA", "Specific indemnity",
                                              "Escrow or retention", "Completion accounts", "Request more information",
-                                             dl.PROTECTION_STANDARD))
+                                             dl.PROTECTION_STANDARD, dl.PROTECTION_TAX))
                 self.assertIn(d.moment, dl.MOMENTS)
 
     def test_protection_follows_the_implication(self):
@@ -110,6 +110,28 @@ class TopIssuesAndScoreTest(unittest.TestCase):
         self.assertEqual(top["R28"].protection, "Completion accounts")
         toyota = {d.key: d for d in dl.deal_issues(company("toyota-caetano"))}
         self.assertEqual(toyota["R04"].protection, "Price adjustment")
+
+    def test_no_escrow_for_a_tax_rate_gap_without_a_tax_contingency(self):
+        """R25 alone is not an exposure: money is held back only when the notes disclose a tax contingency."""
+        tap, toyota = company("tap"), company("toyota-caetano")
+        self.assertTrue(any(r.workstream == "Tax" for r in dl.referrals(tap)))
+        self.assertFalse(any(r.workstream == "Tax" for r in dl.referrals(toyota)))
+        self.assertEqual({d.key: d for d in dl.deal_issues(tap)}["R25"].protection, "Escrow or retention")
+        self.assertEqual({d.key: d for d in dl.deal_issues(toyota)}["R25"].protection, dl.PROTECTION_TAX)
+
+    def test_airline_deferred_revenue_is_working_capital(self):
+        """Sector calibration, with the reason in view: unflown tickets are operating, so the item goes to the peg
+        and is neither a net debt item to assess nor an open issue in the score."""
+        a = company("tap")
+        d = {x.key: x for x in dl.deal_issues(a)}["ND: Deferred revenue and customer advances"]
+        self.assertEqual((d.kind, d.area, d.protection, d.moment),
+                         ("Working capital item", "Working capital", "Completion accounts", "Completion accounts"))
+        issue = {i.key: i for i in a.issues}[d.key]
+        self.assertIn("not yet flown", issue.treatment)
+        self.assertNotIn(d.key, [k for k, *_ in dl.risk_score(a).lines])
+        from dd_assistant.issues import key_issues          # without the sector, it is still an item to assess
+        plain = key_issues(a.findings, a.view, a.data, a.metrics, a.materiality)
+        self.assertEqual({i.key: i for i in plain}[d.key].kind, "To assess")
 
     def test_clean_company_scores_low_and_planted_problems_score_high(self):
         self.assertLessEqual(dl.risk_score(company("velmora")).score, 10)
@@ -135,7 +157,7 @@ class TopIssuesAndScoreTest(unittest.TestCase):
         self.assertEqual(pts["R07"], 3.0)                                        # High, material, open
         self.assertEqual(pts["R22"], 1.0)                                        # Medium, material, explained by note 19
         self.assertEqual(pts["R11"], 2.25)                                       # High, material, partly explained
-        self.assertEqual(pts["ND: Deferred revenue and customer advances"], 2.0)  # to classify, material, open
+        self.assertEqual(pts["ND: Assets held for sale"], 1.0)                   # to classify, below materiality
         self.assertEqual(pts["ND: Provisions"], 1.0)                             # to classify, explained by note 18
         self.assertNotIn("ND: Lease liabilities", pts)
         self.assertNotIn("ND: Post-employment benefit obligations", pts)
@@ -182,7 +204,12 @@ class AreasOpenItemsCoverageTest(unittest.TestCase):
             c = dl.coverage(company(name))
             self.assertGreater(len(duriva.run), len(c.run), name)
             self.assertEqual(c.mode, "outside-in (published accounts)")
-            self.assertEqual(len(c.run) + len(c.blocked), c.total)
+            self.assertEqual(len(c.run) + len(c.blocked) + len(c.not_applicable), c.total)
+            self.assertEqual([r for r, *_ in c.not_applicable], ["R05", "R06"])     # no management EBITDA published
+            self.assertEqual(c.status("R05")[0], "not applicable –")
+            self.assertFalse([k for k, v in dl.request_list(company(name)).items()
+                              if "coverage: R05" in v or "coverage: R06" in v])
+        self.assertEqual(duriva.not_applicable, [])
 
     def test_every_blocked_rule_has_a_request(self):
         for name in ALL:

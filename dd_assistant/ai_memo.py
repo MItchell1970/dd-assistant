@@ -165,14 +165,15 @@ def _deal_layer_section(a) -> list[str]:
                      ["Standard EV-to-equity items, as a liability (not counted)", fmt_value(-vi.standard_effect)],
                      ["Working capital against the indicative peg (not counted)", fmt_value(vi.nwc_effect)]])
     out += ["", "Top deal issues (by amount at stake) and the typical protection:"]
-    out += _table(["#", "Issue", "Area", "Amount at stake", "Typical protection", "When"],
+    out += _table(["#", "Issue", "Area", "Amount at stake", "Protection or next step", "When"],
                   [[d.rank, d.title, d.area or "n/a", fmt_value(d.amount) if d.amount is not None else "n/a",
                     d.protection, d.moment] for d in layer.top])
     groups: dict[str, int] = {}
     for o in layer.open_items:
         groups[o.group] = groups.get(o.group, 0) + 1
     out += ["", f"Coverage: {cov.text} ({cov.mode}). {MODE_LINE} Blocked: "
-                + ("; ".join(f"{rid} ({doc})" for rid, _, doc in cov.blocked) or "none") + ".",
+                + ("; ".join(f"{rid} ({doc})" for rid, _, doc in cov.blocked) or "none") + ". Not applicable: "
+                + ("; ".join(f"{rid} ({why})" for rid, _, why in cov.not_applicable) or "none") + ".",
             "Open items: " + "; ".join(f"{g}: {n}" for g, n in groups.items()) + "."]
     return out
 

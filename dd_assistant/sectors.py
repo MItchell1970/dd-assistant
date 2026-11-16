@@ -75,6 +75,17 @@ NEGATIVE_NWC = {
 }
 
 
+# Balance sheet items that are operating in a sector: they stay in working capital and are not listed as a net debt
+# item to assess. Sector -> {item category: the reason, shown next to the item}.
+OPERATING_ITEMS = {
+    "transport": {"Deferred revenue and customer advances":
+                  "tickets sold and not yet flown are settled by flying, not in cash: an operating liability"},
+    "hospitality": {"Deferred revenue and customer advances":
+                    "bookings and deposits paid in advance are settled by the stay, not in cash: an operating "
+                    "liability"},
+}
+
+
 def _s(key, name, keywords, calibration=None, lens=()):
     return Sector(key, name, tuple(keywords), calibration or {}, tuple(LensItem(*x) for x in lens))
 

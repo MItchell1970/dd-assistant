@@ -50,7 +50,7 @@ Shown, not counted (not findings):
 
 ## Top 5 deal issues
 
-| # | Issue | Area | Amount at stake | Typical protection | When | Evidence |
+| # | Issue | Area | Amount at stake | Protection or next step | When | Evidence |
 |---|---|---|---|---|---|---|
 | 1 | R28 · Large 'other' working capital line | Working capital | €143,131k | Completion accounts | Completion accounts | explained by note 22 |
 | 2 | R11 · Short-term debt concentration | Net debt | €80,796k | Request more information | Before signing | partly explained by note 2.6 |
@@ -61,14 +61,14 @@ Shown, not counted (not findings):
 ## Coverage: 22 of 30 rules run (outside-in (published accounts))
 Published accounts = outside-in mode (before the data room); Duriva = data room mode (fictitious data).
 
-| Rule | Status | Document that unblocks it |
+| Rule | Status | Document that unblocks it, or why it does not apply |
 |---|---|---|
 | R01 · Customer concentration above threshold | blocked ○ | Customer contract; monthly revenue and gross margin by customer |
 | R02 · Material revenue from new customers | blocked ○ | Customer contract and invoices; order book |
 | R03 · Significant gross margin movement | run ✓ |  |
 | R04 · Material other income within EBITDA | run ✓ |  |
-| R05 · Material management adjustments | blocked ○ | Invoices and contracts supporting each adjustment |
-| R06 · Recurring 'non-recurring' adjustment | blocked ○ | Breakdown of the adjustment by year; plan and costs of the underlying programme |
+| R05 · Material management adjustments | not applicable – | no management-adjusted EBITDA in published accounts |
+| R06 · Recurring 'non-recurring' adjustment | not applicable – | no management adjustments in published accounts |
 | R07 · Receivables growing ahead of revenue | run ✓ |  |
 | R08 · Significant increase in DSO | run ✓ |  |
 | R09 · Inventory build ahead of COGS | run ✓ |  |
@@ -96,7 +96,7 @@ Published accounts = outside-in mode (before the data room); Duriva = data room 
 
 ## Open items
 
-### Ask the company (35)
+### Ask the company (32)
 - Facility agreements *(from R11, document checklist)*
 - Bank term sheets *(from R11)*
 - Covenant compliance certificates *(from R11, coverage: R20)*
@@ -118,9 +118,6 @@ Published accounts = outside-in mode (before the data room); Duriva = data room 
 - Customer contract *(from coverage: R01)*
 - Monthly revenue and gross margin by customer *(from coverage: R01)*
 - Customer contract and invoices *(from coverage: R02)*
-- Invoices and contracts supporting each adjustment *(from coverage: R05)*
-- Breakdown of the adjustment by year *(from coverage: R06)*
-- Plan and costs of the underlying programme *(from coverage: R06)*
 - Corrected cash flow statement *(from coverage: R14)*
 - Opening and closing trial balances *(from coverage: R14)*
 - Sales-by-customer extract reconciled to the general ledger *(from coverage: R16)*
@@ -159,7 +156,7 @@ Published accounts = outside-in mode (before the data room); Duriva = data room 
 - Provisions: request more information
 
 ### SPA
-- Effective tax rate far from the statutory rate: specific indemnity
+- Effective tax rate far from the statutory rate: tax indemnity (standard)
 - Income tax payable: debt-like item in the spa
 - Post-employment benefit obligations: debt-like item in the spa
 

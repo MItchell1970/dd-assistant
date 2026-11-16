@@ -18,6 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from .deal import qoe_steps
+from .issues import WC_ITEM
 from .rules import fy
 
 AREAS = ("Quality of earnings", "Net debt", "Working capital", "Cash flow", "Tax")
@@ -46,6 +47,10 @@ STANDARD = "Standard EV-to-equity item"            # not counted: in any net deb
 MECHANISM = "Price mechanism"                      # not counted: settled by completion accounts, not a finding
 STANDARD_ITEMS = ("Lease liabilities",)            # reported EBITDA is after IFRS 16, so the multiple already assumes them
 PROTECTION_STANDARD = "Net debt definition in the SPA"
+PROTECTION_TAX = "Tax indemnity (standard)"
+COLUMN = "Protection or next step"       # requesting information is a step, not a protection
+NOT_APPLICABLE = {"R05": "no management-adjusted EBITDA in published accounts",
+                  "R06": "no management adjustments in published accounts"}
 NOT_COUNTED_WHY = {STANDARD: "Standard EV-to-equity item: reported EBITDA is after IFRS 16, so the multiple already "
                              "assumes it is deducted",
                    MECHANISM: "Price mechanism: settled euro for euro by completion accounts; the average of the "
@@ -195,9 +200,11 @@ class DealIssue:
     request: str
 
 
-def _protection(i) -> str:
+def _protection(i, tax_contingency: bool = True) -> str:
     if i.kind == "Net debt item" and i.title in STANDARD_ITEMS:
         return PROTECTION_STANDARD         # not a finding: the definition must match the EBITDA the multiple uses
+    if i.key == "R25" and not tax_contingency:
+        return PROTECTION_TAX              # a rate gap alone is not an exposure: nothing held back without a contingency
     p = PROTECTION.get(i.implication, "Request more information")
     if p == "Specific indemnity" and i.material and i.evidence_state in ("", "open"):
         return "Escrow or retention"       # material, unexplained exposure: money held back, not only a promise
@@ -208,17 +215,18 @@ def _area_of_issue(i, rules_by_id) -> str | None:
     if i.kind == "Finding":
         r = rules_by_id.get(i.key)
         return area_of(i.key, r.rule.area if r else "")
-    return "Net debt"
+    return "Working capital" if i.kind == WC_ITEM else "Net debt"
 
 
 def deal_issues(a) -> list[DealIssue]:
     """Every key issue (already ordered by amount at stake, not quantifiable last), with protection and moment."""
     by = {r.rule.id: r for r in a.findings}
+    tax = any(r.workstream == "Tax" for r in referrals(a))      # a tax contingency or provision in the notes
     out = []
     for n, i in enumerate(a.issues, 1):
         ev = (i.evidence_state + (f" by {i.evidence_note}" if i.evidence_note else "")) or "notes not read"
         out.append(DealIssue(n, i.key, i.title, i.kind, i.severity, i.amount, i.amount_label, _area_of_issue(i, by),
-                             i.implication, _protection(i), MOMENT.get(i.implication, "Before signing"), ev,
+                             i.implication, _protection(i, tax), MOMENT.get(i.implication, "Before signing"), ev,
                              i.request))
     return out
 
@@ -325,6 +333,17 @@ class Coverage:
     blocked: list[tuple[str, str, str]]     # (rule, name, document that unblocks it)
     total: int
     mode: str
+    not_applicable: list[tuple[str, str, str]] = field(default_factory=list)    # (rule, name, why)
+
+    def status(self, rule_id: str) -> tuple[str, str]:
+        """(status with its mark, the document that unblocks it or why it does not apply)."""
+        for rid, _, doc in self.blocked:
+            if rid == rule_id:
+                return "blocked ○", doc
+        for rid, _, why in self.not_applicable:
+            if rid == rule_id:
+                return "not applicable –", why
+        return "run ✓", ""
 
     @property
     def text(self) -> str:
@@ -332,16 +351,21 @@ class Coverage:
 
 
 def coverage(a) -> Coverage:
-    """A rule is blocked when it has no value for any year: a figure it needs is not in the accounts."""
-    run, blocked = [], []
-    for r in a.results:
-        if all(x is None for x in r.values.values()):
-            blocked.append((r.rule.id, r.rule.name, r.rule.request))
-        else:
-            run.append(r.rule.id)
+    """A rule is blocked when it has no value for any year: a figure it needs is not in the accounts. Outside-in,
+    the rules on management adjustments are not applicable instead: published accounts have no management EBITDA, so
+    there is no document to ask for yet."""
     names = " ".join(str(f) for f in getattr(a.ext, "files", []) or [])
     mode = "outside-in (published accounts)" if "published" in names.lower() or a.ext.notes else "data room"
-    return Coverage(run, blocked, len(a.results), mode)
+    outside = mode.startswith("outside-in") and not a.view.ebitda_mgmt
+    run, blocked, na = [], [], []
+    for r in a.results:
+        if not all(x is None for x in r.values.values()):
+            run.append(r.rule.id)
+        elif outside and r.rule.id in NOT_APPLICABLE:
+            na.append((r.rule.id, r.rule.name, NOT_APPLICABLE[r.rule.id]))
+        else:
+            blocked.append((r.rule.id, r.rule.name, r.rule.request))
+    return Coverage(run, blocked, len(a.results), mode, na)
 
 
 # ---------------------------------------------------------------- request list (one, without duplicates)
@@ -445,15 +469,13 @@ def report_md(a, company: str = "") -> str:
     if vi.not_counted:
         out += ["", "Shown, not counted (not findings):", "", "| Item | Why it is not counted | Amount |", "|---|---|---|"]
         out += [f"| {c.label} | {NOT_COUNTED_WHY[c.nature]} | {f(c.amount)} |" for c in vi.not_counted]
-    out += ["", "## Top 5 deal issues", "", "| # | Issue | Area | Amount at stake | Typical protection | When | "
+    out += ["", "## Top 5 deal issues", "", f"| # | Issue | Area | Amount at stake | {COLUMN} | When | "
             "Evidence |", "|---|---|---|---|---|---|---|"]
     out += [f"| {d.rank} | {d.key} · {d.title} | {d.area or '–'} | {f(d.amount)} | {d.protection} | {d.moment} | "
             f"{d.evidence} |" for d in layer.top]
-    out += ["", f"## Coverage: {cov.text} ({cov.mode})", MODE_LINE, "", "| Rule | Status | Document that unblocks it |",
-            "|---|---|---|"]
-    blocked = {rid: doc for rid, _, doc in cov.blocked}
-    out += [f"| {r.rule.id} · {r.rule.name} | {'blocked ○' if r.rule.id in blocked else 'run ✓'} | "
-            f"{blocked.get(r.rule.id, '')} |" for r in a.results]
+    out += ["", f"## Coverage: {cov.text} ({cov.mode})", MODE_LINE, "",
+            "| Rule | Status | Document that unblocks it, or why it does not apply |", "|---|---|---|"]
+    out += [f"| {r.rule.id} · {r.rule.name} | {' | '.join(cov.status(r.rule.id))} |" for r in a.results]
     out += ["", "## Open items", ""]
     for g in GROUPS:
         items = [o for o in layer.open_items if o.group == g]

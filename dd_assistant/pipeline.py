@@ -104,7 +104,8 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
                     Money.for_data(data), benchmark_rows(data, m, view, s), dict(decisions or {}), c, c_suggested,
                     c_why, purpose, general_years, dict(include or {}), list(analyst or []), materiality,
                     materiality.thresholds(data, m),
-                    issues.key_issues(findings, view, data, m, materiality, implications, ext.notes, money))
+                    issues.key_issues(findings, view, data, m, materiality, implications, ext.notes, money,
+                                      sectors.OPERATING_ITEMS.get(s.key)))
 
 
 PURPOSE_EFFECTS = {

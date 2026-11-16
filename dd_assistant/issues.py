@@ -209,10 +209,13 @@ def by_amount(findings: list[RuleResult]) -> list[RuleResult]:
 
 
 # ---------------------------------------------------------------- one list: findings and net debt items
+WC_ITEM = "Working capital item"
+
+
 @dataclass
 class KeyIssue:
     key: str                  # rule ID, or 'ND: <category>' for a net debt item
-    kind: str                 # Finding · Net debt item · To assess
+    kind: str                 # Finding · Net debt item · To assess · Working capital item (operating in the sector)
     title: str
     severity: str             # High, Medium, Low; '' for a net debt item
     amount: float | None      # EUR thousands
@@ -254,9 +257,11 @@ def _bridge_items(view: DealView, year: int) -> list[tuple[str, str, float, str,
 
 
 def key_issues(findings: list[RuleResult], view: DealView, d: CompanyData, m: Metrics, materiality: Materiality,
-               implications: dict[str, str] | None = None, notes: list | None = None, money=None) -> list[KeyIssue]:
-    """Findings and net debt items in one list, ordered by amount at stake (not quantifiable last)."""
-    implications = implications or {}
+               implications: dict[str, str] | None = None, notes: list | None = None, money=None,
+               operating: dict[str, str] | None = None) -> list[KeyIssue]:
+    """Findings and net debt items in one list, ordered by amount at stake (not quantifiable last). `operating`:
+    the items that are operating in the sector (category -> reason); they are working capital, not items to assess."""
+    implications, operating = implications or {}, operating or {}
     out = [KeyIssue(r.rule.id, "Finding", r.rule.name, r.rule.severity, r.amount, r.amount_label, r.amount_year,
                     r.material, r.note, r.implication, r.treatment, r.rule.question,
                     r.next_request or r.rule.request,
@@ -274,6 +279,9 @@ def key_issues(findings: list[RuleResult], view: DealView, d: CompanyData, m: Me
                      "SPA definition agrees." if included and total > 0 else
                      "Included in adjusted net debt as a cash-like item, if the SPA definition agrees." if included
                      else f"Not in adjusted net debt yet: to be classified as {nature}, working capital or neither.")
+        if not included and category in operating:      # sector: operating, so it belongs to the peg
+            kind, default = WC_ITEM, "Price: working capital / peg"
+            treatment = f"Kept in working capital in this sector: {operating[category]}."
         material = None if limit is None else abs(total) >= limit
         ev = notes_.for_item(category, [abs(total)] + parts, B, notes, money) if notes else None
         out.append(KeyIssue(key, kind, category, "", abs(total), f"balance at {fy(B)}", B, material,

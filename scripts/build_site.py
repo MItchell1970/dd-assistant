@@ -304,9 +304,12 @@ def deal_section(c, a) -> str:
                    f"<td class=\"n\">{E(m(d.amount)) if d.amount is not None else 'n/q'}</td>"
                    f"<td>{E(d.protection)}<span>{E(d.moment)}</span></td></tr>" for d in layer.top)
     blocked = {rid: doc for rid, _, doc in cov.blocked}
-    grid = "".join(f'<span class="{"off" if r.rule.id in blocked else "on"}" title="{E(r.rule.name)}'
-                   f'{": request " + E(blocked[r.rule.id]) if r.rule.id in blocked else ""}">'
-                   f'{"○" if r.rule.id in blocked else "✓"} {r.rule.id}</span>' for r in a.results)
+    na = {rid: why for rid, _, why in cov.not_applicable}
+    grid = "".join(f'<span class="{"on" if r.rule.id in cov.run else "off"}" title="{E(r.rule.name)}'
+                   f'{": request " + E(blocked[r.rule.id]) if r.rule.id in blocked else ""}'
+                   f'{": not applicable, " + E(na[r.rule.id]) if r.rule.id in na else ""}">'
+                   f'{"○" if r.rule.id in blocked else "–" if r.rule.id in na else "✓"} {r.rule.id}</span>'
+                   for r in a.results)
     asks = "".join(f"<li><b>{rid}</b> {E(doc)}</li>" for rid, _, doc in cov.blocked)
     groups = {g: [o for o in layer.open_items if o.group == g] for g in dl.GROUPS}
     counts = "".join(f'<div class="stat"><div class="n">{len(v)}</div><p class="t">{E(g)}</p></div>'
@@ -322,7 +325,7 @@ def deal_section(c, a) -> str:
 <p class="muted small">{E(s.label)}</p><div class="bars">{bars}</div>
 <details><summary>How it is computed</summary><p class="small">{E(s.formula)}</p></details></div>
 <div class="panel"><p class="chart-title">Top deal issues, by amount at stake</p>
-<table class="top"><thead><tr><th>#</th><th>Issue</th><th class="n">Amount</th><th>Typical protection</th></tr></thead>
+<table class="top"><thead><tr><th>#</th><th>Issue</th><th class="n">Amount</th><th>Protection or next step</th></tr></thead>
 <tbody>{rows}</tbody></table></div>
 </div>
 <div class="bridges"><div class="wide">{charts.svg(b, a.money) if b else ""}</div></div>
