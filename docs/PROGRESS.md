@@ -175,3 +175,11 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Ponte de caixa no databook: não feita.** Precisa de folha com fórmulas, linha no Checks, databooks guardados recalculados pelo Excel e o teste de igualdade; não cabe "sem esforço". Fica em GAPS.
 - **Fora deste fecho, por decisão:** slides, kit de candidaturas, regras novas.
 - **Pendente:** push com aprovação do Bernardo; ativar o GitHub Pages (passos em `docs/DEPLOY.md`); nome público ("DD Assistant" mantido).
+
+## Fase 4 (docs/FASE4_SPEC.md, 16 de novembro de 2026)
+
+### Fase A — gráficos (feita, à espera de aprovação)
+- `dd_assistant/charts.py`: um só modelo e um só desenho (SVG) para as pontes; o site e a app usam o SVG, os slides usam o mesmo modelo em gráficos nativos do PowerPoint. Cor pelo efeito para o comprador (vermelho pior, verde melhor, totais cinzentos), maior item em cor plena e os outros a 45%, no máximo 7 colunas (itens abaixo de 1% do maior total em "Others", capex e alienações em "Net capex", depois saem os subtotais intermédios), action title e anotação por regra a partir do motor, nota de arredondamento. Paleta escura no site.
+- Testes: `tests/test_charts.py` (10); títulos e anotações passam pelo verificador do memo; as somas agrupadas (Net capex, Others) não estão no material e são testadas como soma das partes (marcadas `data-nocheck` no site).
+- Na app, o SVG vai por `st.markdown` (o `st.html` remove SVG). Slides e PDF da demo regenerados.
+- Nota: no telemóvel, os gráficos com mais colunas deslizam para manter o texto a 11 px; a anotação do total final fica do lado direito, visível ao deslizar.

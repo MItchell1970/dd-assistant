@@ -100,21 +100,6 @@ class SiteTest(unittest.TestCase):
                 self.assertNotIn("<script", page)
                 self.assertTrue(external)
 
-    def test_bridge_chart(self):
-        """Vertical bridge: short names under the columns, the full name and value on each column for screen
-        readers, and the rounding note when the rounded items miss the rounded total (TAP: 2,292 against 2,293)."""
-        from dd_assistant.deal import net_debt_steps
-        tap = demo.CASE_BY_SLUG["tap"]
-        a = demo.analysis(tap)
-        steps = net_debt_steps(a.view, a.view.bs_years[-1])
-        svg = build_site.bridge_svg(steps, a.money, "Net debt bridge")
-        self.assertIn('aria-label="Borrowings less cash: −€43m"', svg)
-        self.assertIn(">Net debt<", svg)
-        self.assertIn("Differences of €1m are due to rounding.", svg)
-        self.assertNotIn("Differences", build_site.bridge_svg([("A", 10.0, "total"), ("B", 5.0, "delta"),
-                                                               ("C", 15.0, "total")], a.money, "x"))
-        self.assertIn("min-width:", svg)   # the text never shrinks below 11 px: the chart slides instead
-
     def test_stored_site_is_current(self):
         for name, text in self.pages.items():
             with self.subTest(name):

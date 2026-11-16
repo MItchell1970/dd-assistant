@@ -3,6 +3,7 @@ whose bars are the engine's bridge steps, and no figure that is not in the memo 
 import io
 import unittest
 
+from dd_assistant import charts as model
 from dd_assistant import demo
 from dd_assistant.deal import cash_steps, net_debt_steps
 from dd_assistant.memo_check import _check_numbers
@@ -64,6 +65,11 @@ class SlidesTest(unittest.TestCase):
         for c in demo.CASES:
             a, prs = self.decks[c.slug]
             text = "\n".join(words(prs))
+            # a grouped column (net capex, others) shows a sum of engine figures; test_charts checks each sum
+            for b in model.all_bridges(a).values():
+                for col in b.columns:
+                    if len(col.parts) > 1:
+                        text = text.replace(b.text(a.money, col), "")
             checked, unmatched, misdated, _ = _check_numbers(text, demo.material(c, a))
             self.assertGreater(checked, 60, c.slug)
             self.assertEqual((unmatched, misdated), ([], []), c.slug)
@@ -72,13 +78,13 @@ class SlidesTest(unittest.TestCase):
         a, prs = self.decks["tap"]
         charts = [s.chart for slide in prs.slides for s in slide.shapes if getattr(s, "has_chart", False) and s.has_chart]
         self.assertEqual(len(charts), 4)                       # EBITDA, net debt, working capital, cash flow
-        B, L = a.view.bs_years[-1], a.view.pl_years[-1]
+        nd = model.net_debt(a)                                 # the same columns as the site and the app
         net_debt = [str(c) for c in charts[1].plots[0].categories]
-        self.assertEqual(len(net_debt), len(net_debt_steps(a.view, B)))
+        self.assertEqual(net_debt, [f"{c.short}\n{nd.text(a.money, c)}" for c in nd.columns])
         self.assertIn("+€2,158m", net_debt[2])
         cash = [str(c) for c in charts[3].plots[0].categories]
-        self.assertEqual(len(cash), len(cash_steps(a.view, a.data, a.metrics, L)))
-        self.assertTrue(cash[-1].endswith("-€272m"))
+        self.assertEqual(len(cash), len(model.cash(a).columns))
+        self.assertTrue(cash[-1].endswith("−€272m"))
 
     def test_requests_are_the_next_level_and_not_repeated(self):
         a, _ = self.decks["toyota-caetano"]

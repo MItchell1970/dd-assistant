@@ -22,7 +22,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from dd_assistant import demo, europe, sectors
+from dd_assistant import charts, demo, europe, sectors
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.deal import (ADJUSTMENT_STATES, Line, cash_steps, ifrs16_steps, net_debt_steps, qoe_steps,
                                value_at_stake)
@@ -270,40 +270,11 @@ def show_stored_memo(c: demo.Case) -> None:
 NAVY, BLUE, GREY = "#13294b", "#b4611a", "#aab4c3"
 
 
-def waterfall(steps: list[tuple[str, float, str]], money, title: str, key: str) -> None:
-    """A bridge as a waterfall: totals in navy, increases in blue, decreases in grey, each bar labelled with its
-    value. The steps come from the engine (deal.py); the chart only places the bars."""
-    if len(steps) < 2:
-        return
-    def wrap(text: str, width: int = 14) -> str:   # axis labels on two or three short lines, joined by '|'
-        lines, cur = [], ""
-        for word in text.split():
-            if cur and len(cur) + 1 + len(word) > width:
-                lines.append(cur)
-                cur = word
-            else:
-                cur = f"{cur} {word}".strip()
-        return "|".join(lines + [cur])
-
-    rows, level = [], 0.0
-    for i, (label, value, kind) in enumerate(steps):
-        start, end = (0.0, value) if kind == "total" else (level, level + value)
-        level = end
-        rows.append({"order": i, "label": wrap(label), "name": label, "start": start, "end": end,
-                     "text": money.fmt(value) if kind == "total" else
-                     ("+" if value > 0 else "") + money.fmt(value),
-                     "colour": NAVY if kind == "total" else BLUE if value > 0 else GREY,
-                     "top": max(start, end)})
-    df = pd.DataFrame(rows)
-    x = alt.X("label:N", sort=list(df["label"]), title=None,
-              axis=alt.Axis(labelAngle=0, labelLimit=160, labelExpr="split(datum.label, '|')", labelFontSize=11))
-    bars = alt.Chart(df).mark_bar(cornerRadius=3).encode(
-        x=x, y=alt.Y("start:Q", axis=None), y2="end:Q", color=alt.Color("colour:N", scale=None),
-        tooltip=[alt.Tooltip("name:N", title=" "), alt.Tooltip("text:N", title="Value")])
-    labels = alt.Chart(df).mark_text(dy=-8, fontSize=12, fontWeight=600, color="#13233f").encode(
-        x=x, y=alt.Y("top:Q", axis=None), text="text:N")
-    st.markdown(f"<div class='dd-chart-title'>{html.escape(title)}</div>", unsafe_allow_html=True)
-    st.altair_chart((bars + labels).properties(height=260).configure_view(stroke=None), width="stretch", key=key)
+def waterfall(b, money) -> None:
+    """A bridge drawn by dd_assistant/charts.py: the same SVG as the site and the same model as the slides (colour
+    by the effect on the buyer, action title, at most seven columns). Nothing is drawn when a figure is missing."""
+    if b is not None:
+        st.markdown(f"<style>{charts.CSS}</style>" + charts.svg(b, money), unsafe_allow_html=True)   # st.html drops SVG
 
 
 def nwc_chart(view, money, key: str) -> None:
@@ -362,7 +333,7 @@ def tour(c: "demo.Case", a) -> None:
         first = demo.insights(c)[0]
         st.info(f"**Why it matters in a deal.** {first['why'][:1].upper() + first['why'][1:]}")
     elif i == 2:
-        waterfall(net_debt_steps(a.view, B), a.money, f"Net debt bridge, {fy(B)} ({a.money.unit})", "tour-nd")
+        waterfall(charts.net_debt(a), a.money)
     elif i == 3 and a.findings:
         flag = min(a.findings, key=lambda r: SEVERITIES.index(r.rule.severity))
         st.markdown(f"**Evidence.** {flag.evidence}")
@@ -759,14 +730,9 @@ with tab_ov:
     st.markdown("<div class='dd-kpis'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
     w1, w2 = st.columns(2, gap="large")
     with w1:
-        waterfall(net_debt_steps(view, B), money, f"Net debt bridge, {fy(B)} ({money.unit})", "ov-nd")
+        waterfall(charts.net_debt(a), a.money)
     with w2:
-        steps = qoe_steps(view, L)
-        if len(steps) <= 2 and ifrs16_steps(view, data, L):   # no adjustment to show: show the lease effect
-            waterfall(ifrs16_steps(view, data, L), money, f"EBITDA and the lease payments, {fy(L)} ({money.unit})",
-                      "ov-16")
-        else:
-            waterfall(steps, money, f"EBITDA bridge, {fy(L)} ({money.unit})", "ov-qoe")
+        waterfall(charts.ebitda(a), a.money)   # the adjustments if any, otherwise the lease effect
 
     # ---- where it goes wrong: the figure, the threshold, in plain words, and where to look
     st.markdown(f"<div class='dd-section'>Key issues, by amount at stake · {len(al)} "
@@ -855,9 +821,9 @@ with tab_deal:
     st.markdown(f"<div class='dd-section'>{term('Quality of earnings', 'QoE')}</div>", unsafe_allow_html=True)
     q1, q2 = st.columns(2, gap="large")
     with q1:
-        waterfall(qoe_steps(view, L), money, f"EBITDA bridge, {fy(L)} ({money.unit})", "dv-qoe")
+        waterfall(charts.qoe(a), a.money)
     with q2:
-        waterfall(ifrs16_steps(view, data, L), money, f"EBITDA before IFRS 16, {fy(L)} ({money.unit})", "dv-16")
+        waterfall(charts.ifrs16(a), a.money)
     st.markdown(bridge(view.qoe, view.pl_years, money), unsafe_allow_html=True)
     c1, c2 = st.columns([3, 2], gap="large")
     with c1:
@@ -882,8 +848,7 @@ with tab_deal:
                        column_config={"Adjustment": st.column_config.TextColumn(width="medium")})
 
     st.markdown(f"<div class='dd-section'>{term('Net debt')}</div>", unsafe_allow_html=True)
-    waterfall(net_debt_steps(view, B), money, f"Net debt bridge, {fy(B)} ({money.unit}): borrowings less cash, "
-              "then the debt-like items included below", "dv-nd")
+    waterfall(charts.net_debt(a), a.money)
     st.markdown(bridge(view.net_debt, view.bs_years, money), unsafe_allow_html=True)
     if data.balance_items:
         st.markdown("**Debt-like and cash-like items found in the balance sheet**")
@@ -899,8 +864,7 @@ with tab_deal:
                    "marketable securities…). Check the notes: they are often presented there.")
 
     st.markdown("<div class='dd-section'>Cash flow: EBITDA to free cash flow</div>", unsafe_allow_html=True)
-    waterfall(cash_steps(view, data, metrics, L), money,
-              f"Cash flow bridge, {fy(L)} ({money.unit}), reconciled to the cash flow statement", "dv-cash")
+    waterfall(charts.cash(a), a.money)
     st.caption("The change in working capital comes from the two balance sheets; what is left to reach the operating "
                "cash flow as published is shown as its own bar (tax, interest and other operating items).")
     st.markdown(f"<div class='dd-section'>{term('Net working capital', 'NWC')}</div>", unsafe_allow_html=True)

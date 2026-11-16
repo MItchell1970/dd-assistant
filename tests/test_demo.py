@@ -112,7 +112,10 @@ class InsightsAndChartsTest(unittest.TestCase):
 
     def test_app_draws_the_charts(self):
         at = app_test("tap")
-        self.assertGreaterEqual(len(at.get("vega_lite_chart")), 5)
+        bridges = [m.value for m in at.markdown if 'class="ddc"' in m.value and "<svg" in m.value]   # charts.py
+        self.assertGreaterEqual(len(bridges), 5)       # overview: net debt, EBITDA; deal view: IFRS 16, net debt, cash
+        self.assertTrue(any("Leases take net debt from −€43m to €2,293m" in b for b in bridges))
+        self.assertGreaterEqual(len(at.get("vega_lite_chart")), 1)                # working capital
         self.assertIn("Key insights", page_text(at))
 
 

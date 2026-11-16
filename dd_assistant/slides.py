@@ -14,10 +14,23 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .deal import cash_steps, ifrs16_steps, net_debt_steps, qoe_steps
+from . import charts
+from .deal import cash_steps, ifrs16_steps
 from .rules import fy
 
-NAVY, BLUE, GREY, INK, MUTED = "0B3D91", "5B7FC4", "A9B6CC", "1B2333", "5B6474"
+NAVY, BLUE, GREY, INK, MUTED = "0B3D91", "5B7FC4", "8B949E", "1B2333", "5B6474"
+
+
+def charts_colour(c) -> str:
+    """The colour of a column on a white slide: grey totals, red worse and green better for the buyer;
+    the items other than the largest at 45%, blended with white (PowerPoint has no per-bar opacity)."""
+    if c.kind == "total":
+        return charts.GREY.lstrip("#").upper()
+    full = (charts.RED if c.effect == "worse" else charts.GREEN).lstrip("#")
+    if c.lead:
+        return full.upper()
+    rgb_ = [int(full[i:i + 2], 16) for i in (0, 2, 4)]
+    return "".join(f"{round(v * charts.FADE + 255 * (1 - charts.FADE)):02X}" for v in rgb_)
 # shorter labels under the bars of a chart (the figures and their meaning do not change)
 SHORT = {"Tax, interest and other operating items": "Tax, interest, other",
          "Working capital, tax and other operating items": "Working capital, tax, other",
@@ -160,20 +173,21 @@ def write_slides(a, path, company: str | None = None, source: str = "") -> None:
                 cell.fill.fore_color.rgb = rgb(NAVY if r == 0 else "FFFFFF" if r % 2 else "F4F6FA")
         return shape
 
-    def waterfall(s, x, y, w, h, steps):
-        """A native stacked column chart: an invisible base, then the bar; each bar's value is in its label."""
-        if len(steps) < 2:
+    def waterfall(s, x, y, w, h, bridge):
+        """A native stacked column chart drawn from the model of dd_assistant/charts.py (the same columns, grouping
+        and colours as the site and the app): an invisible base, then the bar; each bar's value is in its label."""
+        if bridge is None:
             text(s, x, y + 1, w, 1, "Not available: a figure this bridge needs is missing.", 14, False, MUTED)
             return None
         cats, base, up, colours, level = [], [], [], [], 0.0
-        down = {NAVY: [], BLUE: [], GREY: []}     # the part of a bar below zero, one series per colour
-        for label, value, kind in steps:
+        palette = [charts_colour(c) for c in bridge.columns]
+        down = {c: [] for c in dict.fromkeys(palette)}     # the part of a bar below zero, one series per colour
+        for c, colour in zip(bridge.columns, palette):
+            value, kind = c.value, c.kind
             lo, hi = (min(0.0, value), max(0.0, value)) if kind == "total" else (min(level, level + value),
                                                                                max(level, level + value))
             level = value if kind == "total" else level + value
-            colour = NAVY if kind == "total" else BLUE if value > 0 else GREY
-            cats.append(f"{SHORT.get(label, label)}\n"
-                        f"{f(value) if kind == 'total' else ('+' if value > 0 else '') + f(value)}")
+            cats.append(f"{c.short}\n{bridge.text(a.money, c)}")
             below = 0.0
             if lo >= 0:
                 base.append(lo), up.append(hi - lo)
@@ -183,21 +197,21 @@ def write_slides(a, path, company: str | None = None, source: str = "") -> None:
             else:
                 base.append(0.0), up.append(hi)
                 below = lo
-            for c in down:
-                down[c].append(below if c == colour else 0.0)
+            for k in down:
+                down[k].append(below if k == colour else 0.0)
             colours.append(colour)
         data = CategoryChartData()
         data.categories = cats
         data.add_series("base", base)
         data.add_series("up", up)
-        for c in down:
-            data.add_series(f"down {c}", down[c])
+        for k in down:
+            data.add_series(f"down {k}", down[k])
         chart = s.shapes.add_chart(XL_CHART_TYPE.COLUMN_STACKED, Inches(x), Inches(y), Inches(w), Inches(h),
                                    data).chart
         chart.has_legend = False
         chart.has_title = False
         plot = chart.plots[0]
-        plot.gap_width, plot.overlap = 55, 100
+        plot.gap_width, plot.overlap = 67, 100        # bars about 60% of each column slot, as on the site
         hidden = plot.series[0]
         hidden.invert_if_negative = False
         hidden.format.fill.background()
@@ -212,10 +226,12 @@ def write_slides(a, path, company: str | None = None, source: str = "") -> None:
             series.format.fill.fore_color.rgb = rgb(colour)
         chart.value_axis.visible = False
         chart.value_axis.has_major_gridlines = False
-        chart.category_axis.tick_labels.font.size = Pt(12 if len(steps) <= 6 else 10)
+        chart.category_axis.tick_labels.font.size = Pt(12 if len(cats) <= 6 else 11)
         chart.category_axis.tick_labels.font.name = FONT
         chart.category_axis.tick_label_position = XL_TICK_LABEL_POSITION.LOW   # below the bars, also when negative
         chart.category_axis.format.line.color.rgb = rgb(GREY)
+        if bridge.note:
+            text(s, x, y + h - 0.05, w, 0.3, bridge.note, 10, False, MUTED)
         return chart
 
     # 1 · cover
@@ -264,8 +280,7 @@ def write_slides(a, path, company: str | None = None, source: str = "") -> None:
 
     # 4 · quality of earnings
     s = slide(4, head[4])
-    steps = qoe_steps(v, L)
-    waterfall(s, 0.6, 1.75, 12.1, 4.5, ifrs16_steps(v, d, L) if len(steps) <= 2 and ifrs16_steps(v, d, L) else steps)
+    waterfall(s, 0.6, 1.75, 12.1, 4.5, charts.ebitda(a))
     r04 = next((r for r in a.findings if r.rule.id == "R04"), None)
     note = (f"Other income is {_pct(m['or_ebitda'].get(L))} of EBITDA (R04). " + (r04.evidence_text or "")) if r04 else \
         "No diligence adjustment was identified from the accounts alone: adjustments need the ledger and the contracts."
@@ -273,7 +288,7 @@ def write_slides(a, path, company: str | None = None, source: str = "") -> None:
 
     # 5 · net debt
     s = slide(5, head[5])
-    waterfall(s, 0.6, 1.75, 8.1, 4.9, net_debt_steps(v, B))
+    waterfall(s, 0.6, 1.75, 8.1, 4.9, charts.net_debt(a))
     assess = [i for i in a.issues if i.kind == "To assess"][:5]
     text(s, 8.9, 1.8, 3.8, 0.4, "To assess (not in adjusted net debt)", 13, True, NAVY)
     text(s, 8.9, 2.25, 3.8, 4.3, [f"{i.title}: {f(i.amount)}" + (f" ({i.evidence_state} by {i.evidence_note})"
@@ -309,7 +324,7 @@ def write_slides(a, path, company: str | None = None, source: str = "") -> None:
 
     # 7 · cash flow
     s = slide(7, head[7])
-    waterfall(s, 0.6, 1.75, 12.1, 4.6, cash_steps(v, d, m, L))
+    waterfall(s, 0.6, 1.75, 12.1, 4.6, charts.cash(a))
     text(s, 0.6, 6.35, 12.1, 0.55, f"{fy(L)}, {a.money.unit}. The change in working capital comes from the two balance "
                                    "sheets; the remainder to the published operating cash flow is shown as its own bar.",
          11, False, MUTED)
