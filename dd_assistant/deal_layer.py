@@ -179,6 +179,38 @@ def valuation_impact(a) -> ValuationImpact:
                            nwc.amount if nwc else 0.0)
 
 
+@dataclass
+class EquityView:
+    """Illustrative, not a valuation: what the chosen multiple means in euros. EV = multiple × reported EBITDA of the
+    latest year; equity value = EV − adjusted net debt; the impact of the findings at that multiple, in euros and as a
+    share of that equity value."""
+    multiple: float
+    ebitda: float | None
+    ev: float | None
+    net_debt: float | None
+    equity: float | None
+    impact: float
+    share: float | None          # impact ÷ equity value (None when equity value is not positive)
+    depends: bool                # False: no EBITDA adjustment, so the impact does not move with the multiple
+
+
+def equity_view(a, multiple: float) -> EquityView:
+    vi = valuation_impact(a)
+    L, B = a.view.pl_years[-1], a.view.bs_years[-1]
+    ebitda = a.metrics["ebitda"].get(L)
+    ebitda = ebitda if isinstance(ebitda, (int, float)) else None
+    nd = a.view.net_debt_adjusted.get(B)
+    ev = multiple * ebitda if ebitda is not None else None
+    equity = ev - nd if ev is not None and nd is not None else None
+    impact = vi.at(multiple)
+    share = impact / equity if equity and equity > 0 else None
+    return EquityView(multiple, ebitda, ev, nd, equity, impact, share, bool(vi.ebitda))
+
+
+def pct(x: float | None) -> str:
+    return "n/a" if x is None else f"{x:.1%}".replace("-", "−")
+
+
 def impact_steps(vi: ValuationImpact, multiple: float) -> list[tuple[str, float, str]]:
     """The bridge for the chart, from zero: EBITDA adjustments × multiple, each diligence net debt item, the total.
     Standard EV-to-equity items and working capital against the peg are not steps: they are not findings."""

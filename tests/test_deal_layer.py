@@ -240,6 +240,28 @@ class ClosingTheGapTest(unittest.TestCase):
         self.assertEqual([k for k, *_ in tap.closers], ["R07", "R28", "R30"])
 
 
+class EquityViewTest(unittest.TestCase):
+    """The multiple moves numbers: EV, equity value and the impact as a share of equity value."""
+
+    def test_multiple_moves_ev_equity_and_share(self):
+        for name in REAL:
+            a = company(name)
+            six, ten = dl.equity_view(a, 6), dl.equity_view(a, 10)
+            self.assertAlmostEqual(ten.ev - six.ev, 4 * six.ebitda, delta=1)
+            self.assertAlmostEqual(six.equity, six.ev - six.net_debt, delta=1)
+            self.assertNotEqual(six.share, ten.share)
+            self.assertEqual(six.impact, ten.impact)                        # no EBITDA adjustment outside-in
+            self.assertFalse(six.depends)
+        duriva = dl.equity_view(company("duriva"), 6)
+        self.assertTrue(duriva.depends)
+        self.assertNotEqual(duriva.impact, dl.equity_view(company("duriva"), 10).impact)
+
+    def test_tap_at_eight(self):
+        e = dl.equity_view(company("tap"), 8)
+        self.assertAlmostEqual(e.impact, -(173154 + 3873), delta=2)
+        self.assertAlmostEqual(e.share, e.impact / (8 * e.ebitda - e.net_debt))
+
+
 class AreasOpenItemsCoverageTest(unittest.TestCase):
     def test_areas_and_referrals(self):
         for name in ALL:

@@ -350,6 +350,20 @@ def impact(c, a, layer) -> None:
     if b:
         st.markdown(charts.svg(b, a.money), unsafe_allow_html=True)
     multiple = st.slider("Illustrative multiple (x EBITDA)", 4.0, 12.0, 8.0, 0.5, key="multiple")
+    e = dl.equity_view(a, multiple)
+    impact_colour = charts.RED if e.impact < 0 else charts.GREEN if e.impact > 0 else charts.TEXT
+    cards = [(f"EV at {multiple:g}x", money(a, e.ev), f"{multiple:g} × reported EBITDA of {money(a, e.ebitda)}",
+              charts.TEXT),
+             ("Adjusted net debt", money(a, e.net_debt), "deducted from EV", charts.TEXT),
+             ("Equity value", money(a, e.equity), "EV − adjusted net debt", charts.TEXT),
+             ("Impact of the findings", money(a, e.impact), f"{dl.pct(e.share)} of equity value", impact_colour)]
+    st.markdown(f'<div class="sec">{E(dl.ILLUSTRATIVE)}</div><div class="kpis">' + "".join(
+        f'<div class="kpi" style="border-top-color:{col if col != charts.TEXT else charts.LINE}"><div class="l">'
+        f'{E(l)}</div><div class="v" style="color:{col}">{E(v_)}</div><div class="s">{E(src)}</div></div>'
+        for l, v_, src, col in cards) + "</div>", unsafe_allow_html=True)
+    if not e.depends:
+        st.caption("No EBITDA adjustment: the impact of the findings does not depend on the multiple; only EV and "
+                   "equity value move.")
     v = charts.valuation(a, multiple)
     if v:
         st.markdown(charts.svg(v, a.money), unsafe_allow_html=True)

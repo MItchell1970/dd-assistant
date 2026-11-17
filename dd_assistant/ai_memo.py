@@ -176,6 +176,17 @@ def _deal_layer_section(a) -> list[str]:
                   + [["Standard EV-to-equity items (not counted)", fmt_value(vi.standard_effect)],
                      ["Standard EV-to-equity items, as a liability (not counted)", fmt_value(-vi.standard_effect)],
                      ["Working capital against the indicative peg (not counted)", fmt_value(vi.nwc_effect)]])
+    from .deal_layer import equity_view, pct
+    rows = []
+    for m in MULTIPLES:
+        e = equity_view(a, m)
+        rows.append([f"{m:g}x", fmt_value(e.ebitda), fmt_value(e.ev), fmt_value(e.net_debt), fmt_value(e.equity),
+                     fmt_value(e.impact), pct(e.share)])
+    out += ["", f"Illustrative equity bridge ({ILLUSTRATIVE}): EV = multiple × reported EBITDA of the latest year; "
+                "equity value = EV − adjusted net debt; impact of the findings in euros and as a share of that equity "
+                "value."]
+    out += _table(["Multiple", "Reported EBITDA", "EV", "Adjusted net debt", "Equity value", "Impact of findings",
+                   "Impact, % of equity value"], rows)
     out += ["", "Top deal issues (by amount at stake) and the typical protection:"]
     out += _table(["#", "Issue", "Area", "Amount at stake", "Protection or next step", "When"],
                   [[d.rank, d.title, d.area or "n/a", fmt_value(d.amount) if d.amount is not None else "n/a",
