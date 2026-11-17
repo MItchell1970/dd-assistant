@@ -229,7 +229,8 @@ def cash(a, year: int | None = None) -> Bridge | None:
     else:
         title = f"Of {m(ebitda)} of EBITDA, {m(fcf)} becomes free cash flow"
     conv = a.metrics["conv"].get(L) if "conv" in a.metrics else None
-    annotation = f"Cash conversion {conv * 100:.1f}%".replace("-", "−") if conv is not None else ""
+    annotation = (f"Cash conversion {conv * 100:.1f}% (operating cash flow ÷ EBITDA)".replace("-", "−")
+                  if conv is not None else "")
     return make(steps, a.money, "cash", f"From EBITDA to free cash flow, {fy(L)} ({_unit(a.money)})", title,
                 annotation)
 
@@ -317,6 +318,7 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}}
 .ddc-ann{{display:none;font-size:.85rem;font-weight:600;color:{TEXT};margin:-6px 0 12px}}
 @media (max-width:700px){{.ddc-ann{{display:block}}.ddc svg text.ann{{display:none}}}}
 .ddc-ann.always{{display:block}}
+.ddc-round{{color:{AMBER}}}
 .ddc-narrow{{display:none}}
 @media (max-width:760px){{.ddc-wide{{display:none}}.ddc-narrow{{display:block}}}}
 """
@@ -361,20 +363,18 @@ def svg(b: Bridge, money, check: str = "") -> str:
     W = 26 + len(rows) * 74 + 6
     wide_note = len(b.annotation) * 7 > W - 26     # too long for the chart: under the title, at every width
     out = [f'<div class="ddc"{f" data-check={chr(34)}{check}{chr(34)}" if check else ""}>'
-           f'<p class="ddc-title">{E(b.title)}</p><p class="ddc-sub">{E(b.subtitle)}</p>'
+           f'<p class="ddc-title">{E(b.title)}</p><p class="ddc-sub">{E(b.subtitle)}'
+           + (f' · <span class="ddc-round" data-nocheck="1">{E(b.note)}</span>' if b.note else "") + "</p>"
            # on a narrow screen the annotation sits under the title, readable without sliding the chart
            + (f'<p class="ddc-ann{" always" if wide_note else ""}">{E(b.annotation)}</p>' if b.annotation else "")]
     # two drawings of the same bridge: wide (the full width of a desktop card) and narrow (phones, slides sideways)
     out += _plot(b, money, rows, "wide", wide_note)
     out += _plot(b, money, rows, "narrow", wide_note)
-    worse, better = {"net debt": ("Increases net debt", "Reduces net debt"), "cash": ("Reduces cash", "Adds cash"),
-                     "value": ("Reduces equity value", "Adds equity value")}.get(b.kind, ("Reduces EBITDA", "Adds EBITDA"))
-    out.append(f'<div class="ddc-foot"><span><i style="background:{GREY}"></i>Total</span>'
-               f'<span><i style="background:{RED}"></i>{worse} (worse for the buyer)</span>'
-               f'<span><i style="background:{GREEN}"></i>{better}</span>'
-               + (f'<span><i style="background:{GREY};opacity:.55"></i>Standard item, not a finding</span>'
-                  if any(c.effect == "standard" for c in cols) else "")
-               + (f'<span data-nocheck="1">{E(b.note)}</span>' if b.note else "") + "</div></div>")
+    out.append(f'<div class="ddc-foot"><span><i style="background:{RED}"></i>worse for the buyer</span>'
+               f'<span><i style="background:{GREEN}"></i>better for the buyer</span>'
+               f'<span><i style="background:{GREY}"></i>totals'
+               + (", and standard items that are not findings" if any(c.effect == "standard" for c in cols) else "")
+               + "</span></div></div>")
     return "".join(out)
 
 

@@ -158,7 +158,7 @@ CASES = (
          prior="Corticeira_Amorim_2024_published.xlsx", notes="Corticeira_Amorim_2025_notes.xlsx",
          page_of={"Resultados": "income statement", "Posição financeira": "statement of financial position",
                   "Fluxos de caixa": "cash flow statement", "Nota 19 Caixa": "note 19"},
-         big="155.3%", big_label="cash conversion, as stock was released"),
+         big="155.3%", big_label="cash conversion (operating cash flow ÷ EBITDA), as stock was released"),
 )
 CASE_BY_SLUG = {c.slug: c for c in CASES}
 

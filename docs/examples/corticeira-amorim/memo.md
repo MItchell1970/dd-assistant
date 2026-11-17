@@ -11,7 +11,7 @@ Preliminary buy-side review of Corticeira Amorim, a Portuguese listed group in m
 ### Executive summary
 
 1. **Revenue and EBITDA have fallen for two years (no rule fired).** Revenue was €985,467k in FY23, €939,061k in FY24 and €860,967k in FY25. EBITDA fell from €176,985k in FY23 to €140,983k in FY25.
-2. **Cash generation swung from very weak to very strong (R10).** Cash conversion was 14.9%, 76.7% and 155.3% in the three years, as inventories fell. Over the three years together it was 77.0%.
+2. **Cash generation swung from very weak to very strong (R10).** Cash conversion (operating cash flow ÷ EBITDA) was 14.9%, 76.7% and 155.3% in the three years, as inventories fell. Over the three years together it was 77.0%.
 3. **Debt was cut and refinanced, and note 22 shows how (R11).** Debt due within 12 months was 67.6% in FY23, 56.3% in FY24 and 28.7% in FY25. Adjusted net debt fell to €83,638k.
 4. **Note 24 shows that "other financial liabilities" are mostly operating payables.** Of €43,264k current in 2025, the largest lines are sundry creditors, taxes and VAT. Repayable grants are the debt-like part.
 5. **Other income is only partly explained, and investment runs below depreciation (R04, R24).** Of other income of €17,421k in FY25, note 30 leaves €7,051k as "Outros". Seven key documents are missing (R18).
@@ -30,17 +30,21 @@ Preliminary buy-side review of Corticeira Amorim, a Portuguese listed group in m
 | Adjusted net debt | 248,013 | 203,909 | 83,638 |
 | Net working capital | 557,763 | 543,919 | 443,570 |
 
-### Key issues by amount at stake
+### Key deal issues of FY25, by amount at stake
 
 Materiality is 5% of reported EBITDA for earnings items (€7,049k) and 1% of revenue for balance sheet items (€8,610k). The deal implication is the typical treatment. The deal team and its lawyers decide.
 
 | Issue | Amount at stake | Deal implication | Evidence from the notes |
 | --- | --- | --- | --- |
-| R11 · Short-term debt concentration (finding) | €153,270k in FY24, borrowings due within 12 months | Further diligence | Explained by note 22 |
-| R10 · Weak EBITDA-to-cash conversion (finding) | €97,594k in FY23, operating cash short of the threshold share of EBITDA | Further diligence | Open |
 | Other financial liabilities (to assess) | €48,897k of other financial liabilities at FY25 | Further diligence | Explained by note 24 |
 | Other financial assets (to assess) | €39,262k of other financial assets at FY25 | Further diligence | Explained by note 14 |
 | R04 · Material other income within EBITDA (finding) | €17,421k in FY25, other income within EBITDA | Price: EBITDA | Partly explained by note 30 |
+| R24 · Capex below depreciation (finding) | €17,111k in FY25, capex short of depreciation | Post-deal | Open |
+| Income tax payable (net debt item) | €3,981k of income tax payable at FY25 | Price: net debt | Open |
+
+Historical (last fired in an earlier year), not key issues of FY25: R11 FY24, R10 FY23.
+
+Already in the price, not findings: Net working capital against the indicative peg −€71,514k.
 
 ## Page 2
 

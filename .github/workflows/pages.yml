@@ -1,4 +1,4 @@
-# Publishes the static site (site/) on GitHub Pages at every push to main that touches it.
+# Publishes the static site (site/) on GitHub Pages at every push to main.
 # The pages are built and committed on the author's PC (python scripts/build_site.py); here the downloads and
 # images are only copied next to them (standard library, no engine), then the folder is published.
 name: Publish the static site
@@ -6,7 +6,6 @@ name: Publish the static site
 on:
   push:
     branches: [main]
-    paths: ["site/**", "docs/examples/**", "docs/images/**", "scripts/build_site.py", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:

@@ -31,17 +31,21 @@ Preliminary buy-side review of TAP, a Portuguese airline group, in the transport
 | Adjusted net debt | 2,629 | 2,536 | 2,293 |
 | Net working capital | -195 | -366 | -598 |
 
-### Key issues by amount at stake
+### Key deal issues of FY25, by amount at stake
 
 Materiality is 5% of reported EBITDA for earnings items (€36m) and 1% of revenue for balance sheet items (€43m). The deal implication is the typical treatment. The deal team and its lawyers decide.
 
 | Issue | Amount at stake | Deal implication | Evidence from the notes |
 | --- | --- | --- | --- |
-| Lease liabilities (net debt item) | €2,158m of lease liabilities at FY25 | Price: net debt | Explained by note 19 (p.207) |
-| Deferred revenue and customer advances (to assess) | €711m of deferred revenue and customer advances at FY25 | Further diligence | Open |
 | R28 · Large 'other' working capital line (finding) | €631m in FY25, largest 'other' current line | Price: working capital / peg | Open |
-| R11 · Short-term debt concentration (finding) | €450m in FY23, borrowings due within 12 months | Further diligence | Partly explained by note 19 |
 | Provisions (to assess) | €415m of provisions at FY25 | Further diligence | Explained by note 18 (pp.204–205) |
+| R22 · Low interest cover (finding) | €196m in FY25, interest expense | Further diligence | Explained by note 19 (pp.205–206) |
+| Post-employment benefit obligations (net debt item) | €173m of post-employment benefit obligations at FY25 | Price: net debt | Open |
+| R07 · Receivables growing ahead of revenue (finding) | €63m in FY25, receivables above the level implied by revenue growth | Price: working capital / peg | Open |
+
+Historical (last fired in an earlier year), not key issues of FY25: R11 FY23, R24 FY24.
+
+Already in the price, not findings: Lease liabilities €2,158m; Deferred revenue and customer advances €711m; Net working capital against the indicative peg −€211m.
 
 ## Page 2
 

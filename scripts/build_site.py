@@ -472,7 +472,8 @@ def index(cases: list) -> str:
 <div class="score" style="color:{colour};margin-top:4px">{layer.score.score}<span> / 100</span></div>
 <p class="small" style="color:{colour};margin:4px 0 0">{E(word)}</p>{score_bar(layer.score, colour)}
 <p class="kv"><span>Adjusted net debt, {E(fy(B))}</span><b>{E(a.money.fmt(a.view.net_debt_adjusted[B]).replace("-€", "−€"))}</b></p>
-<p class="action">{E(b.title) if b else ""}</p>
+<p class="action">{E(dl.closing_text(layer.score))}</p>
+<p class="muted small">{E("; ".join(f"{k} · {t}" for k, t, _ in layer.score.closers))}</p>
 <a class="more" href="{PAGES[c.slug]}">The case →</a>
 </article>""")
     limits = " · ".join(demo.LIMITS)
@@ -501,7 +502,8 @@ def index(cases: list) -> str:
 <p class="limits">Limits: {E(limits)}.</p>
 </div></section>"""
     return page(f"{NAME}: financial due diligence on published accounts",
-                f"{demo.TAGLINE}. Three real European companies, every figure traced to its source.", body)
+                "Three real European companies, TAP, Toyota Caetano and Corticeira Amorim: red flags, net debt and "
+                "what is still open in the diligence, from their published accounts.", body)
 
 
 def company(c, a) -> str:

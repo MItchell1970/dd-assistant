@@ -30,17 +30,21 @@ Preliminary buy-side review of Toyota Caetano Portugal, a listed Portuguese auto
 | Adjusted net debt | 92,945 | 57,542 | 78,039 |
 | Net working capital | 88,131 | 61,710 | 101,201 |
 
-### Key issues by amount at stake
+### Key deal issues of FY25, by amount at stake
 
 Materiality is 5% of reported EBITDA for earnings items (€3,309k) and 1% of revenue for balance sheet items (€6,670k). The deal implication is the typical treatment. The deal team and its lawyers decide.
 
 | Issue | Amount at stake | Deal implication | Evidence from the notes |
 | --- | --- | --- | --- |
 | R28 · Large 'other' working capital line (finding) | €143,131k in FY25, largest 'other' current line | Price: working capital / peg | Explained by note 22 |
-| R11 · Short-term debt concentration (finding) | €80,796k in FY23, borrowings due within 12 months | Further diligence | Partly explained by note 2.6 |
 | R10 · Weak EBITDA-to-cash conversion (finding) | €50,318k in FY25, operating cash short of the threshold share of EBITDA | Further diligence | Open |
 | R04 · Material other income within EBITDA (finding) | €40,036k in FY25, other income within EBITDA | Price: EBITDA | Explained by note 33 |
 | R09 · Inventory build ahead of COGS (finding) | €28,149k in FY25, inventory above the level implied by cost of sales growth | Price: working capital / peg | Open |
+| R24 · Capex below depreciation (finding) | €12,638k in FY25, capex short of depreciation | Post-deal | Partly explained by note 3 |
+
+Historical (last fired in an earlier year), not key issues of FY25: R11 FY23, R29 FY23, R27 FY24, R25 FY23.
+
+Already in the price, not findings: Net working capital against the indicative peg €17,520k.
 
 ## Page 2
 

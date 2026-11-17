@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DD Assistant: financial due diligence on published accounts</title>
-<meta name="description" content="A first-pass financial due diligence on published accounts. Every figure traced to its source. Three real European companies, every figure traced to its source.">
+<meta name="description" content="Three real European companies, TAP, Toyota Caetano and Corticeira Amorim: red flags, net debt and what is still open in the diligence, from their published accounts.">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0d1117">
 <link rel="canonical" href="https://mitchell1970.github.io/dd-assistant/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="DD Assistant">
 <meta property="og:title" content="DD Assistant: financial due diligence on published accounts">
-<meta property="og:description" content="A first-pass financial due diligence on published accounts. Every figure traced to its source. Three real European companies, every figure traced to its source.">
+<meta property="og:description" content="Three real European companies, TAP, Toyota Caetano and Corticeira Amorim: red flags, net debt and what is still open in the diligence, from their published accounts.">
 <meta property="og:url" content="https://mitchell1970.github.io/dd-assistant/">
 <meta property="og:image" content="https://mitchell1970.github.io/dd-assistant/img/social-preview.png">
 <meta property="og:image:width" content="1280">
@@ -222,6 +222,7 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .ddc-ann{display:none;font-size:.85rem;font-weight:600;color:#e6edf3;margin:-6px 0 12px}
 @media (max-width:700px){.ddc-ann{display:block}.ddc svg text.ann{display:none}}
 .ddc-ann.always{display:block}
+.ddc-round{color:#d29922}
 .ddc-narrow{display:none}
 @media (max-width:760px){.ddc-wide{display:none}.ddc-narrow{display:block}}
 </style>
@@ -246,7 +247,8 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 <div class="score" style="color:#d29922;margin-top:4px">40<span> / 100</span></div>
 <p class="small" style="color:#d29922;margin:4px 0 0">Several open points</p><div class="sbar"><i style="width:16.7%;background:#d29922ff" title="Working capital"></i><i style="width:13.3%;background:#d29922cc" title="Net debt"></i><i style="width:6.7%;background:#d2992299" title="Quality of earnings"></i><i style="width:3.3%;background:#d2992277" title="Tax"></i></div>
 <p class="kv"><span>Adjusted net debt, FY25</span><b>€2,293m</b></p>
-<p class="action">Leases, a standard item, explain €2,158m of TAP&#x27;s €2,293m adjusted net debt; diligence adds €177m</p>
+<p class="action">Answer these 3: 40 → 17</p>
+<p class="muted small">R07 · Receivables growing ahead of revenue; R28 · Large &#x27;other&#x27; working capital line; R30 · Comparatives restated</p>
 <a class="more" href="tap.html">The case →</a>
 </article><article class="case" data-check="toyota-caetano" style="border-top:3px solid #d29922">
 <p class="co">Toyota Caetano Portugal</p>
@@ -254,7 +256,8 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 <div class="score" style="color:#d29922;margin-top:4px">35<span> / 100</span></div>
 <p class="small" style="color:#d29922;margin:4px 0 0">Several open points</p><div class="sbar"><i style="width:15.0%;background:#d29922ff" title="Cash flow"></i><i style="width:10.0%;background:#d29922cc" title="Working capital"></i><i style="width:5.0%;background:#d2992299" title="Quality of earnings"></i><i style="width:5.0%;background:#d2992277" title="Net debt"></i></div>
 <p class="kv"><span>Adjusted net debt, FY25</span><b>€78,039k</b></p>
-<p class="action">Tax payable takes net debt from €76,532k to €78,039k</p>
+<p class="action">Answer these 3: 35 → 13</p>
+<p class="muted small">R10 · Weak EBITDA-to-cash conversion; R09 · Inventory build ahead of COGS; R04 · Material other income within EBITDA</p>
 <a class="more" href="toyota.html">The case →</a>
 </article><article class="case" data-check="corticeira-amorim" style="border-top:3px solid #3fb950">
 <p class="co">Corticeira Amorim</p>
@@ -262,7 +265,8 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 <div class="score" style="color:#3fb950;margin-top:4px">21<span> / 100</span></div>
 <p class="small" style="color:#3fb950;margin:4px 0 0">Few open points</p><div class="sbar"><i style="width:9.2%;background:#3fb950ff" title="Net debt"></i><i style="width:6.7%;background:#3fb950cc" title="Cash flow"></i><i style="width:5.0%;background:#3fb95099" title="Quality of earnings"></i></div>
 <p class="kv"><span>Adjusted net debt, FY25</span><b>€83,638k</b></p>
-<p class="action">Tax payable takes net debt from €75,859k to €83,638k</p>
+<p class="action">Answer these 3: 21 → 6</p>
+<p class="muted small">R24 · Capex below depreciation; R04 · Material other income within EBITDA; ND: Other financial liabilities · Other financial liabilities</p>
 <a class="more" href="amorim.html">The case →</a>
 </article></div>
 <div class="how3">
@@ -273,7 +277,7 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 </div></section>
 <section id="verified"><div class="wrap">
 <p class="eyebrow">How it is verified · every figure counted by the code when this page was built</p>
-<div class="vgrid"><div class="vstat"><div class="n">317</div><p class="t">automated tests, all passing</p><code>python -m unittest</code></div><div class="vstat"><div class="n">30</div><p class="t">rules, each with its threshold, source and plain-language reason</p><code>python -m dd_assistant --rules</code></div><div class="vstat"><div class="n">100%</div><p class="t">of the 123 lines read carry their source cell, page or tag</p><code>CompanyData.sources</code></div><div class="vstat"><div class="n">415</div><p class="t">memo figures checked against the material, 0 without a source</p><code>docs/examples/*/memo_check.md</code></div><div class="vstat"><div class="n">10 of 10</div><p class="t">published subtotals rebuilt from the lines read</p><code>tests/test_real_companies.py</code></div><div class="vstat"><div class="n">48 of 49</div><p class="t">planted distortions detected, one at a time</p><code>docs/DETECTION.md</code><p class="miss"><a href="https://github.com/MItchell1970/dd-assistant/blob/main/docs/DETECTION.md">1 missed: TAP, M18 (published)</a></p></div><div class="vstat"><div class="n">0</div><p class="t">false alarms on the clean company (Velmora)</p><code>tests/test_clean_company.py</code></div><div class="vstat"><div class="n">27 of 27</div><p class="t">databook totals: Excel recalculated = Python</p><code>databook Checks sheet · tests/test_databook.py</code></div></div>
+<div class="vgrid"><div class="vstat"><div class="n">317</div><p class="t">automated tests, all passing</p><code>python -m unittest</code></div><div class="vstat"><div class="n">30</div><p class="t">rules, each with its threshold, source and plain-language reason</p><code>python -m dd_assistant --rules</code></div><div class="vstat"><div class="n">100%</div><p class="t">of the 123 lines read carry their source cell, page or tag</p><code>CompanyData.sources</code></div><div class="vstat"><div class="n">414</div><p class="t">memo figures checked against the material, 0 without a source</p><code>docs/examples/*/memo_check.md</code></div><div class="vstat"><div class="n">10 of 10</div><p class="t">published subtotals rebuilt from the lines read</p><code>tests/test_real_companies.py</code></div><div class="vstat"><div class="n">48 of 49</div><p class="t">planted distortions detected, one at a time</p><code>docs/DETECTION.md</code><p class="miss"><a href="https://github.com/MItchell1970/dd-assistant/blob/main/docs/DETECTION.md">1 missed: TAP, M18 (published)</a></p></div><div class="vstat"><div class="n">0</div><p class="t">false alarms on the clean company (Velmora)</p><code>tests/test_clean_company.py</code></div><div class="vstat"><div class="n">27 of 27</div><p class="t">databook totals: Excel recalculated = Python</p><code>databook Checks sheet · tests/test_databook.py</code></div></div>
 <p class="limits">Limits: Annual accounts only (no monthly figures, LTM or budget) · Euros only · Financial due diligence only (no legal, tax, commercial or IT review) · A first pass for an analyst to review, not a conclusion.</p>
 </div></section>
 </main>

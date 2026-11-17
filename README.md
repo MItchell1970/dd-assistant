@@ -8,7 +8,7 @@
 [![Download the Excel](https://img.shields.io/badge/Download_the_Excel-TAP_databook-1d6b3e?style=for-the-badge)](https://github.com/MItchell1970/dd-assistant/raw/main/docs/examples/tap/databook.xlsx)
 [![See the code](https://img.shields.io/badge/See_the_code-this_repository-1b2333?style=for-the-badge)](#details)
 
-**Website:** <https://mitchell1970.github.io/dd-assistant/> (opens at once: the three cases, how it works, how it is verified) · **Interactive demo:** <https://dd-assistant-tickmark.streamlit.app> (may take a few seconds to wake up)
+**Website:** <https://mitchell1970.github.io/dd-assistant/> (opens at once: the three cases, how it works, how it is verified)
 
 [![The website's home page](docs/images/site-home.png)](https://mitchell1970.github.io/dd-assistant/)
 
