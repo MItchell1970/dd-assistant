@@ -1,4 +1,4 @@
-"""Review captures for docs/FASE5_DESIGN.md (section 6), with the layout criteria measured in the browser:
+"""Review captures for docs/FASE6_DESIGN.md (section 7), with the layout criteria measured in the browser:
 the tool (demo mode of app.py) for the three companies and its four views on TAP, and the static site.
 
 1. Start the tool:   $env:DD_DEMO=1; streamlit run app.py --server.port 8599
@@ -45,23 +45,35 @@ def main() -> None:
                 wide = page.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
                 page.screenshot(path=OUT / f"tool-{name}-{size}.png")
                 if size == "desktop":
-                    parts = {"band": page.evaluate(BOTTOM, ".band"), "kpis": page.evaluate(BOTTOM, ".kpi"),
+                    parts = {"hero": page.evaluate(BOTTOM, ".hero"), "kpis": page.evaluate(BOTTOM, ".kpi"),
                              "chips": page.evaluate(BOTTOM, "[class*='st-key-chip'] button"),
                              "top5": page.evaluate(BOTTOM, ".row:not(.h)")}
                     ok = all(0 < v <= h for v in parts.values())
-                    results.append(f"1 Summary without scroll ({name}): {'met' if ok else 'FAILED'} {parts}")
+                    results.append(f"2 Summary without scroll ({name}): {'met' if ok else 'FAILED'} {parts}")
+                    top = page.evaluate("Math.min(...[...document.querySelectorAll('[data-testid=stButtonGroup], "
+                                        ".brand')].map(e => e.getBoundingClientRect().top))")
+                    bar = page.evaluate("(() => { const h = document.querySelector('[data-testid=stHeader]'); "
+                                        "return !!h && getComputedStyle(h).display !== 'none' })()")
+                    results.append(f"1 Top readable ({name}): {'met' if top <= 32 and not bar else 'FAILED'} "
+                                   f"(first control at {top:.0f} px, Streamlit bar visible={bar})")
                 else:
                     first = page.evaluate(BOTTOM, ".kpi:first-child")
-                    score = page.evaluate(BOTTOM, ".band")
-                    ok = not wide and 0 < first <= h and 0 < score <= h
+                    score = page.evaluate("document.querySelector('.hero .big').getBoundingClientRect().top")
+                    ok = not wide and 0 < score <= 320
                     results.append(f"2 Phone ({name}): {'met' if ok else 'FAILED'} horizontal scroll={wide}, "
-                                   f"score bottom={score:.0f}, first KPI bottom={first:.0f}")
+                                   f"score top={score:.0f} (criterion: within 320 px)")
                 if name == "tap":
                     for view in VIEWS:
                         page.locator("[data-testid='stButtonGroup'] button", has_text=view).first.click()
                         page.wait_for_timeout(2500)
                         page.set_viewport_size({"width": w, "height": 3600})
                         page.wait_for_timeout(1500)
+                        if view == "Impact" and size == "desktop":
+                            ratio = page.evaluate("Math.min(...[...document.querySelectorAll('.ddc-wide svg')]"
+                                                  ".map(s => s.getBoundingClientRect().width / "
+                                                  "s.closest('.ddc').getBoundingClientRect().width))")
+                            results.append(f"8 Bridges fill the card: {'met' if ratio >= .9 else 'FAILED'} "
+                                           f"(narrowest {ratio:.0%} of its card)")
                         page.screenshot(path=OUT / f"tool-tap-{view.lower()}-{size}.png")
                         page.set_viewport_size({"width": w, "height": h})
                     page.locator("[data-testid='stButtonGroup'] button", has_text="Summary").first.click()

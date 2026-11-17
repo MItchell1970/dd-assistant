@@ -99,6 +99,8 @@ CSS = f"""<style>
   .row .p {{grid-column:2 / span 2}}
   .row.h {{display:none}}
   .meta {{text-align:left; line-height:20px}}
+  .st-key-view button {{padding:4px 9px; min-height:34px}}
+  .st-key-view div[data-testid="stButtonGroup"] {{flex-wrap:nowrap}}
 }}
 .title {{font-family:'Source Serif 4', Georgia, serif; font-size:22px; line-height:1.3; color:{charts.TEXT};
   font-weight:600; margin:2px 0 8px}}

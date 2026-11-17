@@ -242,3 +242,20 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - Os números de ordem (1 a 5) e as somas agrupadas ficam fora da verificação de números (`data-nocheck`), como no site.
 
 **Próximo passo exato:** aprovação do Bernardo para o push; depois, ativar o GitHub Pages se ainda não estiver (passos em `docs/DEPLOY.md`).
+
+## Fase 6 (docs/FASE6_DESIGN.md, 17 de novembro de 2026)
+
+**Feito** (três commits locais, sem push)
+- **Erro do R11 corrigido.** O 4.º top issue da TAP (R11, €450m, High) era de FY23; em FY25 a dívida a menos de um ano é 2,8%. Um achado que só disparou antes do último ano testado passa a *historical*: Low, com o ano, em Findings; fora do top, do score e das ações. Teste `CurrentYearTest` (falha se um achado antigo entrar no top 5 como atual). Também históricos: R24 da TAP, R11/R27/R29/R25 da Toyota, R11/R10 da Amorim, R13/R14 da Duriva.
+- **Scores novos:** TAP 40, Toyota 35, Amorim 21, Duriva 100, Velmora 0 (antes 54, 52, 32). Faixas: <25 *Few open points* (verde), 25–59 *Several* (âmbar), ≥60 *Many* (vermelho).
+- **Top deal issues:** só achados e itens de diligence do último ano, todos os High abertos primeiro, por montante. TAP: R28 · Provisions · R22 · Pensions · R07. Leasings, receita diferida da TAP e o NWC contra o peg passam a **"Already in the price"** (`deal_layer.in_price`).
+- **App:** barra do Streamlit escondida; barra própria (marca, TAP/Toyota/Amorim, FY, unidade, databook); herói com o score na cor da faixa, barra por área, frase simples e cada ponto por issue; KPIs coloridos (Leverage ↔ R21, FCF pelo sinal, Reading checks); legenda dos símbolos; linhas e cartões tingidos pela severidade; "blocked" passa a □; Evidence com ações agrupadas por ação e encaminhamentos por workstream; pontes a toda a largura (duas versões do SVG: larga e telemóvel).
+- **Site:** o mesmo herói; cartões tingidos; "Already in the price"; "How the score works" em 3 passos com a TAP; verificação com **8 números** contados no build, cada um com a prova (311 testes · 30 regras · 100% das 123 linhas com fonte · 415 números do memo, 0 sem fonte · 10 de 10 subtotais · 48 de 49 distorções · 0 alarmes na Velmora · 27 de 27 totais Excel = Python).
+- **Material do memo:** linhas do score com título, faixa, contagens, "Already in the price" e "Reading checks passed: N of M" (para o verificador conhecer cada número novo).
+- **Bug antigo encontrado:** o teste de palavras proibidas do site tinha caracteres de controlo em vez de `\b` e não verificava nada; corrigido (agora igual ao da ferramenta).
+
+**Critérios (secção 7), medidos por `scripts/demo_review.py`:** 1 topo legível (primeiro controlo aos 24 px, barra do Streamlit invisível) · 2 Summary sem scroll a 1440×900 nas três empresas (top 5 acaba aos 890 px); telemóvel sem scroll horizontal, score aos 257 px · 8 pontes ≥ 96% do cartão · 9 página de empresa 1958 px (< 3 ecrãs). Testes cobrem 3, 4, 6, 9 e 10. **311 testes OK.**
+
+**Desvios ao desenho:** o Impact ficou empilhado (não em duas colunas) para as pontes ocuparem a largura; os títulos dos gráficos não foram encurtados a 70 caracteres (são gerados pelo motor e verificados no memo).
+
+**Próximo passo exato:** aprovação do Bernardo para o push. Depois: reescrever os três memos de exemplo sem os achados históricos como key issues (GAPS).
