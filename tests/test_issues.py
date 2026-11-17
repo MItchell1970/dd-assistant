@@ -89,7 +89,7 @@ class MaterialityTest(unittest.TestCase):
         r07 = next(r for r in strict.findings if r.rule.id == "R07")
         self.assertEqual((r07.base_severity, r07.rule.severity), ("High", "Low"))
         zero = run("Duriva_data_room", materiality=issues.Materiality(0.0, 0.0))
-        self.assertFalse([r for r in zero.findings if r.note])
+        self.assertFalse([r for r in zero.findings if issues.BELOW in r.note])    # historical notes stay (R13, R14)
 
     def test_the_rules_themselves_do_not_change(self):
         """Materiality sits above the rules: evaluate() still gives the template's severities (parity)."""

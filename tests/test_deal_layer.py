@@ -156,7 +156,7 @@ class TopIssuesAndScoreTest(unittest.TestCase):
         pts = {key: p for key, _, _, p in dl.risk_score(a).lines}
         self.assertEqual(pts["R07"], 3.0)                                        # High, material, open
         self.assertEqual(pts["R22"], 1.0)                                        # Medium, material, explained by note 19
-        self.assertEqual(pts["R11"], 2.25)                                       # High, material, partly explained
+        self.assertNotIn("R11", pts)                                             # historical (FY23 only): not open today
         self.assertEqual(pts["ND: Assets held for sale"], 1.0)                   # to classify, below materiality
         self.assertEqual(pts["ND: Provisions"], 1.0)                             # to classify, explained by note 18
         self.assertNotIn("ND: Lease liabilities", pts)
@@ -167,6 +167,35 @@ class TopIssuesAndScoreTest(unittest.TestCase):
                 i = issues[key]
                 self.assertAlmostEqual(p, dl.WEIGHT[i.severity or dl.ITEM_SEVERITY] * dl.FACTOR[i.material]
                                        * dl.EVIDENCE.get(i.evidence_state, 1.0))
+
+
+class CurrentYearTest(unittest.TestCase):
+    """Phase 6: a finding that fired only in an earlier year is not a current issue. TAP R11 (short-term debt
+    concentration) fired in FY23 (69.3% of debt due within a year) and is 2.8% in FY25: it used to be the 4th top
+    issue, with €450m and High, as if it were today."""
+
+    def test_no_historical_finding_in_the_top_or_the_score(self):
+        for name in ALL:
+            a = company(name)
+            latest = {r.rule.id: max(y for y, v in r.values.items() if v is not None)
+                      for r in a.findings if any(v is not None for v in r.values.values())}
+            for d in dl.top_issues(a):
+                self.assertFalse(d.historical, (name, d.key))
+                if d.kind == "Finding":
+                    self.assertEqual(d.year, latest[d.key], (name, d.key))
+            historical = {i.key for i in a.issues if i.historical}
+            self.assertFalse(historical & {k for k, *_ in dl.risk_score(a).lines}, name)
+            self.assertFalse(any(x.startswith(tuple(f"{d.title}:" for d in dl.deal_issues(a) if d.historical))
+                                 for xs in dl.action_items(a).values() for x in xs), name)
+
+    def test_tap_r11_is_historical(self):
+        a = company("tap")
+        r11 = next(r for r in a.findings if r.rule.id == "R11")
+        self.assertTrue(r11.historical)
+        self.assertEqual((r11.amount_year, r11.rule.severity, r11.base_severity), (2023, "Low", "High"))
+        self.assertIn("historical: fired in FY23, not in FY25", r11.note)
+        self.assertNotIn("R11", [d.key for d in dl.top_issues(a)])
+        self.assertIn("R11", [d.key for d in dl.deal_issues(a) if d.historical])
 
 
 class AreasOpenItemsCoverageTest(unittest.TestCase):

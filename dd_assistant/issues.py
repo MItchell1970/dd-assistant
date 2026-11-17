@@ -174,6 +174,20 @@ def amount_at_stake(r: RuleResult, d: CompanyData, m: Metrics) -> tuple[float | 
     return float(amount), label, basis, y
 
 
+HISTORICAL = "historical"
+
+
+def is_historical(r: RuleResult) -> tuple[bool, int | None, int | None]:
+    """(historical, last year it fired, latest year it was tested on). A finding is historical when the rule could be
+    tested on a later year and did not fire there: the issue is in the past (e.g. TAP R11, 69.3% of debt due within a
+    year in FY23, 2.8% in FY25). A latest year without a value (n/a) does not clear it: it stays current."""
+    fired = [y for y, f in r.fires.items() if f == "Yes"]
+    tested = [y for y, v in r.values.items() if v is not None]
+    if not fired or not tested:
+        return False, max(fired) if fired else None, max(tested) if tested else None
+    return max(fired) < max(tested), max(fired), max(tested)
+
+
 def apply(results: list[RuleResult], d: CompanyData, m: Metrics, materiality: Materiality,
           implications: dict[str, str] | None = None, notes: list | None = None, money=None,
           raw: dict | None = None) -> list[RuleResult]:
@@ -193,13 +207,18 @@ def apply(results: list[RuleResult], d: CompanyData, m: Metrics, materiality: Ma
             note = f"{BELOW} ({materiality.pl_pct:.0%} of EBITDA)" if basis == "pl" else \
                 f"{BELOW} ({materiality.bs_pct:.0%} of revenue)"
             rule = replace(rule, severity="Low")
+        old, last, latest = is_historical(r)
+        if old:     # in the past: kept for the record, out of the score and the top issues
+            note = f"{HISTORICAL}: fired in {fy(last)}, not in {fy(latest)}" + (f"; {note}" if note else "")
+            rule = replace(rule, severity="Low")
         implication, treatment = TREATMENT.get(rule.id, ("Further diligence", ""))
         ev = notes_.for_finding(rule.id, year, notes, d, m, money, (raw or {}).get(year)) if notes else None
         out.append(replace(r, rule=rule, amount=amount, amount_label=label, amount_year=year, material=material,
                            note=note, base_severity=r.rule.severity,
                            implication=(implications or {}).get(rule.id, implication), treatment=treatment,
                            evidence_state=ev.state if ev else "", evidence_note=ev.note if ev else "",
-                           evidence_text=ev.text if ev else "", next_request=ev.request if ev else ""))
+                           evidence_text=ev.text if ev else "", next_request=ev.request if ev else "",
+                           historical=old))
     return out
 
 
@@ -231,6 +250,7 @@ class KeyIssue:
     evidence_state: str = ""      # open · partly explained · explained ('' = no notes were read)
     evidence_note: str = ""
     evidence_text: str = ""
+    historical: bool = False      # a finding that fired only in an earlier year: shown, not scored, not in the top
 
 
 def _bridge_items(view: DealView, year: int) -> list[tuple[str, str, float, str, list]]:
@@ -266,7 +286,7 @@ def key_issues(findings: list[RuleResult], view: DealView, d: CompanyData, m: Me
                     r.material, r.note, r.implication, r.treatment, r.rule.question,
                     r.next_request or r.rule.request,
                     r.evidence.split("Source: ")[-1] if "Source: " in r.evidence else "",
-                    r.evidence_state, r.evidence_note, r.evidence_text)
+                    r.evidence_state, r.evidence_note, r.evidence_text, r.historical)
            for r in findings]
     B = view.bs_years[-1]
     limit = materiality.thresholds(d, m)["bs"]

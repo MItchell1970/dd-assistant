@@ -198,6 +198,8 @@ class DealIssue:
     moment: str
     evidence: str
     request: str
+    year: int | None = None
+    historical: bool = False      # fired only in an earlier year: shown in Findings, out of the top, score and actions
 
 
 def _protection(i, tax_contingency: bool = True) -> str:
@@ -227,12 +229,13 @@ def deal_issues(a) -> list[DealIssue]:
         ev = (i.evidence_state + (f" by {i.evidence_note}" if i.evidence_note else "")) or "notes not read"
         out.append(DealIssue(n, i.key, i.title, i.kind, i.severity, i.amount, i.amount_label, _area_of_issue(i, by),
                              i.implication, _protection(i, tax), MOMENT.get(i.implication, "Before signing"), ev,
-                             i.request))
+                             i.request, i.year, getattr(i, "historical", False)))
     return out
 
 
 def top_issues(a, n: int = 5) -> list[DealIssue]:
-    return [d for d in deal_issues(a) if d.key not in INFORMATION_RULES][:n]
+    """The largest current issues: never a historical finding (one that fired only in an earlier year)."""
+    return [d for d in deal_issues(a) if d.key not in INFORMATION_RULES and not d.historical][:n]
 
 
 # ---------------------------------------------------------------- 3. risk score
@@ -252,6 +255,8 @@ def risk_score(a) -> RiskScore:
     by_rule = {r.rule.id: r for r in a.findings}
     lines, by_area = [], {x: 0.0 for x in AREAS}
     for i in a.issues:
+        if getattr(i, "historical", False):
+            continue                       # in the past: not an open issue today
         if i.kind == "Finding":
             r = by_rule.get(i.key)
             area, severity = area_of(i.key, r.rule.area if r else ""), i.severity
@@ -423,7 +428,7 @@ def action_items(a) -> dict[str, list[str]]:
     """What to do about each key issue, by moment of the deal (from its deal implication)."""
     out = {m: [] for m in MOMENTS}
     for d in deal_issues(a):
-        if d.key in INFORMATION_RULES:
+        if d.key in INFORMATION_RULES or d.historical:
             continue
         out[d.moment].append(f"{d.title}: {d.protection[:1].lower() + d.protection[1:]}")
     return out

@@ -552,6 +552,7 @@ class RuleResult:
     evidence_note: str = ""          # 'note 30' or 'note 25 (p.214)'
     evidence_text: str = ""          # one sentence with the note's own figures
     next_request: str = ""           # the next-level request, when the note answered the first one
+    historical: bool = False         # fired only before the latest year it was tested on (not a current issue)
 
     @property
     def alert(self) -> bool:
