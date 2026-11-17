@@ -225,6 +225,21 @@ class AlreadyInThePriceTest(unittest.TestCase):
         self.assertEqual(dl.risk_score(company("duriva")).band, ("Many open points", "red"))
 
 
+class ClosingTheGapTest(unittest.TestCase):
+    """What closes the gap: the three issues with the most points, and the score the same formula gives without them."""
+
+    def test_closers_are_the_heaviest_and_after_is_the_formula(self):
+        for name in ALL:
+            s = dl.risk_score(company(name))
+            pts = sorted((p for *_, p in s.lines), reverse=True)
+            self.assertEqual([p for *_, p in s.closers], pts[:3], name)
+            self.assertEqual(s.after, min(100, round(100 * (s.points - sum(pts[:3])) / dl.CAP)), name)
+            self.assertLessEqual(s.after, s.score, name)
+        tap = dl.risk_score(company("tap"))
+        self.assertEqual(dl.closing_text(tap), "Answer these 3: 40 → 17")
+        self.assertEqual([k for k, *_ in tap.closers], ["R07", "R28", "R30"])
+
+
 class AreasOpenItemsCoverageTest(unittest.TestCase):
     def test_areas_and_referrals(self):
         for name in ALL:

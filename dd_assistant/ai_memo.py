@@ -154,6 +154,9 @@ def _deal_layer_section(a) -> list[str]:
     word, _ = s.band
     out += ["", f"Score band: {word}. Current findings by severity: High {s.counts.get('High', 0)}, Medium "
                 f"{s.counts.get('Medium', 0)}, Low {s.counts.get('Low', 0)}. Points by issue:"]
+    if s.closers:
+        out += [f"What closes the gap: answering {', '.join(k for k, *_ in s.closers)} (the most points) lowers the "
+                f"{s.label} from {s.score} to {s.after}, by the same formula."]
     out += _table(["Issue", "Area", "Severity × materiality × evidence", "Points"],
                   [[f"{k} · {s.titles.get(k, k)}", area, why, fmt_value(p)] for k, area, why, p in s.lines])
     from .deal_layer import in_price

@@ -200,6 +200,7 @@ border-radius:12px;padding:18px 22px;margin-top:20px}
 .hero6 details{color:var(--blue);font-size:.82rem;margin-top:6px}
 .hero6 .pts{display:grid;grid-template-columns:minmax(0,1fr) auto 40px;gap:2px 12px;color:var(--ink);font-size:.8rem;margin-top:6px}
 .hero6 .pts span:nth-child(3n){text-align:right}.hero6 .f{color:var(--muted);font-size:.78rem;margin-top:6px}
+.close6{margin-top:8px;font-size:.85rem}.close6 b{color:var(--green)}.close6 ol{margin:2px 0 0;padding-left:18px;color:var(--muted)}.close6 li span{color:var(--ink)}
 .cnt6{display:flex;flex-direction:column;gap:6px}
 .cnt6 span{font-size:.85rem;padding:3px 10px;border-radius:6px;border:1px solid;white-space:nowrap}
 .issue-card{border-left:3px solid}
@@ -333,10 +334,19 @@ def hero(c, a, layer) -> str:
             f'{E(dl.SCORE_LEGEND.split(" (")[0])}<span class="info" title="{E(dl.SCORE_NOTE)}">ⓘ not a '
             f'recommendation</span></p></div>'
             f'<div>{score_bar(s, colour)}<div class="segs">{labels}</div><p class="plain6">{E(dl.SCORE_PLAIN)}</p>'
+            f'{closing(s)}'
             f'<details><summary>How the score is built: every point, by issue</summary><div class="pts">{pts}'
             f'<span><b>Total</b></span><span>{fmt_points(s.points)} points ÷ 30 × 100</span><span><b>{s.score}</b>'
             f'</span></div><p class="f">{E(s.formula)}</p></details></div>'
             f'<div class="cnt6">{counts}</div></div>')
+
+
+def closing(s) -> str:
+    from dd_assistant import deal_layer as dl
+    if not s.closers:
+        return ""
+    items = "".join(f"<li>{E(k)} · {E(t)} <span>−{fmt_points(p)} pts</span></li>" for k, t, p in s.closers)
+    return f'<div class="close6"><b>{E(dl.closing_text(s))}</b><ol>{items}</ol></div>'
 
 
 def legend() -> str:

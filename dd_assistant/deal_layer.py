@@ -288,6 +288,8 @@ class RiskScore:
     formula: str = SCORE_FORMULA
     titles: dict[str, str] = field(default_factory=dict)     # issue key -> its title, for the breakdown table
     counts: dict[str, int] = field(default_factory=dict)     # current findings by severity (High, Medium, Low)
+    closers: list[tuple[str, str, float]] = field(default_factory=list)   # (key, title, points): the 3 that weigh most
+    after: int | None = None                                 # the score once those three are answered (by the formula)
 
     @property
     def band(self) -> tuple[str, str]:
@@ -322,8 +324,18 @@ def risk_score(a) -> RiskScore:
     titles = {i.key: i.title for i in a.issues}
     current = [i for i in a.issues if i.kind == "Finding" and not i.historical and i.key not in INFORMATION_RULES]
     counts = {s: sum(i.severity == s for i in current) for s in WEIGHT}
+    # what closes the gap: the three open issues whose answer lowers the score most (the most points), and the
+    # score the same formula gives without them; ties keep the order of the issues (by amount at stake)
+    top3 = sorted(lines, key=lambda x: -x[3])[:3]
+    closers = [(k, titles.get(k, k), p) for k, _, _, p in top3]
+    after = min(100, round(100 * (points - sum(p for *_, p in top3)) / CAP))
     return RiskScore(score, points, {k: round(100 * v / CAP, 1) for k, v in by_area.items()}, lines,
-                     titles=titles, counts=counts)
+                     titles=titles, counts=counts, closers=closers, after=after)
+
+
+def closing_text(s: RiskScore) -> str:
+    """'Answer these 3: 40 → 20', computed by the score's own formula."""
+    return f"Answer these {len(s.closers)}: {s.score} → {s.after}" if s.closers else "Nothing open"
 
 
 # ---------------------------------------------------------------- 4. areas and referrals

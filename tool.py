@@ -69,6 +69,10 @@ CSS = f"""<style>
 .hero details table {{width:100%; font-size:13px; color:{charts.TEXT}; margin-top:6px; border-collapse:collapse}}
 .hero details td, .hero details th {{padding:3px 6px; border-bottom:1px solid {charts.LINE}; text-align:left}}
 .hero details .f {{color:{charts.MUTED}; margin-top:6px}}
+.close {{margin-top:8px; font-size:13px; color:{charts.TEXT}}}
+.close b {{color:{charts.GREEN}}}
+.close ol {{margin:2px 0 0; padding-left:18px; color:{charts.MUTED}}}
+.close li span {{color:{charts.TEXT}}}
 .cnt {{display:flex; flex-direction:column; gap:6px}}
 .cnt span {{font-size:14px; padding:4px 10px; border-radius:6px; border:1px solid; white-space:nowrap}}
 .kpis {{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:0 0 10px}}
@@ -225,8 +229,16 @@ def hero(a, layer) -> None:
                 f'{E(dl.SCORE_LEGEND.split(" (")[0])} <span class="info" title="{E(dl.SCORE_NOTE)}">ⓘ not a '
                 f'recommendation</span></div></div>'
                 f'<div><div class="bar">{bar}</div><div class="segs">{labels}</div>'
-                f'<p class="plain">{E(dl.SCORE_PLAIN)}</p>{how}</div>'
+                f'<p class="plain">{E(dl.SCORE_PLAIN)}</p>{closing(s)}{how}</div>'
                 f'<div class="cnt">{counts}</div></div>', unsafe_allow_html=True)
+
+
+def closing(s) -> str:
+    """What closes the gap: the three issues whose answer lowers the score most, and the score after them."""
+    if not s.closers:
+        return ""
+    items = "".join(f"<li>{E(k)} · {E(t)} <span>−{fmt_value(p)} pts</span></li>" for k, t, p in s.closers)
+    return (f'<div class="close"><b>{E(dl.closing_text(s))}</b><ol>{items}</ol></div>')
 
 
 def summary(c, a, layer) -> None:
