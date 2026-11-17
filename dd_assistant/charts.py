@@ -20,6 +20,9 @@ from .units import _round
 # the single palette (site, app, charts, slides)
 BG, CARD, TEXT, MUTED, LINE = "#0d1117", "#161b22", "#e6edf3", "#8b949e", "#30363d"
 RED, GREEN, GREY = "#f85149", "#3fb950", "#8b949e"
+AMBER, ACCENT = "#d29922", "#58a6ff"     # Phase 6: Medium / middle band only; interaction only (never a figure)
+TONE = {"red": RED, "amber": AMBER, "green": GREEN, "grey": GREY}
+PALETTE = {BG, CARD, TEXT, MUTED, LINE, RED, GREEN, GREY, AMBER, ACCENT}
 FADE = 0.45            # the items other than the largest
 MAX_COLUMNS = 7
 SMALL = 0.01           # an item below 1% of the largest total goes into "Others"
@@ -314,6 +317,8 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}}
 .ddc-ann{{display:none;font-size:.85rem;font-weight:600;color:{TEXT};margin:-6px 0 12px}}
 @media (max-width:700px){{.ddc-ann{{display:block}}.ddc svg text.ann{{display:none}}}}
 .ddc-ann.always{{display:block}}
+.ddc-narrow{{display:none}}
+@media (max-width:760px){{.ddc-wide{{display:none}}.ddc-narrow{{display:block}}}}
 """
 
 
@@ -353,20 +358,44 @@ def svg(b: Bridge, money, check: str = "") -> str:
         start, end = (0.0, c.value) if c.kind == "total" else (level, level + c.value)
         level = end
         rows.append((c, start, end))
-    lo = min([0.0] + [min(s, e) for _, s, e in rows])
-    hi = max([0.0] + [max(s, e) for _, s, e in rows])
-    span = (hi - lo) or 1.0
-    LEFT, SLOT, TOP, PLOT, BELOW, LH = 26, 74, 44, 190, 40, 14
-    BAR = round(SLOT * 0.6)
-    W, H = LEFT + len(rows) * SLOT + 6, TOP + PLOT + BELOW + 2 * LH + 8
-    y = lambda v: TOP + (hi - v) / span * PLOT
-    wide_note = len(b.annotation) * 7 > W - LEFT    # too long for the chart: under the title, at every width
+    W = 26 + len(rows) * 74 + 6
+    wide_note = len(b.annotation) * 7 > W - 26     # too long for the chart: under the title, at every width
     out = [f'<div class="ddc"{f" data-check={chr(34)}{check}{chr(34)}" if check else ""}>'
            f'<p class="ddc-title">{E(b.title)}</p><p class="ddc-sub">{E(b.subtitle)}</p>'
            # on a narrow screen the annotation sits under the title, readable without sliding the chart
-           + (f'<p class="ddc-ann{" always" if wide_note else ""}">{E(b.annotation)}</p>' if b.annotation else "") +
-           f'<div class="ddc-scroll"><svg viewBox="0 0 {W} {H}" style="min-width:{W * 11 / 12:.0f}px;'
-           f'max-width:{W * 1.25:.0f}px" role="group" aria-label="{E(b.title)}">']
+           + (f'<p class="ddc-ann{" always" if wide_note else ""}">{E(b.annotation)}</p>' if b.annotation else "")]
+    # two drawings of the same bridge: wide (the full width of a desktop card) and narrow (phones, slides sideways)
+    out += _plot(b, money, rows, "wide", wide_note)
+    out += _plot(b, money, rows, "narrow", wide_note)
+    worse, better = {"net debt": ("Increases net debt", "Reduces net debt"), "cash": ("Reduces cash", "Adds cash"),
+                     "value": ("Reduces equity value", "Adds equity value")}.get(b.kind, ("Reduces EBITDA", "Adds EBITDA"))
+    out.append(f'<div class="ddc-foot"><span><i style="background:{GREY}"></i>Total</span>'
+               f'<span><i style="background:{RED}"></i>{worse} (worse for the buyer)</span>'
+               f'<span><i style="background:{GREEN}"></i>{better}</span>'
+               + (f'<span><i style="background:{GREY};opacity:.55"></i>Standard item, not a finding</span>'
+                  if any(c.effect == "standard" for c in cols) else "")
+               + (f'<span data-nocheck="1">{E(b.note)}</span>' if b.note else "") + "</div></div>")
+    return "".join(out)
+
+
+WIDE = 1040     # viewBox width of the wide drawing: about the width of a 1120 px card, so text stays at ~12 px
+
+
+def _plot(b: Bridge, money, rows, layout: str, wide_note: bool) -> list[str]:
+    """One SVG drawing of the bridge. 'narrow' keeps 74-unit columns and never shrinks below 11 px text (it slides
+    sideways); 'wide' spreads the same columns across the whole card."""
+    lo = min([0.0] + [min(s, e) for _, s, e in rows])
+    hi = max([0.0] + [max(s, e) for _, s, e in rows])
+    span = (hi - lo) or 1.0
+    LEFT, TOP, PLOT, BELOW, LH = 26, 44, 190, 40, 14
+    SLOT = 74 if layout == "narrow" else (WIDE - LEFT - 6) // len(rows)
+    BAR = round(min(SLOT * 0.6, 72))
+    W, H = LEFT + len(rows) * SLOT + 6, TOP + PLOT + BELOW + 2 * LH + 8
+    y = lambda v: TOP + (hi - v) / span * PLOT
+    style = (f"min-width:{W * 11 / 12:.0f}px;max-width:{W * 1.25:.0f}px" if layout == "narrow"
+             else "max-width:100%")
+    out = [f'<div class="ddc-scroll ddc-{layout}"><svg viewBox="0 0 {W} {H}" style="{style}" role="group" '
+           f'aria-label="{E(b.title)}">']
     if lo < 0:
         out.append(f'<line class="zero" x1="{LEFT - 4}" x2="{W}" y1="{y(0):.1f}" y2="{y(0):.1f}"/>'
                    f'<text class="axis" data-nocheck="1" x="{LEFT - 8}" y="{y(0) + 4:.1f}" text-anchor="end">0</text>')
@@ -397,12 +426,4 @@ def svg(b: Bridge, money, check: str = "") -> str:
         if i < len(rows) - 1:
             out.append(f'<line class="link" x1="{x + BAR:.1f}" x2="{x + SLOT:.1f}" y1="{y(end):.1f}" y2="{y(end):.1f}"/>')
     out.append("</svg></div>")
-    worse, better = {"net debt": ("Increases net debt", "Reduces net debt"), "cash": ("Reduces cash", "Adds cash"),
-                     "value": ("Reduces equity value", "Adds equity value")}.get(b.kind, ("Reduces EBITDA", "Adds EBITDA"))
-    out.append(f'<div class="ddc-foot"><span><i style="background:{GREY}"></i>Total</span>'
-               f'<span><i style="background:{RED}"></i>{worse} (worse for the buyer)</span>'
-               f'<span><i style="background:{GREEN}"></i>{better}</span>'
-               + (f'<span><i style="background:{GREY};opacity:.55"></i>Standard item, not a finding</span>'
-                  if any(c.effect == "standard" for c in cols) else "")
-               + (f'<span data-nocheck="1">{E(b.note)}</span>' if b.note else "") + "</div></div>")
-    return "".join(out)
+    return out

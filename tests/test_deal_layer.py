@@ -198,6 +198,33 @@ class CurrentYearTest(unittest.TestCase):
         self.assertIn("R11", [d.key for d in dl.deal_issues(a) if d.historical])
 
 
+class AlreadyInThePriceTest(unittest.TestCase):
+    """Phase 6: leases (standard EV-to-equity item) and the airline's unflown tickets (operating working capital) are
+    not deal issues; they sit apart, with the working capital against the peg, as 'Already in the price'."""
+
+    def test_tap_top_is_findings_only(self):
+        a = company("tap")
+        top = [d.key for d in dl.top_issues(a)]
+        self.assertEqual(top, ["R28", "ND: Provisions", "R22", "ND: Post-employment benefit obligations", "R07"])
+        self.assertEqual([d.rank for d in dl.top_issues(a)], [1, 2, 3, 4, 5])
+        self.assertEqual([p.label for p in dl.in_price(a)],
+                         ["Lease liabilities", "Deferred revenue and customer advances",
+                          "Net working capital against the indicative peg"])
+
+    def test_every_open_high_finding_is_in_the_top(self):
+        for name in ALL:
+            a = company(name)
+            top = {d.key for d in dl.top_issues(a)}
+            highs = [d.key for d in dl.deal_issues(a) if d.severity == "High" and not d.historical
+                     and d.key not in dl.INFORMATION_RULES and not d.evidence.startswith("explained")]
+            self.assertTrue(set(highs[:5]) <= top, name)
+            self.assertFalse(any(dl.already_in_price(d) for d in dl.top_issues(a)), name)
+
+    def test_score_band(self):
+        self.assertEqual(dl.risk_score(company("velmora")).band, ("Few open points", "green"))
+        self.assertEqual(dl.risk_score(company("duriva")).band, ("Many open points", "red"))
+
+
 class AreasOpenItemsCoverageTest(unittest.TestCase):
     def test_areas_and_referrals(self):
         for name in ALL:

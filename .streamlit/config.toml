@@ -18,6 +18,8 @@ borderColor = "#30363d"
 redColor = "#f85149"
 greenColor = "#3fb950"
 grayColor = "#8b949e"
+orangeColor = "#d29922"
+blueColor = "#58a6ff"
 font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
 headingFont = "Source Serif 4:https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap, Georgia, serif"
 headingFontWeights = 600

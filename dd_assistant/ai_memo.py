@@ -150,6 +150,14 @@ def _deal_layer_section(a) -> list[str]:
     out = ["## 1c. Deal layer (computed by rule; no recommendation)",
            f"Diligence risk score: {s.score} out of 100 ({s.label}). {s.formula} Points: {fmt_value(s.points)}."]
     out += _table(["Area", "Score points"], [[k, fmt_value(v)] for k, v in s.by_area.items()])
+    word, _ = s.band
+    out += ["", f"Score band: {word}. Current findings by severity: High {s.counts.get('High', 0)}, Medium "
+                f"{s.counts.get('Medium', 0)}, Low {s.counts.get('Low', 0)}. Points by issue:"]
+    out += _table(["Issue", "Area", "Severity × materiality × evidence", "Points"],
+                  [[f"{k} · {s.titles.get(k, k)}", area, why, fmt_value(p)] for k, area, why, p in s.lines])
+    from .deal_layer import in_price
+    out += ["", "Already in the price (shown apart from the findings, not scored):"]
+    out += _table(["Item", "Why", "Amount"], [[p.label, p.why, fmt_value(p.amount)] for p in in_price(a)])
     out += ["", f"Valuation impact ({ILLUSTRATIVE}), {fy(vi.year)}, EUR thousands:"]
     out += ["Only diligence adjustments count as the impact of the findings. Standard EV-to-equity items (lease "
             "liabilities: reported EBITDA is after IFRS 16) and working capital against the indicative peg (the "
@@ -270,6 +278,8 @@ def _checks_section(a) -> list[str]:
     out = ["## 7. Reading checks (did the code read the statements correctly?)"]
     if not a.checks:
         return out + ["No published subtotals to check against."]
+    out.append(f"Reading checks passed: {sum(bool(c['OK']) for c in a.checks)} of {len(a.checks)} published subtotals "
+               "rebuilt from the lines read.")
     return out + _table(["Check", "Year", "Rebuilt", "Published", "OK"],
                         [[c["Check"], fy(c["Year"]), fmt_value(c["Rebuilt from the lines"]),
                           fmt_value(c["As published"]), "Yes" if c["OK"] else "NO"] for c in a.checks])

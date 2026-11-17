@@ -85,14 +85,22 @@ class DrawingTest(unittest.TestCase):
         self.assertIn("Income tax payable", self.html)          # the part inside "Others"
 
     def test_connectors_only_in_the_gaps(self):
-        rects = [(float(x), float(w)) for x, w in re.findall(r'<rect class="[^"]*" x="([\d.]+)" y="[\d.]+" '
-                                                             r'width="(\d+)"', self.html)]
-        links = [(float(a), float(b)) for a, b in re.findall(r'<line class="link" x1="([\d.]+)" x2="([\d.]+)"',
-                                                             self.html)]
-        self.assertEqual(len(links), len(rects) - 1)
-        for (x0, w0), (x1, _), (l0, l1) in zip(rects, rects[1:], links):
-            self.assertAlmostEqual(l0, x0 + w0, places=1)
-            self.assertLessEqual(l1, x1 + 0.05)
+        drawings = re.findall(r"<svg.*?</svg>", self.html, re.S)
+        self.assertEqual(len(drawings), 2)                       # wide (desktop) and narrow (phone)
+        for svg in drawings:
+            rects = [(float(x), float(w)) for x, w in re.findall(r'<rect class="[^"]*" x="([\d.]+)" y="[\d.]+" '
+                                                                 r'width="(\d+)"', svg)]
+            links = [(float(a), float(b)) for a, b in re.findall(r'<line class="link" x1="([\d.]+)" x2="([\d.]+)"',
+                                                                 svg)]
+            self.assertEqual(len(links), len(rects) - 1)
+            for (x0, w0), (x1, _), (l0, l1) in zip(rects, rects[1:], links):
+                self.assertAlmostEqual(l0, x0 + w0, places=1)
+                self.assertLessEqual(l1, x1 + 0.05)
+
+    def test_wide_drawing_fills_the_card(self):
+        """Phase 6: on a desktop the bridge spans the card (viewBox about 1,040 units), not a third of it."""
+        wide = re.search(r'ddc-wide"><svg viewBox="0 0 (\d+)', self.html)
+        self.assertGreaterEqual(int(wide.group(1)), 900)
 
     def test_bars_are_wide_and_visible(self):
         heights = [float(h) for h in re.findall(r'<rect [^>]*height="([\d.]+)"', self.html)]
@@ -106,8 +114,7 @@ class DrawingTest(unittest.TestCase):
 
     def test_no_colour_outside_the_palette(self):
         colours = set(re.findall(r"#[0-9a-fA-F]{6}", charts.CSS + self.html))
-        self.assertLessEqual(colours, {charts.BG, charts.CARD, charts.TEXT, charts.MUTED, charts.LINE, charts.RED,
-                                       charts.GREEN, charts.GREY})
+        self.assertLessEqual(colours, charts.PALETTE)
 
 
 if __name__ == "__main__":

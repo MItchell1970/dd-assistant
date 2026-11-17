@@ -16,7 +16,7 @@ from dd_assistant.memo_check import _check_numbers
 from dd_assistant.pipeline import analyse
 
 ROOT = Path(__file__).resolve().parents[1]
-PALETTE = {charts.BG, charts.CARD, charts.TEXT, charts.MUTED, charts.LINE, charts.RED, charts.GREEN, charts.GREY}
+PALETTE = charts.PALETTE
 BANNED = re.compile(r"\bno-go\b|\bgo\b|\brecommend\b|should buy", re.I)
 
 

@@ -15,7 +15,7 @@ All amounts in EUR thousands, as in the engine.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .deal import qoe_steps
 from .issues import WC_ITEM
@@ -63,11 +63,15 @@ FACTOR = {True: 1.0, None: 0.75, False: 0.5}      # material · not quantifiable
 EVIDENCE = {"explained": 0.5, "partly explained": 0.75}     # a published note explains it; otherwise 1 (open)
 CAP = 30.0                                         # points for 100: ten open, material High findings
 SCORE_LABEL = "Finding intensity, not a recommendation"
-SCORE_FORMULA = ("Score = min(100, 100 × points / 30); points per open issue = severity (High 3, Medium 2, Low 1) "
-                 "× materiality (material 1, not quantifiable 0.75, below materiality 0.5) × evidence (open 1, "
-                 "partly explained by a note 0.75, explained 0.5). Issues = the findings and the balance sheet items "
-                 "still to classify (Medium); items already in adjusted net debt are priced, not scored. 100 = ten "
-                 "open, material High findings. R18 (documents missing) is left to coverage.")
+SCORE_FORMULA = ("Score = min(100, 100 × points / 30); points per open issue of the latest year = severity (High 3, "
+                 "Medium 2, Low 1) × materiality (material 1, not quantifiable 0.75, below materiality 0.5) × evidence "
+                 "(open 1, partly explained by a note 0.75, explained 0.5). Issues = the findings and the balance "
+                 "sheet items still to classify (Medium); items already in adjusted net debt are priced, not scored; "
+                 "findings of earlier years only are historical, not scored. 100 = ten open, material High findings. "
+                 "R18 (documents missing) is left to coverage.")
+SCORE_PLAIN = ("Each open question of the latest year gets points: how serious, how big, how unexplained. 30 points "
+               "= 100. A to-do meter for the diligence, not a grade for the company.")
+BANDS = ((60, "Many open points", "red"), (25, "Several open points", "amber"), (0, "Few open points", "green"))
 
 GROUPS = ("Ask the company", "Confirm with the auditor", "Outside financial scope")
 WORKSTREAMS = ("Legal", "HR", "Tax", "Regulatory")
@@ -233,9 +237,42 @@ def deal_issues(a) -> list[DealIssue]:
     return out
 
 
+def already_in_price(d: DealIssue) -> bool:
+    """A standard EV-to-equity item (leases) or an operating working capital item of the sector: not a finding."""
+    return d.kind == WC_ITEM or (d.kind == "Net debt item" and d.title in STANDARD_ITEMS)
+
+
 def top_issues(a, n: int = 5) -> list[DealIssue]:
-    """The largest current issues: never a historical finding (one that fired only in an earlier year)."""
-    return [d for d in deal_issues(a) if d.key not in INFORMATION_RULES and not d.historical][:n]
+    """The deal issues of the latest year (never a historical finding, never an item already in the price): every
+    open High finding first, then the largest by amount; shown by amount at stake."""
+    cand = [d for d in deal_issues(a)
+            if d.key not in INFORMATION_RULES and not d.historical and not already_in_price(d)]
+    pick = [d for d in cand if d.severity == "High" and not d.evidence.startswith("explained")][:n]
+    for d in cand:
+        if len(pick) >= n:
+            break
+        if d not in pick:
+            pick.append(d)
+    order = {d.key: k for k, d in enumerate(cand)}
+    return [replace(d, rank=k) for k, d in enumerate(sorted(pick, key=lambda d: order[d.key]), 1)]
+
+
+@dataclass
+class InPrice:
+    label: str
+    amount: float
+    why: str
+
+
+def in_price(a) -> list[InPrice]:
+    """What a buyer prices anyway, shown apart from the findings: standard EV-to-equity items (leases), the operating
+    working capital items of the sector, and working capital against the indicative peg (the price mechanism)."""
+    vi = valuation_impact(a)
+    out = [InPrice(c.label, abs(c.amount), NOT_COUNTED_WHY[STANDARD]) for c in vi.standard]
+    out += [InPrice(i.title, i.amount, i.treatment) for i in a.issues if i.kind == WC_ITEM and i.amount]
+    if vi.nwc:
+        out.append(InPrice(vi.nwc.label, vi.nwc.amount, NOT_COUNTED_WHY[MECHANISM]))
+    return out
 
 
 # ---------------------------------------------------------------- 3. risk score
@@ -247,6 +284,13 @@ class RiskScore:
     lines: list[tuple[str, str, str, float]]     # (rule, area, why, points)
     label: str = SCORE_LABEL
     formula: str = SCORE_FORMULA
+    titles: dict[str, str] = field(default_factory=dict)     # issue key -> its title, for the breakdown table
+    counts: dict[str, int] = field(default_factory=dict)     # current findings by severity (High, Medium, Low)
+
+    @property
+    def band(self) -> tuple[str, str]:
+        """(word, tone) of the score: a triage band, never a recommendation."""
+        return next((word, tone) for floor, word, tone in BANDS if self.score >= floor)
 
 
 def risk_score(a) -> RiskScore:
@@ -273,7 +317,11 @@ def risk_score(a) -> RiskScore:
         by_area[area] += pts
     points = sum(p for *_, p in lines)
     score = min(100, round(100 * points / CAP))
-    return RiskScore(score, points, {k: round(100 * v / CAP, 1) for k, v in by_area.items()}, lines)
+    titles = {i.key: i.title for i in a.issues}
+    current = [i for i in a.issues if i.kind == "Finding" and not i.historical and i.key not in INFORMATION_RULES]
+    counts = {s: sum(i.severity == s for i in current) for s in WEIGHT}
+    return RiskScore(score, points, {k: round(100 * v / CAP, 1) for k, v in by_area.items()}, lines,
+                     titles=titles, counts=counts)
 
 
 # ---------------------------------------------------------------- 4. areas and referrals
@@ -344,7 +392,7 @@ class Coverage:
         """(status with its mark, the document that unblocks it or why it does not apply)."""
         for rid, _, doc in self.blocked:
             if rid == rule_id:
-                return "blocked ○", doc
+                return "blocked □", doc
         for rid, _, why in self.not_applicable:
             if rid == rule_id:
                 return "not applicable –", why
