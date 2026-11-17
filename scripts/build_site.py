@@ -112,7 +112,7 @@ table.top td span{display:block;color:var(--muted);font-size:.78rem}
 table.top .n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .grid{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
 .grid span{font-size:.75rem;padding:3px 7px;border-radius:4px;border:1px solid var(--line);font-variant-numeric:tabular-nums}
-.grid .on{color:var(--green)}.grid .off{color:var(--muted)}
+.grid .on{color:var(--ink)}.grid .off{color:var(--muted)}
 details{margin-top:10px;color:var(--muted)}summary{cursor:pointer;font-size:.85rem}
 .stats.three{grid-template-columns:repeat(3,minmax(0,1fr));margin:14px 0}
 @media (max-width:900px){.deal{grid-template-columns:minmax(0,1fr)}}
@@ -133,7 +133,7 @@ p.action{font-size:1.05rem}
 section.tight{padding:28px 0;border-bottom:none}section.hero.tight{padding:32px 0 8px}
 .grid{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
 .grid span{font-size:.75rem;padding:3px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
-.grid .on{color:var(--green)}.small{font-size:.85rem}
+.grid .on{color:var(--ink)}.small{font-size:.85rem}
 .cases{grid-template-columns:repeat(3,minmax(0,1fr))}.case{display:block;padding:24px}
 @media (max-width:900px){.issues3,.cases{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:600px){.band{flex-direction:column;align-items:flex-start;gap:8px}}
@@ -207,10 +207,10 @@ border-radius:12px;padding:18px 22px;margin-top:20px}
 border-left:3px solid var(--muted);border-radius:6px;background:#8b949e14;margin:0 0 6px}
 .inprice6 .n{text-align:right;color:var(--muted);font-weight:600;white-space:nowrap}.inprice6 .why{display:block;font-size:.8rem;color:var(--muted)}
 .legend6{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.8rem;color:var(--muted);margin:8px 0}
-.grid .on{border-color:#3fb95066;background:#3fb95014}.grid .na{opacity:.55}
+.grid .on{color:var(--ink);border-color:var(--muted)}.grid .na{opacity:.55}
 .vgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.vstat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--green);border-radius:10px;padding:18px}
-.vstat .n{font:700 3rem/1 var(--sans);color:var(--green);letter-spacing:-.02em}
+.vstat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--muted);border-radius:10px;padding:18px}
+.vstat .n{font:700 3rem/1 var(--sans);color:var(--ink);letter-spacing:-.02em}
 .vstat .t{color:var(--ink);font-weight:600;margin:10px 0 6px;line-height:1.35}
 .vstat code{display:block;color:var(--muted);font-size:.75rem;word-break:break-word}
 .vstat .miss{font-size:.8rem;margin:4px 0 0}.vstat .miss a{color:var(--red)}
@@ -326,7 +326,7 @@ def hero(c, a, layer) -> str:
                   for k, _, why, p in s.lines)
     counts = "".join(f'<span style="color:{SEV_HEX[x]};border-color:{SEV_HEX[x]}66;background:{SEV_HEX[x]}14">'
                      f"{s.counts.get(x, 0)} {SHAPE[x]} {x}</span>" for x in SHAPE)
-    counts += f'<span style="color:#3fb950;border-color:#3fb95066">{len(cov.run)} / {cov.total} rules run</span>'
+    counts += f'<span style="color:var(--muted);border-color:var(--line)">{len(cov.run)} / {cov.total} rules run</span>'
     return (f'<div class="hero6" style="border-color:{colour}66;background:{colour}14">'
             f'<div><div class="big6" style="color:{colour}">{s.score}<span> / 100</span></div>'
             f'<p class="word" style="color:{colour}">{E(word)}</p><p class="lab">{E(s.label)}</p></div>'
@@ -380,7 +380,7 @@ def coverage_grid(a, layer) -> str:
         marks.append(f'<span class="{cls}" title="{E(r.rule.name)}'
                      f'{": " + E(doc) if doc else ""}">{E(status.split()[-1])} {r.rule.id}</span>')
     return (f'<h2 class="action">{E(dl.coverage_title(cov))}</h2><p class="muted small">{E(dl.MODE_LINE)}</p>'
-            '<div class="legend6"><span style="color:var(--green)">✓ run</span><span>□ blocked: a document is '
+            '<div class="legend6"><span>✓ run</span><span>□ blocked: a document is '
             'missing</span><span>– not applicable</span></div>'
             f'<div class="grid">{"".join(marks)}</div>')
 

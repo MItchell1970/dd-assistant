@@ -109,7 +109,7 @@ CSS = f"""<style>
 .lab {{font-size:13px; color:{charts.MUTED}; margin-top:10px}}
 .grid {{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}}
 .grid span {{font-size:13px; padding:3px 8px; border:1px solid {charts.LINE}; border-radius:8px; color:{charts.MUTED}}}
-.grid .on {{color:{charts.GREEN}; border-color:{tint(charts.GREEN, '66')}; background:{tint(charts.GREEN, '14')}}}
+.grid .on {{color:{charts.TEXT}; border-color:{charts.MUTED}}}
 .grid .na {{opacity:.55}}
 .acts {{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 10px}}
 .foot {{border-top:1px solid {charts.LINE}; margin-top:32px; padding-top:10px; font-size:13px; color:{charts.MUTED}}}
@@ -150,7 +150,7 @@ def ev_state(evidence: str) -> str:
 
 def legend(coverage: bool = False) -> str:
     if coverage:
-        items = [f'<span><b style="color:{charts.GREEN}">✓</b> run</span>',
+        items = ["<span><b>✓</b> run</span>",
                  "<span><b>□</b> blocked: a document is missing</span>", "<span><b>–</b> not applicable</span>"]
     else:
         items = [f'<span>{sev(s, False)} <b style="color:{SEV_COLOUR[s]}">{s}</b> · {SEV_PLAIN[s]}</span>'
@@ -209,7 +209,7 @@ def hero(a, layer) -> None:
     counts = "".join(f'<span style="color:{SEV_COLOUR[x]};border-color:{tint(SEV_COLOUR[x], "66")};'
                      f'background:{tint(SEV_COLOUR[x], "14")}">{s.counts.get(x, 0)} {SHAPE[x]} {x}</span>'
                      for x in SHAPE)
-    counts += (f'<span style="color:{charts.GREEN};border-color:{tint(charts.GREEN, "66")}">'
+    counts += (f'<span style="color:{charts.MUTED};border-color:{charts.LINE}">'
                f"{len(cov.run)} / {cov.total} rules run</span>")
     rows = "".join(f"<tr><td>{E(k)} · {E(s.titles.get(k, k))}</td><td>{E(why)}</td>"
                    f'<td style="text-align:right">{fmt_value(p)}</td></tr>' for k, _, why, p in s.lines)
@@ -248,7 +248,7 @@ def summary(c, a, layer) -> None:
              money(a, fcf[1]) if fcf else "n/a", f"{fy(L)} · {page_of(c, 'cf')}",
              charts.TEXT if not fcf else charts.RED if fcf[1] < 0 else charts.GREEN),
             ("Reading checks", f"{passed} of {total}", "published subtotals rebuilt from the lines read",
-             charts.GREEN if total and passed == total else charts.RED)]
+             charts.TEXT if total and passed == total else charts.RED)]
     st.markdown('<div class="kpis">' + "".join(
         f'<div class="kpi" style="border-top-color:{col if col != charts.TEXT else charts.LINE}"><div class="l">'
         f'{E(l)}</div><div class="v" style="color:{col}">{E(v_)}</div><div class="s">{E(src)}</div></div>'
