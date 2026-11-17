@@ -69,7 +69,8 @@ class ToolTest(unittest.TestCase):
     def test_summary_has_the_band_kpis_chips_and_top_five(self):
         at = run("tap")
         page = "\n".join(str(m.value) for m in at.markdown)
-        self.assertIn("Finding intensity, not a recommendation", page)
+        self.assertIn("Diligence Gap", page)
+        self.assertEqual(text(at).lower().count("not a recommendation"), 1)       # once, next to the score
         self.assertEqual(page.count('class="kpi"'), 4)
         self.assertEqual(len([b for b in at.button if b.key and b.key.startswith("chip-")]), 5)
         self.assertEqual(len([b for b in at.button if b.key and b.key.startswith("top-")]), 5)

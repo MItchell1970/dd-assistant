@@ -147,7 +147,7 @@ class TopIssuesAndScoreTest(unittest.TestCase):
             if s.score < 100:
                 self.assertAlmostEqual(sum(s.by_area.values()), 100 * s.points / dl.CAP, delta=0.3)
             self.assertNotIn("R18", [r for r, *_ in s.lines])
-            self.assertEqual(s.label, "Finding intensity, not a recommendation")
+            self.assertEqual(s.label, "Diligence Gap")
 
     def test_score_counts_what_is_still_open(self):
         """Severity × materiality × evidence: a finding a published note explains scores half; a balance sheet item
@@ -294,7 +294,7 @@ class OutputsTest(unittest.TestCase):
         top = wb["Top Issues"]
         texts = [c.value for row in top.iter_rows() for c in row if c.value is not None]
         self.assertTrue(any(isinstance(t, str) and t.startswith("=MIN(100,ROUND(100*SUM(") for t in texts))
-        self.assertTrue(any(isinstance(t, str) and t.startswith("Diligence risk score: 100 / 100") for t in texts))
+        self.assertTrue(any(isinstance(t, str) and t.startswith("Diligence Gap: 100 / 100") for t in texts))
         req = wb["Issues & Requests"]
         cells = [c.value for row in req.iter_rows() for c in row if isinstance(c.value, str)]
         self.assertIn("coverage: R30", cells)                                # a blocked rule asks for its document

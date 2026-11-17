@@ -144,11 +144,12 @@ def _issues_section(a) -> list[str]:
 def _deal_layer_section(a) -> list[str]:
     """Phase 4B: risk score, valuation impact at illustrative multiples, top deal issues, coverage and open items,
     so that every figure the site, the app or a memo quotes from the deal layer has a source here."""
-    from .deal_layer import ILLUSTRATIVE, MODE_LINE, MULTIPLES, build
+    from .deal_layer import ILLUSTRATIVE, MODE_LINE, MULTIPLES, SCORE_LEGEND, SCORE_NOTE, build
     layer = build(a)
     s, vi, cov = layer.score, layer.impact, layer.coverage
     out = ["## 1c. Deal layer (computed by rule; no recommendation)",
-           f"Diligence risk score: {s.score} out of 100 ({s.label}). {s.formula} Points: {fmt_value(s.points)}."]
+           f"{s.label}: {s.score} out of 100 ({SCORE_LEGEND.lower()}; {SCORE_NOTE[0].lower() + SCORE_NOTE[1:]}) "
+           f"{s.formula} Points: {fmt_value(s.points)}."]
     out += _table(["Area", "Score points"], [[k, fmt_value(v)] for k, v in s.by_area.items()])
     word, _ = s.band
     out += ["", f"Score band: {word}. Current findings by severity: High {s.counts.get('High', 0)}, Medium "

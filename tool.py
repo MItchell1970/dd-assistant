@@ -56,7 +56,9 @@ CSS = f"""<style>
 .hero .big {{font-size:56px; font-weight:700; line-height:1; white-space:nowrap}}
 .hero .big span {{font-size:18px; color:{charts.MUTED}; font-weight:400}}
 .hero .word {{font-size:17px; font-weight:600; margin-top:6px}}
-.hero .lab {{font-size:13px; color:{charts.MUTED}; margin-top:2px}}
+.hero .lab {{font-size:13px; color:{charts.MUTED}; margin-top:4px}}
+.hero .lab b {{color:{charts.TEXT}}}
+.hero .info {{display:block; cursor:help; text-decoration:underline dotted}}
 .bar {{display:flex; height:14px; border-radius:7px; overflow:hidden; background:{charts.LINE}}}
 .bar i {{display:block; height:100%; border-right:2px solid {charts.CARD}}}
 .segs {{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px; color:{charts.MUTED}; margin-top:8px}}
@@ -219,7 +221,9 @@ def hero(a, layer) -> None:
            f'</table><div class="f">{E(s.formula)}</div></details>')
     st.markdown(f'<div class="hero" style="border-color:{tint(colour, "66")};background:{tint(colour, "14")}">'
                 f'<div><div class="big" style="color:{colour}">{s.score}<span> / 100</span></div>'
-                f'<div class="word" style="color:{colour}">{E(word)}</div><div class="lab">{E(s.label)}</div></div>'
+                f'<div class="word" style="color:{colour}">{E(word)}</div><div class="lab"><b>{E(s.label)}</b> · '
+                f'{E(dl.SCORE_LEGEND.split(" (")[0])} <span class="info" title="{E(dl.SCORE_NOTE)}">ⓘ not a '
+                f'recommendation</span></div></div>'
                 f'<div><div class="bar">{bar}</div><div class="segs">{labels}</div>'
                 f'<p class="plain">{E(dl.SCORE_PLAIN)}</p>{how}</div>'
                 f'<div class="cnt">{counts}</div></div>', unsafe_allow_html=True)

@@ -778,7 +778,7 @@ def _top_issues(ws, a) -> None:
     s = layer.score
     _title(ws, "Top Issues", "EUR thousands. The five largest key issues by amount at stake, with the typical "
                              "protection chosen by rule from the deal implication; for the deal team and its "
-                             "lawyers to decide. Below: the diligence risk score (finding intensity, not a "
+                             "lawyers to decide. Below: the Diligence Gap (higher = more to clarify; not a "
                              "recommendation) and its formula.")
     _header(ws, 4, ["#", "Issue", "Area", "Severity", "Amount at stake", "What the amount is", "Protection or next step",
                     "When", "Evidence from the notes", "Document to request"])
@@ -792,7 +792,7 @@ def _top_issues(ws, a) -> None:
             cell = _put(ws, r, col, value, _FORMULA, _NUM if col == 5 else None)
             cell.alignment = Alignment(wrap_text=True, vertical="top")
     r += 2
-    _put(ws, r, 1, f"Diligence risk score: {s.score} / 100 ({s.label.lower()})", _BOLD)
+    _put(ws, r, 1, f"{s.label}: {s.score} / 100 (higher = more to clarify; not a recommendation)", _BOLD)
     r += 1
     _put(ws, r, 1, s.formula).alignment = Alignment(wrap_text=True, vertical="top")
     r += 1

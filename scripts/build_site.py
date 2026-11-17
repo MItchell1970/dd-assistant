@@ -192,7 +192,7 @@ section.hero{padding:52px 0 40px}.case{padding:22px 18px}.steps{grid-template-co
 .hero6{display:grid;grid-template-columns:190px minmax(0,1fr) 190px;gap:24px;align-items:center;border:1px solid;
 border-radius:12px;padding:18px 22px;margin-top:20px}
 .hero6 .big6{font:700 3.4rem/1 var(--sans);white-space:nowrap}.hero6 .big6 span{font-size:1rem;color:var(--muted);font-weight:400}
-.hero6 .word{font-weight:600;margin:6px 0 0}.hero6 .lab{font-size:.8rem;color:var(--muted);margin:2px 0 0}
+.hero6 .word{font-weight:600;margin:6px 0 0}.hero6 .lab{font-size:.8rem;color:var(--muted);margin:4px 0 0}.hero6 .lab b{color:var(--ink)}.hero6 .info{display:block;cursor:help;text-decoration:underline dotted}
 .sbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line)}
 .sbar i{display:block;height:100%;border-right:2px solid var(--surface)}
 .segs{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:.8rem;color:var(--muted);margin-top:8px}.segs b{color:var(--ink)}
@@ -329,7 +329,9 @@ def hero(c, a, layer) -> str:
     counts += f'<span style="color:var(--muted);border-color:var(--line)">{len(cov.run)} / {cov.total} rules run</span>'
     return (f'<div class="hero6" style="border-color:{colour}66;background:{colour}14">'
             f'<div><div class="big6" style="color:{colour}">{s.score}<span> / 100</span></div>'
-            f'<p class="word" style="color:{colour}">{E(word)}</p><p class="lab">{E(s.label)}</p></div>'
+            f'<p class="word" style="color:{colour}">{E(word)}</p><p class="lab"><b>{E(s.label)}</b> · '
+            f'{E(dl.SCORE_LEGEND.split(" (")[0])}<span class="info" title="{E(dl.SCORE_NOTE)}">ⓘ not a '
+            f'recommendation</span></p></div>'
             f'<div>{score_bar(s, colour)}<div class="segs">{labels}</div><p class="plain6">{E(dl.SCORE_PLAIN)}</p>'
             f'<details><summary>How the score is built: every point, by issue</summary><div class="pts">{pts}'
             f'<span><b>Total</b></span><span>{fmt_points(s.points)} points ÷ 30 × 100</span><span><b>{s.score}</b>'
@@ -429,9 +431,9 @@ def index(cases: list) -> str:
             tap = layer.score
         cards.append(f"""<article class="case" data-check="{c.slug}" style="border-top:3px solid {colour}">
 <p class="co">{E(c.company)}</p>
-<div class="score" style="color:{colour}">{layer.score.score}<span> / 100</span></div>
+<p class="muted small" style="margin:10px 0 0">{E(layer.score.label)} · higher = more to clarify</p>
+<div class="score" style="color:{colour};margin-top:4px">{layer.score.score}<span> / 100</span></div>
 <p class="small" style="color:{colour};margin:4px 0 0">{E(word)}</p>{score_bar(layer.score, colour)}
-<p class="muted small">{E(layer.score.label)}</p>
 <p class="kv"><span>Adjusted net debt, {E(fy(B))}</span><b>{E(a.money.fmt(a.view.net_debt_adjusted[B]).replace("-€", "−€"))}</b></p>
 <p class="action">{E(b.title) if b else ""}</p>
 <a class="more" href="{PAGES[c.slug]}">The case →</a>
@@ -453,7 +455,7 @@ def index(cases: list) -> str:
 <div class="how3">
 <div><b>1 · Each open issue gets points</b><p>Severity (High 3, Medium 2, Low 1) × materiality (material 1, not quantifiable 0.75, below 0.5) × evidence (open 1, partly explained by a note 0.75, explained 0.5).</p></div>
 <div><b>2 · Only the latest year counts</b><p>A finding of an earlier year only is historical: kept, not scored. Items a buyer prices anyway (leases, the peg) sit apart.</p></div>
-<div><b>3 · 30 points = 100</b><p>Ten open, material High findings. A to-do meter for the diligence, not a grade for the company. {E(example)}</p></div>
+<div><b>3 · 30 points = 100</b><p>Ten open, material High findings. 0 = nothing open. A to-do meter for the diligence, not a grade for the company. {E(example)}</p></div>
 </div>
 </div></section>
 <section id="verified"><div class="wrap">
