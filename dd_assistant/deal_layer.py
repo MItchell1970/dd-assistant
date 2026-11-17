@@ -491,6 +491,99 @@ def request_list(a) -> dict[str, list[str]]:
     return out
 
 
+# ---------------------------------------------------------------- the request list by priority
+PRIORITIES = {1: "Before signing", 2: "During the diligence", 3: "To complete the picture"}
+PRIORITY_RULE = "Priority set by severity, amount at stake and SPA impact"
+PRIORITY_DETAIL = ("Priority 1: linked to a current High finding, a top deal issue, or a material issue that moves the "
+                   "price or the SPA; at most 10, by amount at stake (the rest go to priority 2). Priority 2: linked "
+                   "to a current Medium finding, a balance sheet item still to classify, or a blocked rule that "
+                   "affects value. Priority 3: everything else (Low or historical findings, the document checklist, "
+                   "blocked rules with no effect on value).")
+MAX_P1 = 10
+THEMES = AREAS + ("Documents",)
+
+
+@dataclass
+class Request:
+    item: str
+    priority: int
+    theme: str
+    links: list[str]            # the findings, items or rules that ask for it: 'R07 · Receivables growing…'
+    amount: float | None        # the largest amount at stake among them (EUR thousands)
+
+    @property
+    def level(self) -> str:
+        return f"Priority {self.priority} · {PRIORITIES[self.priority]}"
+
+
+def _moves_price(implication: str) -> bool:
+    return implication.startswith("Price") or implication == "SPA protection"
+
+
+def prioritised_requests(a) -> list[Request]:
+    """The request list in three levels, by a written rule (PRIORITY_DETAIL); within a level, by theme and amount.
+    Each request keeps every finding, item or rule that asks for it. Requests that a published note fully answers
+    stay with the auditor (open items), as in open_items."""
+    from .issues import TREATMENT
+    top = {d.key for d in top_issues(a)}
+    found: dict[str, list[tuple[int, str, str, float | None]]] = {}    # doc -> (level, theme, link, amount)
+
+    def add(doc: str, level: int, theme: str | None, link: str, amount: float | None) -> None:
+        found.setdefault(doc, []).append((level, theme or "Documents", link, amount))
+
+    for r in a.findings:
+        if r.rule.id in INFORMATION_RULES:
+            continue
+        if r.evidence_state == "explained":
+            continue                          # a published note answers it: confirm with the auditor instead
+        theme = area_of(r.rule.id, r.rule.area)
+        sev = r.rule.severity
+        if r.historical:
+            level = 3
+        elif sev == "High" or r.rule.id in top or (r.material and _moves_price(r.implication)):
+            level = 1
+        elif sev == "Medium":
+            level = 2
+        else:
+            level = 3
+        link = f"{r.rule.id} · {r.rule.name}" + (f" (historical, {fy(r.amount_year)})" if r.historical else "")
+        for part in _parts(r.next_request or r.rule.request):
+            add(part, level, theme, link, r.amount)
+    for i in a.issues:
+        if i.kind not in ("Net debt item", "To assess") or i.title in STANDARD_ITEMS or i.evidence_state == "explained":
+            continue
+        if i.key in top or (i.kind == "Net debt item" and i.material):
+            level = 1
+        else:
+            level = 2
+        add(i.request, level, "Net debt", f"{i.kind}: {i.title}", i.amount)
+    for rule_id, name, doc in coverage(a).blocked:
+        affects = _moves_price(TREATMENT.get(rule_id, ("", ""))[0])
+        r = next((x for x in a.results if x.rule.id == rule_id), None)
+        for part in _parts(doc):
+            add(part, 2 if affects else 3, area_of(rule_id, r.rule.area if r else ""),
+                f"{rule_id} · {name} (blocked)", None)
+    for doc, ok in a.data.documents:
+        if not ok:
+            add(doc, 3, "Documents", "R18 · document checklist", None)
+    for note in a.view.incomplete:
+        add(f"Figure missing from the data room: {note.split(' — ')[0]}", 3, "Documents", "R18 · figure missing", None)
+
+    out = []
+    for doc, links in found.items():
+        level = min(x[0] for x in links)
+        main = [x for x in links if x[0] == level]
+        amounts = [x[3] for x in links if x[3] is not None]
+        out.append(Request(doc, level, main[0][1], list(dict.fromkeys(x[2] for x in links)),
+                           max(amounts) if amounts else None))
+    key = lambda q: (q.amount is None, -(q.amount or 0))
+    first = sorted([q for q in out if q.priority == 1], key=key)
+    for q in first[MAX_P1:]:                   # at most ten to start with: the smaller ones wait for the diligence
+        q.priority = 2
+    order = {t: k for k, t in enumerate(THEMES)}
+    return sorted(out, key=lambda q: (q.priority, order.get(q.theme, 9), *key(q)))
+
+
 # ---------------------------------------------------------------- 5. open items and 6. action items
 @dataclass
 class OpenItem:

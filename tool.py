@@ -117,7 +117,13 @@ CSS = f"""<style>
 .grid span {{font-size:13px; padding:3px 8px; border:1px solid {charts.LINE}; border-radius:8px; color:{charts.MUTED}}}
 .grid .on {{color:{charts.TEXT}; border-color:{charts.MUTED}}}
 .grid .na {{opacity:.55}}
+.req {{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 90px; gap:12px; padding:6px 0; border-bottom:1px solid {charts.LINE}; font-size:14px}}
+.req .n {{text-align:right; white-space:nowrap}}
+@media (max-width:760px) {{.req {{grid-template-columns:1fr auto}} .req .src {{grid-column:1 / span 2}}}}
 .acts {{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 10px}}
+.acts .tag {{white-space:normal; max-width:100%; overflow-wrap:anywhere; text-align:left}}
+[class*='st-key-moment'] {{height:auto !important; min-width:0; overflow:hidden}}
+[class*='st-key-moment'] .lab {{overflow-wrap:anywhere}}
 .foot {{border-top:1px solid {charts.LINE}; margin-top:32px; padding-top:10px; font-size:13px; color:{charts.MUTED}}}
 .foot a {{color:{charts.MUTED}}}
 div[data-testid="stButton"] button p {{font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}}
@@ -377,6 +383,51 @@ def impact(c, a, layer) -> None:
         st.markdown(charts.svg(cb, a.money), unsafe_allow_html=True)
 
 
+def request_rows(a, items) -> str:
+    """Requests grouped by theme, each with what it is linked to."""
+    out = []
+    for theme in dl.THEMES:
+        mine = [q for q in items if q.theme == theme]
+        if not mine:
+            continue
+        out.append(f'<div class="lab">{E(theme)} · {len(mine)}</div>')
+        out += [f'<div class="req"><span>{E(q.item)}</span><span class="src">{E("; ".join(q.links))}</span>'
+                f'<span class="n">{money(a, q.amount) if q.amount is not None else ""}</span></div>' for q in mine]
+    return "".join(out)
+
+
+def requests(c, a) -> None:
+    """The request list in three levels: start with priority 1; the others open on demand."""
+    rs = dl.prioritised_requests(a)
+    by = {p: [q for q in rs if q.priority == p] for p in dl.PRIORITIES}
+    counts = " · ".join(f"Priority {p} · {dl.PRIORITIES[p]}: {len(by[p])}" for p in dl.PRIORITIES)
+    st.markdown(f'<div class="sec">Request list · {len(rs)} requests</div><div class="src">{E(counts)}</div>'
+                f'<div class="src" title="{E(dl.PRIORITY_DETAIL)}">{E(dl.PRIORITY_RULE)} ⓘ</div>'
+                f'<div class="title" style="margin-top:10px">Start with these {len(by[1])}</div>'
+                f'{request_rows(a, by[1])}', unsafe_allow_html=True)
+    for p in (2, 3):
+        with st.expander(f"Priority {p} · {dl.PRIORITIES[p]} · {len(by[p])}"):
+            st.markdown(request_rows(a, by[p]), unsafe_allow_html=True)
+
+
+def request_export(c, a) -> str:
+    """The prioritised request list as Markdown, with the reviewer's decisions on the findings it comes from."""
+    out = [f"# Request list — {c.company}", "", f"{dl.PRIORITY_RULE}. {dl.PRIORITY_DETAIL}", ""]
+    for p, name in dl.PRIORITIES.items():
+        mine = [q for q in dl.prioritised_requests(a) if q.priority == p]
+        out += [f"## Priority {p} · {name} ({len(mine)})", ""]
+        for theme in dl.THEMES:
+            rows = [q for q in mine if q.theme == theme]
+            if rows:
+                out += [f"### {theme}", ""]
+                for q in rows:
+                    marks = [st.session_state.get(f"rev-{c.slug}-{l.split(' · ')[0]}") for l in q.links]
+                    flag = " — accepted" if "Accepted" in marks else ""
+                    out.append(f"- {q.item} *(linked to: {'; '.join(q.links)}){flag}*")
+                out.append("")
+    return "\n".join(out)
+
+
 def evidence(c, a, layer) -> None:
     cov = layer.coverage
     st.markdown(f'<div class="title">{E(dl.coverage_title(cov))}</div><div class="src">{E(dl.MODE_LINE)}</div>'
@@ -393,8 +444,9 @@ def evidence(c, a, layer) -> None:
             st.markdown(f"**{rid}** · {name}: {doc}")
         for rid, name, why in cov.not_applicable:
             st.markdown(f"**{rid}** · {name}: not applicable, {why}")
-    st.markdown('<div class="sec">Open items</div>', unsafe_allow_html=True)
-    for col, g in zip(st.columns(3), dl.GROUPS):
+    requests(c, a)
+    st.markdown('<div class="sec">Open items for others</div>', unsafe_allow_html=True)
+    for col, g in zip(st.columns(2), dl.GROUPS[1:]):          # 'Ask the company' is the request list above
         items = [o for o in layer.open_items if o.group == g]
         with col.expander(f"{g} · {len(items)}", expanded=False):
             for o in items:
@@ -403,7 +455,7 @@ def evidence(c, a, layer) -> None:
     current = [d for d in dl.deal_issues(a) if d.key not in dl.INFORMATION_RULES and not d.historical]
     for col, m in zip(st.columns(4), dl.MOMENTS):
         mine = [d for d in current if d.moment == m]
-        with col.container(border=True):
+        with col.container(border=True, key=f"moment-{m.replace(' ', '-')}"):
             st.markdown(f"**{m}** · {len(mine)}")
             for action in dict.fromkeys(d.protection for d in mine):     # each action once, its issues as chips
                 names = [d.title for d in mine if d.protection == action]
@@ -428,13 +480,9 @@ def evidence(c, a, layer) -> None:
     if c.memo_path.exists():
         d3.download_button("Memo (Markdown)", c.memo_path.read_bytes(), f"{c.slug}_memo.md",
                            use_container_width=True)
-    accepted = [d for d in dl.deal_issues(a)
-                if st.session_state.get(f"rev-{c.slug}-{d.key}") == "Accepted"]
-    text = "\n".join([f"# Request list — {c.company} (accepted findings)", ""] +
-                     [f"- {d.request} ({d.key})" for d in accepted])
-    d4.download_button(f"Request list · {len(accepted)} accepted", text.encode("utf-8"),
-                       f"{c.slug}_request_list.md", disabled=not accepted, use_container_width=True,
-                       help="Only the findings you marked Accepted in Findings.")
+    d4.download_button("Request list (by priority)", request_export(c, a).encode("utf-8"),
+                       f"{c.slug}_request_list.md", use_container_width=True,
+                       help="Three levels, grouped by theme; requests linked to findings you accepted are marked.")
 
 
 # ---------------------------------------------------------------- page

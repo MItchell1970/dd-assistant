@@ -1,6 +1,7 @@
 """Phase 4B, the deal layer (dd_assistant/deal_layer.py): valuation impact without double counting, top deal
 issues with their typical protection, the risk score and its formula, areas and referrals to other workstreams,
 open items, action items by moment, and the coverage map."""
+import re
 import unittest
 from functools import lru_cache
 
@@ -262,6 +263,36 @@ class EquityViewTest(unittest.TestCase):
         self.assertAlmostEqual(e.share, e.impact / (8 * e.ebitda - e.net_debt))
 
 
+class PrioritisedRequestsTest(unittest.TestCase):
+    """The request list in three levels: never more than ten to start with; each request has a level and a link."""
+
+    def test_at_most_ten_first_and_every_request_linked(self):
+        for name in ALL:
+            rs = dl.prioritised_requests(company(name))
+            self.assertLessEqual(sum(q.priority == 1 for q in rs), dl.MAX_P1, name)
+            for q in rs:
+                self.assertIn(q.priority, dl.PRIORITIES, (name, q.item))
+                self.assertIn(q.theme, dl.THEMES, (name, q.item))
+                self.assertTrue(q.links, (name, q.item))
+                self.assertTrue(all(re.match(r"R\d\d · |Net debt item: |To assess: ", l) for l in q.links),
+                                (name, q.links))
+            self.assertEqual(len({q.item for q in rs}), len(rs), name)        # each request once
+
+    def test_level_follows_the_written_rule(self):
+        a = company("tap")
+        rs = {q.item: q for q in dl.prioritised_requests(a)}
+        self.assertEqual(rs["AR ageing at the last two year-ends"].priority, 1)            # R07, High
+        hist = [q for q in rs.values() if any("historical" in l for l in q.links) and len(q.links) == 1]
+        self.assertTrue(hist and all(q.priority == 3 for q in hist))                         # R11, R24: FY23, FY24
+        first = [q for q in dl.prioritised_requests(a) if q.priority == 1]
+        self.assertEqual([t for t in dl.THEMES if any(q.theme == t for q in first)],
+                         list(dict.fromkeys(q.theme for q in first)))                        # grouped by theme
+
+    def test_duriva_caps_the_first_level(self):
+        rs = dl.prioritised_requests(company("duriva"))
+        self.assertEqual(sum(q.priority == 1 for q in rs), dl.MAX_P1)                        # planted problems: >10
+
+
 class AreasOpenItemsCoverageTest(unittest.TestCase):
     def test_areas_and_referrals(self):
         for name in ALL:
@@ -334,7 +365,7 @@ class OutputsTest(unittest.TestCase):
         self.assertTrue(any(isinstance(t, str) and t.startswith("Diligence Gap: 100 / 100") for t in texts))
         req = wb["Issues & Requests"]
         cells = [c.value for row in req.iter_rows() for c in row if isinstance(c.value, str)]
-        self.assertIn("coverage: R30", cells)                                # a blocked rule asks for its document
+        self.assertIn("R30 · Comparatives restated (blocked)", cells)         # a blocked rule asks for its document
 
     def test_material_has_the_new_figures(self):
         from dd_assistant.memo_check import _check_numbers

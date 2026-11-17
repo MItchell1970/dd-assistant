@@ -191,6 +191,13 @@ def _deal_layer_section(a) -> list[str]:
     out += _table(["#", "Issue", "Area", "Amount at stake", "Protection or next step", "When"],
                   [[d.rank, d.title, d.area or "n/a", fmt_value(d.amount) if d.amount is not None else "n/a",
                     d.protection, d.moment] for d in layer.top])
+    from .deal_layer import PRIORITIES, PRIORITY_DETAIL, PRIORITY_RULE, prioritised_requests
+    rs = prioritised_requests(a)
+    out += ["", f"Request list by priority ({PRIORITY_RULE}). {PRIORITY_DETAIL} Counts: "
+                + "; ".join(f"priority {p} ({name}) {sum(q.priority == p for q in rs)}" for p, name in PRIORITIES.items())
+                + "."]
+    out += _table(["Priority", "Theme", "Request", "Linked to"], [[q.level, q.theme, q.item, "; ".join(q.links)]
+                                                                for q in rs])
     groups: dict[str, int] = {}
     for o in layer.open_items:
         groups[o.group] = groups.get(o.group, 0) + 1

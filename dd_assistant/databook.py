@@ -693,22 +693,25 @@ def _issues(ws, a, reviews) -> None:
         _put(ws, r, 11, comment, fill=_DECISION, unlocked=True)
     if found:
         _validation(ws, ["Pending", "Accepted", "Dismissed"], f"I5:I{r}")
-    from .deal_layer import request_list
-    order = {s: i for i, s in enumerate(("High", "Medium", "Low"))}
-    by_id = {res.rule.id: res for res in found}
-    requests = {doc: [by_id[s] for s in src if s in by_id] for doc, src in request_list(a).items()}
-    origin = request_list(a)
+    from .deal_layer import PRIORITY_DETAIL, PRIORITY_RULE, prioritised_requests
     r += 2
-    _put(ws, r, 1, "Request list (duplicates merged)", _BOLD)
+    _put(ws, r, 1, f"Request list by priority (duplicates merged). {PRIORITY_RULE}.", _BOLD)
     r += 1
-    _header(ws, r, ["Request", "Document", "From findings", "Priority", "", "", "", "", "Status"])
-    for i, (doc, src) in enumerate(requests.items(), 1):
+    _put(ws, r, 1, PRIORITY_DETAIL).alignment = Alignment(wrap_text=True, vertical="top")
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=8)
+    ws.row_dimensions[r].height = 45
+    r += 1
+    _header(ws, r, ["Request", "Document", "Linked to (finding, item or rule)", "Priority", "Theme",
+                    "Amount at stake", "", "", "Status"])
+    for i, q in enumerate(prioritised_requests(a), 1):
         r += 1
-        prio = min((x.rule.severity for x in src), key=lambda s: order[s]) if src else "Medium"
         _put(ws, r, 1, f"REQ-{i:02d}")
-        _put(ws, r, 2, doc).alignment = Alignment(wrap_text=True, vertical="top")
-        _put(ws, r, 3, ", ".join(dict.fromkeys(origin[doc])))
-        _put(ws, r, 4, prio)
+        _put(ws, r, 2, q.item).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 3, "; ".join(q.links)).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 4, q.level).alignment = Alignment(wrap_text=True, vertical="top")
+        _put(ws, r, 5, q.theme)
+        if q.amount is not None:
+            _put(ws, r, 6, q.amount, fmt=_NUM)
         _put(ws, r, 9, "Open", fill=_DECISION, unlocked=True)
     for col, w in zip("ABCDEFGHIJK", [9, 34, 18, 9, 10, 60, 44, 36, 11, 14, 28]):
         ws.column_dimensions[col].width = w

@@ -201,6 +201,9 @@ border-radius:12px;padding:18px 22px;margin-top:20px}
 .hero6 .pts{display:grid;grid-template-columns:minmax(0,1fr) auto 40px;gap:2px 12px;color:var(--ink);font-size:.8rem;margin-top:6px}
 .hero6 .pts span:nth-child(3n){text-align:right}.hero6 .f{color:var(--muted);font-size:.78rem;margin-top:6px}
 .close6{margin-top:8px;font-size:.85rem}.close6 b{color:var(--green)}.close6 ol{margin:2px 0 0;padding-left:18px;color:var(--muted)}.close6 li span{color:var(--ink)}
+.rt{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px}
+.rq{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.9rem}.rq .why{color:var(--muted);font-size:.8rem}
+@media (max-width:600px){.rq{grid-template-columns:1fr;gap:2px}}
 .cnt6{display:flex;flex-direction:column;gap:6px}
 .cnt6 span{font-size:.85rem;padding:3px 10px;border-radius:6px;border:1px solid;white-space:nowrap}
 .issue-card{border-left:3px solid}
@@ -347,6 +350,30 @@ def closing(s) -> str:
         return ""
     items = "".join(f"<li>{E(k)} · {E(t)} <span>−{fmt_points(p)} pts</span></li>" for k, t, p in s.closers)
     return f'<div class="close6"><b>{E(dl.closing_text(s))}</b><ol>{items}</ol></div>'
+
+
+def requests(a) -> str:
+    """The request list: the ten to start with, by theme; the other levels open on demand."""
+    from dd_assistant import deal_layer as dl
+    rs = dl.prioritised_requests(a)
+    by = {p: [q for q in rs if q.priority == p] for p in dl.PRIORITIES}
+
+    def rows(items):
+        out = []
+        for theme in dl.THEMES:
+            mine = [q for q in items if q.theme == theme]
+            if mine:
+                out.append(f'<p class="rt">{E(theme)} · {len(mine)}</p>')
+                out += [f'<div class="rq"><span>{E(q.item)}</span><span class="why">{E("; ".join(q.links))}</span></div>'
+                        for q in mine]
+        return "".join(out)
+
+    counts = " · ".join(f"Priority {p} · {dl.PRIORITIES[p]}: {len(by[p])}" for p in dl.PRIORITIES)
+    more = "".join(f"<details><summary>Priority {p} · {dl.PRIORITIES[p]} · {len(by[p])}</summary>{rows(by[p])}"
+                   "</details>" for p in (2, 3))
+    return (f'<h2 class="action" style="margin-top:36px">Start with these {len(by[1])} requests</h2>'
+            f'<p class="muted small">{E(counts)}. <span title="{E(dl.PRIORITY_DETAIL)}">{E(dl.PRIORITY_RULE)} ⓘ</span></p>'
+            f"{rows(by[1])}{more}")
 
 
 def legend() -> str:
@@ -501,6 +528,7 @@ def company(c, a) -> str:
 </div></section>
 <section class="tight" data-check="{c.slug}"><div class="wrap">
 {coverage_grid(a, layer)}
+{requests(a)}
 <div class="btns"><a class="btn primary" href="{DEMO_URL}/?company={c.slug}">Open {E(short_name(c))} in the tool</a></div>
 <p class="hint">Findings with their evidence, the valuation impact, open items and downloads are in the tool.</p>
 </div></section>"""
