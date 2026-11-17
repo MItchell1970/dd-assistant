@@ -18,9 +18,9 @@
 
 ![The tool on TAP Air Portugal: Summary](docs/images/tool-summary.png)
 
-*The tool on TAP Air Portugal, Summary: the diligence risk score in the colour of its band (40 / 100, several open points; finding intensity, not a recommendation), its split by area and every point behind it, four KPIs coloured by what they mean for a buyer, and the top five deal issues of FY25 tinted by severity. Red is worse for the buyer, green is better or checks out, amber is Medium only. Leases, unflown tickets and the working capital peg sit apart as "Already in the price".*
+*The tool on TAP Air Portugal, Summary: the Diligence Gap in the colour of its band (40 / 100, several open points; higher = more to clarify, not a recommendation), its split by area, the three answers that close most of it (40 → 17) and every point behind it, four KPIs coloured by what they mean for a buyer, and the top five deal issues of FY25 tinted by severity. Red is worse for the buyer, green is better or checks out, amber is Medium only. Leases, unflown tickets and the working capital peg sit apart as "Already in the price".*
 
-**How the score works.** Each open issue of the latest year gets points: severity (High 3, Medium 2, Low 1) × materiality (material 1, not quantifiable 0.75, below materiality 0.5) × evidence (open 1, partly explained by a note 0.75, explained 0.5). 30 points = 100, that is ten open, material High findings. A finding that fired only in an earlier year is historical: it stays in Findings with its year, out of the score and the top issues. Materiality is 5% of reported EBITDA for earnings items and 1% of revenue for balance sheet items. The score is a triage index, not a probability: issues are ranked by amount at stake, never by points.
+**How the Diligence Gap works.** Each open issue of the latest year gets points: severity (High 3, Medium 2, Low 1) × materiality (material 1, not quantifiable 0.75, below materiality 0.5) × evidence (open 1, partly explained by a note 0.75, explained 0.5). 30 points = 100, that is ten open, material High findings. A finding that fired only in an earlier year is historical: it stays in Findings with its year, out of the score and the top issues. Materiality is 5% of reported EBITDA for earnings items and 1% of revenue for balance sheet items. Next to the score, the tool names the three issues whose answer lowers it most and the score after them, by the same formula. The Impact view turns the illustrative multiple into euros: EV = multiple × reported EBITDA, equity value = EV − adjusted net debt, and the impact of the findings as a share of that equity value. The request list comes in three priorities (before signing, at most ten; during the diligence; to complete the picture), by severity, amount at stake and SPA impact, each request linked to the finding or rule that asks for it. The score is a triage index, not a probability: issues are ranked by amount at stake, never by points.
 
 It reads a company's statements (Excel, PDF, Word or an ESEF filing), checks its own reading against the published subtotals, and returns what a deal team asks for first: quality of earnings (QoE), net debt with debt-like items, net working capital (NWC), 30 red-flag rules with their sources, a two-page memo, the request list, an Excel databook with live formulas and a Red Flag Report in nine slides. European companies, euros only.
 
@@ -73,10 +73,10 @@ The website shows the conclusions (score, top three issues, one chart, coverage)
 
 | Figure | What it is | Proof |
 |---|---|---|
-| **311** | automated tests, all passing | `python -m unittest` |
+| **317** | automated tests, all passing | `python -m unittest` |
 | **30** | rules, each with its threshold, source and plain-language reason | `python -m dd_assistant --rules` |
 | **100%** | of the 123 lines read on the three companies carry their source cell, page or tag | `CompanyData.sources` |
-| **415** | memo figures checked against the material, 0 without a source | `docs/examples/*/memo_check.md` |
+| **414** | memo figures checked against the material, 0 without a source | `docs/examples/*/memo_check.md` |
 | **10 of 10** | published subtotals rebuilt from the lines read | `tests/test_real_companies.py` |
 | **48 of 49** | planted distortions detected, one at a time (1 missed: TAP, M18) | [`docs/DETECTION.md`](docs/DETECTION.md) |
 | **0** | false alarms on the clean company (Velmora) | `tests/test_clean_company.py` |

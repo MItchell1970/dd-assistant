@@ -76,7 +76,7 @@ CSS = f"""<style>
 .close li span {{color:{charts.TEXT}}}
 .cnt {{display:flex; flex-direction:column; gap:6px}}
 .cnt span {{font-size:14px; padding:4px 10px; border-radius:6px; border:1px solid; white-space:nowrap}}
-.kpis {{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:0 0 10px}}
+.kpis {{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:0 0 4px}}
 .kpi {{background:{charts.CARD}; border:1px solid {charts.LINE}; border-top:3px solid; border-radius:8px;
   padding:10px 16px}}
 .kpi .l {{font-size:13px; color:{charts.MUTED}}}
@@ -87,9 +87,9 @@ CSS = f"""<style>
 .tag {{display:inline-block; font-size:12px; padding:1px 7px; border-radius:5px; border:1px solid {charts.LINE};
   color:{charts.MUTED}; white-space:nowrap}}
 .chip {{display:inline-block; font-size:12px; padding:1px 8px; border-radius:10px; border:1px solid; white-space:nowrap}}
-.sec {{font-size:13px; color:{charts.MUTED}; text-transform:uppercase; letter-spacing:.06em; margin:16px 0 6px}}
+.sec {{font-size:13px; color:{charts.MUTED}; text-transform:uppercase; letter-spacing:.06em; margin:10px 0 4px}}
 .row {{display:grid; grid-template-columns:76px minmax(0,1fr) 110px 240px; gap:12px; align-items:center;
-  min-height:38px; border-left:3px solid; border-radius:6px; padding:0 12px; margin:0 0 4px; font-size:15px;
+  min-height:34px; border-left:3px solid; border-radius:6px; padding:0 12px; margin:0 0 3px; font-size:15px;
   color:{charts.TEXT}}}
 .row .n {{text-align:right; white-space:nowrap; font-weight:600}}
 .row > span:first-child span[title] {{font-size:18px}}
@@ -129,6 +129,8 @@ CSS = f"""<style>
 .foot a {{color:{charts.MUTED}}}
 div[data-testid="stButton"] button p {{font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}}
 [class*="st-key-chip"] button {{padding:4px 8px; min-height:36px}}
+.st-key-top5 {{gap:6px !important}}
+.st-key-top5 button {{min-height:32px; padding:2px 12px}}
 [class*="st-key-card-High"] details {{border-left:3px solid {charts.RED}; background:{tint(charts.RED, '0f')}}}
 [class*="st-key-card-Medium"] details {{border-left:3px solid {charts.AMBER}; background:{tint(charts.AMBER, '0f')}}}
 [class*="st-key-card-Low"] details, [class*="st-key-card-None"] details {{border-left:3px solid {charts.GREY}}}
@@ -279,9 +281,10 @@ def summary(c, a, layer) -> None:
     st.markdown(f'<div class="sec">Top deal issues · {fy(L)}, by amount at stake</div>{legend()}'
                 f'<div class="row h"><span></span><span>Issue</span><span class="n">Amount</span>'
                 f'<span>{E(dl.COLUMN)}</span></div>', unsafe_allow_html=True)
+    box = st.container(key="top5")
     for d in layer.top:
         colour = SEV_COLOUR.get(d.severity, charts.GREY)
-        left, right = st.columns([12, 1], vertical_alignment="center")
+        left, right = box.columns([12, 1], vertical_alignment="center")
         left.markdown(f'<div class="row" style="border-left-color:{colour};background:{tint(colour, "14")}">'
                       f'<span data-nocheck="1">{mark(d)}</span><span>{E(d.title)}</span>'
                       f'<span class="n" style="color:{colour if d.severity in ("High", "Medium") else charts.TEXT}">'

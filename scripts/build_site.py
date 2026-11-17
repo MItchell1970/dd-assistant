@@ -473,7 +473,7 @@ def index(cases: list) -> str:
 <p class="small" style="color:{colour};margin:4px 0 0">{E(word)}</p>{score_bar(layer.score, colour)}
 <p class="kv"><span>Adjusted net debt, {E(fy(B))}</span><b>{E(a.money.fmt(a.view.net_debt_adjusted[B]).replace("-€", "−€"))}</b></p>
 <p class="action">{E(dl.closing_text(layer.score))}</p>
-<p class="muted small">{E("; ".join(f"{k} · {t}" for k, t, _ in layer.score.closers))}</p>
+<p class="muted small">{E("; ".join(t if k.startswith("ND: ") else f"{k} · {t}" for k, t, _ in layer.score.closers))}</p>
 <a class="more" href="{PAGES[c.slug]}">The case →</a>
 </article>""")
     limits = " · ".join(demo.LIMITS)

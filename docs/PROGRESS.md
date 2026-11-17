@@ -259,3 +259,18 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 **Desvios ao desenho:** o Impact ficou empilhado (não em duas colunas) para as pontes ocuparem a largura; os títulos dos gráficos não foram encurtados a 70 caracteres (são gerados pelo motor e verificados no memo).
 
 **Próximo passo exato:** aprovação do Bernardo para o push. Depois: reescrever os três memos de exemplo sem os achados históricos como key issues (GAPS).
+
+## Fase 6b (17 de novembro de 2026, pedidos do Bernardo)
+
+**Feito** (commits locais, sem push)
+1. **Verificação em tom neutro** no site (cartões cinzentos, números brancos) e na app (Reading checks, "rules run", grelha de cobertura). O verde fica para o que é bom para o comprador.
+2. **"Finding intensity" passa a "Diligence Gap"** (0 = nada em aberto, 100 = muito em aberto; "Higher = more to clarify"). "Not a recommendation" aparece uma vez, junto ao score principal, com tooltip; saiu dos cartões do site. Também no databook, no material e no `deal_layer.md`.
+3. **O que fecha o gap:** as 3 questões com mais pontos e o score sem elas, pela mesma fórmula (TAP 40 → 17; Toyota 35 → 13; Amorim 21 → 6). Teste `ClosingTheGapTest`.
+4. **Múltiplo:** EV = múltiplo × EBITDA reportado, equity value = EV − adjusted net debt, impacto dos achados em € e em % do equity value; "Illustrative, not a valuation"; sem ajustes ao EBITDA, uma linha diz que o impacto não depende do múltiplo. TAP: 6x EV €4,355m, equity €2,062m, −8.6%; 10x EV €7,258m, equity €4,966m, −3.6%. Valores de 6x, 8x e 10x no material. Teste `EquityViewTest`.
+5. **Evidence:** os chips quebram linha dentro dos cartões (0 fora, a 1440 e 375 px, medido pelo `demo_review.py`).
+6. **Request list por prioridade** (`deal_layer.prioritised_requests`, regra em `PRIORITY_DETAIL`): P1 "Before signing" (High atual, top deal issue ou item material que mexe no preço/SPA; máx. 10, por montante), P2 "During the diligence" (Medium, itens por classificar, regras bloqueadas que afetam o valor), P3 "To complete the picture" (o resto). Por tema; cada pedido com a ligação. App ("Start with these N" + P2/P3 em secções), site, databook (Issues & Requests), export e material. P1: TAP 7, Toyota 7, Amorim 5 (Duriva 10, com o limite). Teste `PrioritisedRequestsTest`.
+7. **Pontas soltas:** históricos contam zero (já estava); os três memos com a tabela de key issues de FY25 gerada pelo motor, verificador sem avisos (143, 133, 138 números); site sem título de gráfico repetido nos cartões, meta description própria, legenda antiga trocada por uma linha sobre a cor; nota de arredondamento por baixo do título do gráfico (TAP 2,292 vs 2,293); cash conversion com a definição ("operating cash flow ÷ EBITDA"); README com o link da demo uma vez no texto; o workflow das Pages publica a cada push a main (sem filtro de caminhos; Pages ativo, `build_type: workflow`, último deploy com sucesso).
+
+**Capturas e critérios** (`scripts/demo_review.py`, 1440 e 375 px): topo legível; Summary sem scroll (top 5 acaba aos 832 px); telemóvel sem scroll horizontal, score aos 257 px; múltiplo 6x vs 10x muda EV e equity; chips do Evidence dentro dos cartões; pontes ≥ 96% do cartão; página da TAP 2609 px (< 3 ecrãs). **317 testes OK.**
+
+**Próximo passo exato:** aprovação do Bernardo para o push.
