@@ -81,6 +81,23 @@ class SiteTest(unittest.TestCase):
         self.assertIn(f">{d['detected']} of {d['scored']}<", page)
         self.assertIn(f">{v['figures']}<", page)
 
+    def test_eight_verification_figures_each_with_its_proof(self):
+        """Phase 6: eight big figures, each counted now and checked here against an independent count."""
+        from dd_assistant.rules import RULES
+        stats = build_site.verification_stats()
+        self.assertEqual(len(stats), 8)
+        page = self.pages["index.html"]
+        self.assertEqual(page.count('class="vstat"'), 8)
+        for n, _, proof, _ in stats:
+            self.assertIn(f'<div class="n">{n}</div>', page)
+            self.assertTrue(proof)
+        v = demo.verification()
+        self.assertEqual(v["rules"], len(RULES))
+        self.assertEqual(v["clean_alarms"], 0)                     # tests/test_clean_company.py says the same
+        self.assertEqual(v["sourced"], v["lines"])                 # every line read has its source
+        self.assertEqual(v["controls_ok"], v["controls"])          # stored databooks: Excel = Python
+        self.assertGreater(v["controls"], 20)
+
     def test_downloads_and_images_exist(self):
         for page in self.pages.values():
             for link in re.findall(r'(?:href|src)="((?:files|img)/[^"]+)"', page):
@@ -104,12 +121,12 @@ class SiteTest(unittest.TestCase):
         """docs/FASE5_DESIGN.md: only the palette (3), no investment wording (7), no table the tool also shows and
         the company page limited to its five blocks (9)."""
         from dd_assistant import charts
-        palette = {charts.BG, charts.CARD, charts.TEXT, charts.MUTED, charts.LINE, charts.RED, charts.GREEN}
+        palette = charts.PALETTE
         for name, page in self.pages.items():
             with self.subTest(name):
                 self.assertLessEqual({x.lower() for x in re.findall(r"#[0-9a-fA-F]{6}", page)}, palette)
-                visible = re.sub(r"<[^>]+>", " ", re.sub(r"<(style|head)>.*?</>", " ", page, flags=re.S))
-                self.assertIsNone(re.search(r"no-go|go|recommend|should buy", visible, re.I))
+                visible = re.sub(r"<[^>]+>", " ", re.sub(r"<(style|head)>.*?</\1>", " ", page, flags=re.S))
+                self.assertIsNone(re.search(r"\bno-go\b|\bgo\b|\brecommend\b|should buy", visible, re.I))
                 self.assertNotIn("<table", page)
                 if name != "index.html":
                     self.assertEqual(page.count('class="ddc"'), 1)          # one chart: the net debt bridge

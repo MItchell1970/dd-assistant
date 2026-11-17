@@ -34,7 +34,7 @@ Especificação, não código. Substitui a secção 3 da `docs/FASE5_DESIGN.md` 
 
 `points = severity (3·2·1) × materiality (1 · 0.75 · 0.5) × evidence (1 · 0.75 · 0.5)`, só para issues do último ano; `score = min(100, points ÷ 30 × 100)`.
 
-**Exemplo da TAP (antes, 54):** R07 3 + R11 2,25 + R28 2 + R24 2 + R30 2 + R22 1 + Provisions 1 + R25 1 + Assets held for sale 1 + Other financial assets 1 = 16,25 pontos; 16,25 ÷ 30 = 54. Sem a R11 (histórica): 14 pontos, score 47. Por área: Net debt 13,3 · Working capital 16,7 · Quality of earnings 6,7 · Cash flow 6,7 · Tax 3,3.
+**Exemplo da TAP (antes, 54):** R07 3 + R11 2,25 + R28 2 + R24 2 + R30 2 + R22 1 + Provisions 1 + R25 1 + Assets held for sale 1 + Other financial assets 1 = 16,25 pontos; 16,25 ÷ 30 = 54. Depois da correção, a R11 (só FY23) e a R24 (só FY24) são históricas: 12 pontos, score 40. Por área: Working capital 16,7 · Net debt 13,3 · Quality of earnings 6,7 · Tax 3,3. Toyota 35, Amorim 21, Duriva 100, Velmora 0.
 
 **Texto para um não especialista (na app):** *"Each open question in the latest year gets points: how serious, how big, how unexplained. 30 points = 100. It is a to-do meter for the diligence, not a grade for the company."*
 **Para um entrevistador:** "É um índice de triagem, determinístico e decomposto ao ponto. Sei que multiplicar escalas ordinais é criticado, por isso não o uso como probabilidade nem para ordenar: a ordem dos issues é pelo montante em causa, e 100 corresponde a dez achados High, materiais, abertos e atuais."

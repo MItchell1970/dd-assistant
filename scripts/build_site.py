@@ -187,6 +187,40 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
 section.hero{padding:52px 0 40px}.case{padding:22px 18px}.steps{grid-template-columns:1fr}.cols{grid-template-columns:1fr}
 .stats{grid-template-columns:1fr 1fr;gap:28px 18px}.stat .n{font-size:2rem}.issue{grid-template-columns:1fr;gap:6px}
 .lede{font-size:1.08rem}.panel{padding:18px 14px}.dl a{flex-basis:100%}}
+/* Phase 6: colour with a meaning (red worse, green better, amber Medium only), the hero, verification */
+:root{--amber:#d29922;--blue:#58a6ff}
+.hero6{display:grid;grid-template-columns:190px minmax(0,1fr) 190px;gap:24px;align-items:center;border:1px solid;
+border-radius:12px;padding:18px 22px;margin-top:20px}
+.hero6 .big6{font:700 3.4rem/1 var(--sans);white-space:nowrap}.hero6 .big6 span{font-size:1rem;color:var(--muted);font-weight:400}
+.hero6 .word{font-weight:600;margin:6px 0 0}.hero6 .lab{font-size:.8rem;color:var(--muted);margin:2px 0 0}
+.sbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line)}
+.sbar i{display:block;height:100%;border-right:2px solid var(--surface)}
+.segs{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:.8rem;color:var(--muted);margin-top:8px}.segs b{color:var(--ink)}
+.plain6{font-size:.9rem;margin:8px 0 0;line-height:1.5}
+.hero6 details{color:var(--blue);font-size:.82rem;margin-top:6px}
+.hero6 .pts{display:grid;grid-template-columns:minmax(0,1fr) auto 40px;gap:2px 12px;color:var(--ink);font-size:.8rem;margin-top:6px}
+.hero6 .pts span:nth-child(3n){text-align:right}.hero6 .f{color:var(--muted);font-size:.78rem;margin-top:6px}
+.cnt6{display:flex;flex-direction:column;gap:6px}
+.cnt6 span{font-size:.85rem;padding:3px 10px;border-radius:6px;border:1px solid;white-space:nowrap}
+.issue-card{border-left:3px solid}
+.inprice6{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:12px;align-items:center;padding:8px 14px;
+border-left:3px solid var(--muted);border-radius:6px;background:#8b949e14;margin:0 0 6px}
+.inprice6 .n{text-align:right;color:var(--muted);font-weight:600;white-space:nowrap}.inprice6 .why{display:block;font-size:.8rem;color:var(--muted)}
+.legend6{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.8rem;color:var(--muted);margin:8px 0}
+.grid .on{border-color:#3fb95066;background:#3fb95014}.grid .na{opacity:.55}
+.vgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.vstat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--green);border-radius:10px;padding:18px}
+.vstat .n{font:700 3rem/1 var(--sans);color:var(--green);letter-spacing:-.02em}
+.vstat .t{color:var(--ink);font-weight:600;margin:10px 0 6px;line-height:1.35}
+.vstat code{display:block;color:var(--muted);font-size:.75rem;word-break:break-word}
+.vstat .miss{font-size:.8rem;margin:4px 0 0}.vstat .miss a{color:var(--red)}
+.how3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:20px}
+.how3 div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.how3 b{display:block;color:var(--ink);margin-bottom:4px}.how3 p{margin:0;color:var(--muted);font-size:.88rem}
+.case .sbar{margin:12px 0 4px}
+@media (max-width:900px){.vgrid{grid-template-columns:1fr 1fr}.how3{grid-template-columns:1fr}
+.hero6{grid-template-columns:1fr;gap:14px}.cnt6{flex-direction:row;flex-wrap:wrap}}
+@media (max-width:600px){.vstat .n{font-size:2.2rem}}
 """
 
 
@@ -254,38 +288,85 @@ def page(title: str, description: str, body: str, path: str = "") -> str:
 """
 
 
-# ---------------------------------------------------------------- pages (docs/FASE5_DESIGN.md: the site shows conclusions)
+# ---------------------------------------------------------------- pages (docs/FASE6_DESIGN.md: the site shows conclusions)
 SHAPE = {"High": "▲", "Medium": "●", "Low": "○"}
+SEV = {"High": "var(--red)", "Medium": "var(--amber)", "Low": "var(--muted)"}
+SEV_HEX = {"High": "#f85149", "Medium": "#d29922", "Low": "#8b949e"}
+TONE_HEX = {"red": "#f85149", "amber": "#d29922", "green": "#3fb950"}
+TAG = {"Net debt item": "Debt-like", "To assess": "To assess", "Working capital item": "Working capital"}
+GITHUB_DETECTION = "https://github.com/MItchell1970/dd-assistant/blob/main/docs/DETECTION.md"
 
 
 def short_name(c) -> str:
     return c.company.split()[0]
 
 
-def band(c, a, layer) -> str:
-    """The status band: the score, what it is, and three counts from the engine."""
+def fmt_points(x: float) -> str:
+    from dd_assistant.ai_memo import fmt_value
+    return fmt_value(x)
+
+
+def score_bar(s, colour: str) -> str:
+    """The score split by area: one segment per area, widths in score points (they add up to the score)."""
+    segs = sorted([(k, v) for k, v in s.by_area.items() if v], key=lambda x: -x[1])
+    shades = ("ff", "cc", "99", "77", "55")
+    return '<div class="sbar">' + "".join(f'<i style="width:{v:.1f}%;background:{colour}{shades[k % 5]}" '
+                                          f'title="{E(area)}"></i>' for k, (area, v) in enumerate(segs)) + "</div>"
+
+
+def hero(c, a, layer) -> str:
+    """The same hero as the tool: the score in the colour of its band, where its points come from, the counts."""
     from dd_assistant import deal_layer as dl
     s, cov = layer.score, layer.coverage
-    issues = [d for d in dl.deal_issues(a) if d.key not in dl.INFORMATION_RULES]
-    open_n = sum(not d.evidence.startswith("explained") for d in issues)
-    before = len(layer.actions["Before signing"])
-    return (f'<div class="band"><div class="s">{s.score}<span> / 100</span></div><div><p class="l">{E(s.label)}</p>'
-            f'<p class="c">{open_n} open issues · {before} actions before signing · {E(cov.text)}</p>'
-            f'<details><summary>How the score is computed</summary><p class="c">{E(s.formula)}</p></details>'
-            '</div></div>')
+    word, tone = s.band
+    colour = TONE_HEX[tone]
+    segs = sorted([(k, v) for k, v in s.by_area.items() if v], key=lambda x: -x[1])
+    labels = "".join(f"<span>{E(k)} <b>{fmt_points(v)}</b></span>" for k, v in segs)
+    pts = "".join(f"<span>{E(k)} · {E(s.titles.get(k, k))}</span><span>{E(why)}</span><span>{fmt_points(p)}</span>"
+                  for k, _, why, p in s.lines)
+    counts = "".join(f'<span style="color:{SEV_HEX[x]};border-color:{SEV_HEX[x]}66;background:{SEV_HEX[x]}14">'
+                     f"{s.counts.get(x, 0)} {SHAPE[x]} {x}</span>" for x in SHAPE)
+    counts += f'<span style="color:#3fb950;border-color:#3fb95066">{len(cov.run)} / {cov.total} rules run</span>'
+    return (f'<div class="hero6" style="border-color:{colour}66;background:{colour}14">'
+            f'<div><div class="big6" style="color:{colour}">{s.score}<span> / 100</span></div>'
+            f'<p class="word" style="color:{colour}">{E(word)}</p><p class="lab">{E(s.label)}</p></div>'
+            f'<div>{score_bar(s, colour)}<div class="segs">{labels}</div><p class="plain6">{E(dl.SCORE_PLAIN)}</p>'
+            f'<details><summary>How the score is built: every point, by issue</summary><div class="pts">{pts}'
+            f'<span><b>Total</b></span><span>{fmt_points(s.points)} points ÷ 30 × 100</span><span><b>{s.score}</b>'
+            f'</span></div><p class="f">{E(s.formula)}</p></details></div>'
+            f'<div class="cnt6">{counts}</div></div>')
+
+
+def legend() -> str:
+    plain = {"High": "could change price or terms", "Medium": "answer before signing", "Low": "note it"}
+    return ('<div class="legend6">' + "".join(f'<span><span style="color:{SEV[x]}">{SHAPE[x]} {x}</span> · {plain[x]}'
+                                              f"</span>" for x in SHAPE)
+            + "<span>Debt-like · To assess: balance sheet items, no rule fired, no severity</span></div>")
 
 
 def issue_card(d, a) -> str:
     """Signature visual 3: one deal issue, its amount, the evidence state and what a deal team does about it."""
     from dd_assistant import deal_layer as dl
-    shape = SHAPE.get(d.severity, "–")
-    colour = "var(--red)" if d.severity == "High" else "var(--ink)" if d.severity == "Medium" else "var(--muted)"
-    tip = E(d.severity or "no rule severity")
-    return (f'<article class="issue-card"><p class="k"><span style="color:{colour}" title="{tip}">{shape}</span> '
-            f'{E(d.key if d.kind == "Finding" else d.kind)} · {E(d.area or "")}</p>'
+    colour = SEV_HEX.get(d.severity, "#8b949e")
+    mark = (f'<span style="color:{SEV[d.severity]}" title="{E(d.severity)}">{SHAPE[d.severity]}</span> {E(d.key)}'
+            if d.severity else E(TAG.get(d.kind, d.kind)))
+    ev = "explained" if d.evidence.startswith("explained") else "partly" if d.evidence.startswith("partly") else "open"
+    ev_colour = {"explained": "var(--green)", "partly": "var(--amber)", "open": "var(--red)"}[ev]
+    return (f'<article class="issue-card" style="border-left-color:{colour};background:{colour}14">'
+            f'<p class="k">{mark} · {E(d.area or "")}</p>'
             f'<h3>{E(dl.issue_title(d, a.money))}</h3>'
-            f'<p class="m">{E(d.protection)}{"" if d.moment == d.protection else " · " + E(d.moment)} · '
-            f'evidence {E(d.evidence)}</p></article>')
+            f'<p class="m">{E(d.protection)} · <span style="color:{ev_colour}">evidence {E(d.evidence)}</span></p>'
+            '</article>')
+
+
+def in_price(a) -> str:
+    from dd_assistant import deal_layer as dl
+    items = dl.in_price(a)
+    if not items:
+        return ""
+    return ('<p class="eyebrow" style="margin-top:28px">Already in the price · shown, not scored</p>' + "".join(
+        f'<div class="inprice6"><span>{E(p.label)}<span class="why">{E(p.why)}</span></span>'
+        f'<span class="n">{E(minus(a.money.fmt(p.amount)))}</span></div>' for p in items))
 
 
 def coverage_grid(a, layer) -> str:
@@ -295,29 +376,69 @@ def coverage_grid(a, layer) -> str:
     marks = []
     for r in a.results:
         status, doc = cov.status(r.rule.id)
-        marks.append(f'<span class="{"on" if status.startswith("run") else ""}" title="{E(r.rule.name)}'
+        cls = "on" if status.startswith("run") else "na" if status.startswith("not") else ""
+        marks.append(f'<span class="{cls}" title="{E(r.rule.name)}'
                      f'{": " + E(doc) if doc else ""}">{E(status.split()[-1])} {r.rule.id}</span>')
     return (f'<h2 class="action">{E(dl.coverage_title(cov))}</h2><p class="muted small">{E(dl.MODE_LINE)}</p>'
+            '<div class="legend6"><span style="color:var(--green)">✓ run</span><span>□ blocked: a document is '
+            'missing</span><span>– not applicable</span></div>'
             f'<div class="grid">{"".join(marks)}</div>')
+
+
+def verification_stats() -> list[tuple[str, str, str, str]]:
+    """Eight figures, each counted now by the code: (figure, what it is, the command or file that proves it, miss)."""
+    from dd_assistant import demo
+    v, d = demo.verification(), demo.detection()
+    share = round(100 * v["sourced"] / v["lines"]) if v["lines"] else 0
+    missed = d.get("scored", 0) - d.get("detected", 0)
+    return [
+        (str(v["tests"]), "automated tests, all passing", "python -m unittest", ""),
+        (str(v["rules"]), "rules, each with its threshold, source and plain-language reason",
+         "python -m dd_assistant --rules", ""),
+        (f"{share}%", f"of the {v['lines']} lines read carry their source cell, page or tag", "CompanyData.sources", ""),
+        (str(v["figures"]), f"memo figures checked against the material, {v['unmatched']} without a source",
+         "docs/examples/*/memo_check.md", ""),
+        (f"{v['checks_passed']} of {v['checks']}", "published subtotals rebuilt from the lines read",
+         "tests/test_real_companies.py", ""),
+        (f"{d.get('detected', 0)} of {d.get('scored', 0)}", "planted distortions detected, one at a time",
+         "docs/DETECTION.md", f"{missed} missed: TAP, M18 (published)" if missed else ""),
+        (str(v["clean_alarms"]), "false alarms on the clean company (Velmora)", "tests/test_clean_company.py", ""),
+        (f"{v['controls_ok']} of {v['controls']}", "databook totals: Excel recalculated = Python",
+         "databook Checks sheet · tests/test_databook.py", ""),
+    ]
+
+
+def verification_grid() -> str:
+    return '<div class="vgrid">' + "".join(
+        f'<div class="vstat"><div class="n">{E(n)}</div><p class="t">{E(t)}</p><code>{E(proof)}</code>'
+        + (f'<p class="miss"><a href="{GITHUB_DETECTION}">{E(miss)}</a></p>' if miss else "") + "</div>"
+        for n, t, proof, miss in verification_stats()) + "</div>"
 
 
 def index(cases: list) -> str:
     from dd_assistant import charts, demo
     from dd_assistant import deal_layer as dl
-    v, d = demo.verification(), demo.detection()
-    cards = []
+    cards, tap = [], None
     for c, a in cases:
         layer = dl.build(a)
         b = charts.net_debt(a, company=short_name(c))
         B = a.view.bs_years[-1]
-        cards.append(f"""<article class="case" data-check="{c.slug}">
+        word, tone = layer.score.band
+        colour = TONE_HEX[tone]
+        if c.slug == "tap":
+            tap = layer.score
+        cards.append(f"""<article class="case" data-check="{c.slug}" style="border-top:3px solid {colour}">
 <p class="co">{E(c.company)}</p>
-<div class="score">{layer.score.score}<span> / 100</span></div><p class="muted small">{E(layer.score.label)}</p>
+<div class="score" style="color:{colour}">{layer.score.score}<span> / 100</span></div>
+<p class="small" style="color:{colour};margin:4px 0 0">{E(word)}</p>{score_bar(layer.score, colour)}
+<p class="muted small">{E(layer.score.label)}</p>
 <p class="kv"><span>Adjusted net debt, {E(fy(B))}</span><b>{E(a.money.fmt(a.view.net_debt_adjusted[B]).replace("-€", "−€"))}</b></p>
 <p class="action">{E(b.title) if b else ""}</p>
 <a class="more" href="{PAGES[c.slug]}">The case →</a>
 </article>""")
     limits = " · ".join(demo.LIMITS)
+    example = (f"TAP: {fmt_points(tap.points)} points from {len(tap.lines)} open issues of FY25 = {tap.score} / 100."
+               if tap else "")
     body = f"""<section class="hero"><div class="wrap">
 <p class="eyebrow">Financial due diligence · European companies · euros</p>
 <h1>{NAME}</h1>
@@ -329,15 +450,15 @@ def index(cases: list) -> str:
 <section id="cases"><div class="wrap">
 <p class="eyebrow">Three real companies, published accounts FY2023 to FY2025</p>
 <div class="cases">{"".join(cards)}</div>
+<div class="how3">
+<div><b>1 · Each open issue gets points</b><p>Severity (High 3, Medium 2, Low 1) × materiality (material 1, not quantifiable 0.75, below 0.5) × evidence (open 1, partly explained by a note 0.75, explained 0.5).</p></div>
+<div><b>2 · Only the latest year counts</b><p>A finding of an earlier year only is historical: kept, not scored. Items a buyer prices anyway (leases, the peg) sit apart.</p></div>
+<div><b>3 · 30 points = 100</b><p>Ten open, material High findings. A to-do meter for the diligence, not a grade for the company. {E(example)}</p></div>
+</div>
 </div></section>
 <section id="verified"><div class="wrap">
-<p class="eyebrow">How it is verified</p>
-<div class="stats">
-<div class="stat"><div class="n">{v['tests']}</div><p class="t">automated tests</p></div>
-<div class="stat"><div class="n">{v['checks_passed']} of {v['checks']}</div><p class="t">published subtotals rebuilt</p></div>
-<div class="stat"><div class="n">{d.get('detected', 0)} of {d.get('scored', 0)}</div><p class="t">planted distortions detected</p></div>
-<div class="stat"><div class="n">{v['figures']}</div><p class="t">memo figures checked, {v['unmatched']} without a source</p></div>
-</div>
+<p class="eyebrow">How it is verified · every figure counted by the code when this page was built</p>
+{verification_grid()}
 <p class="limits">Limits: {E(limits)}.</p>
 </div></section>"""
     return page(f"{NAME}: financial due diligence on published accounts",
@@ -350,15 +471,18 @@ def company(c, a) -> str:
     layer = dl.build(a)
     b = charts.net_debt(a, company=short_name(c))
     top3 = "".join(issue_card(d, a) for d in layer.top[:3])
+    L = a.view.pl_years[-1]
     body = f"""<section class="hero tight"><div class="wrap" data-check="{c.slug}">
 <a class="back" href="index.html#cases">← All cases</a>
 <p class="eyebrow">{E(a.sector.name)} · {E(c.accounts)}</p>
 <h1>{E(c.company)}</h1>
-{band(c, a, layer)}
+{hero(c, a, layer)}
 </div></section>
 <section class="tight" data-check="{c.slug}"><div class="wrap">
-<p class="eyebrow">Top 3 deal issues, by amount at stake</p>
+<p class="eyebrow">Top 3 deal issues · {fy(L)}, by amount at stake</p>
+{legend()}
 <div class="issues3">{top3}</div>
+{in_price(a)}
 </div></section>
 <section class="tight" data-check="{c.slug}"><div class="wrap">
 {charts.svg(b, a.money) if b else ""}

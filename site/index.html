@@ -160,6 +160,40 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
 section.hero{padding:52px 0 40px}.case{padding:22px 18px}.steps{grid-template-columns:1fr}.cols{grid-template-columns:1fr}
 .stats{grid-template-columns:1fr 1fr;gap:28px 18px}.stat .n{font-size:2rem}.issue{grid-template-columns:1fr;gap:6px}
 .lede{font-size:1.08rem}.panel{padding:18px 14px}.dl a{flex-basis:100%}}
+/* Phase 6: colour with a meaning (red worse, green better, amber Medium only), the hero, verification */
+:root{--amber:#d29922;--blue:#58a6ff}
+.hero6{display:grid;grid-template-columns:190px minmax(0,1fr) 190px;gap:24px;align-items:center;border:1px solid;
+border-radius:12px;padding:18px 22px;margin-top:20px}
+.hero6 .big6{font:700 3.4rem/1 var(--sans);white-space:nowrap}.hero6 .big6 span{font-size:1rem;color:var(--muted);font-weight:400}
+.hero6 .word{font-weight:600;margin:6px 0 0}.hero6 .lab{font-size:.8rem;color:var(--muted);margin:2px 0 0}
+.sbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line)}
+.sbar i{display:block;height:100%;border-right:2px solid var(--surface)}
+.segs{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:.8rem;color:var(--muted);margin-top:8px}.segs b{color:var(--ink)}
+.plain6{font-size:.9rem;margin:8px 0 0;line-height:1.5}
+.hero6 details{color:var(--blue);font-size:.82rem;margin-top:6px}
+.hero6 .pts{display:grid;grid-template-columns:minmax(0,1fr) auto 40px;gap:2px 12px;color:var(--ink);font-size:.8rem;margin-top:6px}
+.hero6 .pts span:nth-child(3n){text-align:right}.hero6 .f{color:var(--muted);font-size:.78rem;margin-top:6px}
+.cnt6{display:flex;flex-direction:column;gap:6px}
+.cnt6 span{font-size:.85rem;padding:3px 10px;border-radius:6px;border:1px solid;white-space:nowrap}
+.issue-card{border-left:3px solid}
+.inprice6{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:12px;align-items:center;padding:8px 14px;
+border-left:3px solid var(--muted);border-radius:6px;background:#8b949e14;margin:0 0 6px}
+.inprice6 .n{text-align:right;color:var(--muted);font-weight:600;white-space:nowrap}.inprice6 .why{display:block;font-size:.8rem;color:var(--muted)}
+.legend6{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.8rem;color:var(--muted);margin:8px 0}
+.grid .on{border-color:#3fb95066;background:#3fb95014}.grid .na{opacity:.55}
+.vgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.vstat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--green);border-radius:10px;padding:18px}
+.vstat .n{font:700 3rem/1 var(--sans);color:var(--green);letter-spacing:-.02em}
+.vstat .t{color:var(--ink);font-weight:600;margin:10px 0 6px;line-height:1.35}
+.vstat code{display:block;color:var(--muted);font-size:.75rem;word-break:break-word}
+.vstat .miss{font-size:.8rem;margin:4px 0 0}.vstat .miss a{color:var(--red)}
+.how3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:20px}
+.how3 div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.how3 b{display:block;color:var(--ink);margin-bottom:4px}.how3 p{margin:0;color:var(--muted);font-size:.88rem}
+.case .sbar{margin:12px 0 4px}
+@media (max-width:900px){.vgrid{grid-template-columns:1fr 1fr}.how3{grid-template-columns:1fr}
+.hero6{grid-template-columns:1fr;gap:14px}.cnt6{flex-direction:row;flex-wrap:wrap}}
+@media (max-width:600px){.vstat .n{font-size:2.2rem}}
 
 .ddc{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px 20px 16px;color:#e6edf3;
 font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -202,34 +236,40 @@ font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 </div></section>
 <section id="cases"><div class="wrap">
 <p class="eyebrow">Three real companies, published accounts FY2023 to FY2025</p>
-<div class="cases"><article class="case" data-check="tap">
+<div class="cases"><article class="case" data-check="tap" style="border-top:3px solid #d29922">
 <p class="co">TAP Air Portugal</p>
-<div class="score">40<span> / 100</span></div><p class="muted small">Finding intensity, not a recommendation</p>
+<div class="score" style="color:#d29922">40<span> / 100</span></div>
+<p class="small" style="color:#d29922;margin:4px 0 0">Several open points</p><div class="sbar"><i style="width:16.7%;background:#d29922ff" title="Working capital"></i><i style="width:13.3%;background:#d29922cc" title="Net debt"></i><i style="width:6.7%;background:#d2992299" title="Quality of earnings"></i><i style="width:3.3%;background:#d2992277" title="Tax"></i></div>
+<p class="muted small">Finding intensity, not a recommendation</p>
 <p class="kv"><span>Adjusted net debt, FY25</span><b>€2,293m</b></p>
 <p class="action">Leases, a standard item, explain €2,158m of TAP&#x27;s €2,293m adjusted net debt; diligence adds €177m</p>
 <a class="more" href="tap.html">The case →</a>
-</article><article class="case" data-check="toyota-caetano">
+</article><article class="case" data-check="toyota-caetano" style="border-top:3px solid #d29922">
 <p class="co">Toyota Caetano Portugal</p>
-<div class="score">35<span> / 100</span></div><p class="muted small">Finding intensity, not a recommendation</p>
+<div class="score" style="color:#d29922">35<span> / 100</span></div>
+<p class="small" style="color:#d29922;margin:4px 0 0">Several open points</p><div class="sbar"><i style="width:15.0%;background:#d29922ff" title="Cash flow"></i><i style="width:10.0%;background:#d29922cc" title="Working capital"></i><i style="width:5.0%;background:#d2992299" title="Quality of earnings"></i><i style="width:5.0%;background:#d2992277" title="Net debt"></i></div>
+<p class="muted small">Finding intensity, not a recommendation</p>
 <p class="kv"><span>Adjusted net debt, FY25</span><b>€78,039k</b></p>
 <p class="action">Tax payable takes net debt from €76,532k to €78,039k</p>
 <a class="more" href="toyota.html">The case →</a>
-</article><article class="case" data-check="corticeira-amorim">
+</article><article class="case" data-check="corticeira-amorim" style="border-top:3px solid #3fb950">
 <p class="co">Corticeira Amorim</p>
-<div class="score">21<span> / 100</span></div><p class="muted small">Finding intensity, not a recommendation</p>
+<div class="score" style="color:#3fb950">21<span> / 100</span></div>
+<p class="small" style="color:#3fb950;margin:4px 0 0">Few open points</p><div class="sbar"><i style="width:9.2%;background:#3fb950ff" title="Net debt"></i><i style="width:6.7%;background:#3fb950cc" title="Cash flow"></i><i style="width:5.0%;background:#3fb95099" title="Quality of earnings"></i></div>
+<p class="muted small">Finding intensity, not a recommendation</p>
 <p class="kv"><span>Adjusted net debt, FY25</span><b>€83,638k</b></p>
 <p class="action">Tax payable takes net debt from €75,859k to €83,638k</p>
 <a class="more" href="amorim.html">The case →</a>
 </article></div>
+<div class="how3">
+<div><b>1 · Each open issue gets points</b><p>Severity (High 3, Medium 2, Low 1) × materiality (material 1, not quantifiable 0.75, below 0.5) × evidence (open 1, partly explained by a note 0.75, explained 0.5).</p></div>
+<div><b>2 · Only the latest year counts</b><p>A finding of an earlier year only is historical: kept, not scored. Items a buyer prices anyway (leases, the peg) sit apart.</p></div>
+<div><b>3 · 30 points = 100</b><p>Ten open, material High findings. A to-do meter for the diligence, not a grade for the company. TAP: 12 points from 8 open issues of FY25 = 40 / 100.</p></div>
+</div>
 </div></section>
 <section id="verified"><div class="wrap">
-<p class="eyebrow">How it is verified</p>
-<div class="stats">
-<div class="stat"><div class="n">310</div><p class="t">automated tests</p></div>
-<div class="stat"><div class="n">10 of 10</div><p class="t">published subtotals rebuilt</p></div>
-<div class="stat"><div class="n">48 of 49</div><p class="t">planted distortions detected</p></div>
-<div class="stat"><div class="n">415</div><p class="t">memo figures checked, 0 without a source</p></div>
-</div>
+<p class="eyebrow">How it is verified · every figure counted by the code when this page was built</p>
+<div class="vgrid"><div class="vstat"><div class="n">311</div><p class="t">automated tests, all passing</p><code>python -m unittest</code></div><div class="vstat"><div class="n">30</div><p class="t">rules, each with its threshold, source and plain-language reason</p><code>python -m dd_assistant --rules</code></div><div class="vstat"><div class="n">100%</div><p class="t">of the 123 lines read carry their source cell, page or tag</p><code>CompanyData.sources</code></div><div class="vstat"><div class="n">415</div><p class="t">memo figures checked against the material, 0 without a source</p><code>docs/examples/*/memo_check.md</code></div><div class="vstat"><div class="n">10 of 10</div><p class="t">published subtotals rebuilt from the lines read</p><code>tests/test_real_companies.py</code></div><div class="vstat"><div class="n">48 of 49</div><p class="t">planted distortions detected, one at a time</p><code>docs/DETECTION.md</code><p class="miss"><a href="https://github.com/MItchell1970/dd-assistant/blob/main/docs/DETECTION.md">1 missed: TAP, M18 (published)</a></p></div><div class="vstat"><div class="n">0</div><p class="t">false alarms on the clean company (Velmora)</p><code>tests/test_clean_company.py</code></div><div class="vstat"><div class="n">27 of 27</div><p class="t">databook totals: Excel recalculated = Python</p><code>databook Checks sheet · tests/test_databook.py</code></div></div>
 <p class="limits">Limits: Annual accounts only (no monthly figures, LTM or budget) · Euros only · Financial due diligence only (no legal, tax, commercial or IT review) · A first pass for an analyst to review, not a conclusion.</p>
 </div></section>
 </main>

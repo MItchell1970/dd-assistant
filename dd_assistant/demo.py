@@ -261,7 +261,9 @@ def verification() -> dict[str, int]:
         tests = unittest.TestLoader().discover(str(ROOT / "tests"), top_level_dir=str(ROOT)).countTestCases()
     except Exception:   # noqa: BLE001 — the page still shows the other two numbers
         tests = 0
-    checks = passed = figures = unmatched = 0
+    from .databook import control_results
+    from .rules import RULES
+    checks = passed = figures = unmatched = lines = sourced = controls = controls_ok = 0
     for c in CASES:
         a = analysis(c)
         checks += len(a.checks)
@@ -270,7 +272,25 @@ def verification() -> dict[str, int]:
         if r is not None:
             figures += r.numbers_checked
             unmatched += len(r.unmatched_numbers)
-    return {"tests": tests, "checks": checks, "checks_passed": passed, "figures": figures, "unmatched": unmatched}
+        read = [k for k, v in a.data.lines.items() if any(x is not None for x in v.values())]
+        lines += len(read)
+        sourced += sum(bool(a.data.sources.get(k)) for k in read)
+        if c.databook_path.exists():          # the stored databook, recalculated by Excel: workbook = Python
+            done = control_results(c.databook_path)
+            controls += len(done)
+            controls_ok += sum(x[4] == "OK" for x in done)
+    return {"tests": tests, "checks": checks, "checks_passed": passed, "figures": figures, "unmatched": unmatched,
+            "rules": len(RULES), "lines": lines, "sourced": sourced, "controls": controls,
+            "controls_ok": controls_ok, "clean_alarms": clean_alarms()}
+
+
+def clean_alarms() -> int:
+    """Analytic findings on Velmora, the fictitious clean company (R18, documents missing, is not analytic)."""
+    path = ROOT / "data" / "Velmora_data_room.xlsx"
+    if not path.exists():
+        return 0
+    a = analyse(read_data_room(files_in([str(path)])), None, "PT")
+    return sum(r.rule.id != "R18" for r in a.findings)
 
 
 def tour_steps(case: Case, a: Analysis) -> list[tuple[str, str]]:
