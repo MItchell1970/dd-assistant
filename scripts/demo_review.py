@@ -75,6 +75,27 @@ def main() -> None:
                             results.append(f"8 Bridges fill the card: {'met' if ratio >= .9 else 'FAILED'} "
                                            f"(narrowest {ratio:.0%} of its card)")
                         page.screenshot(path=OUT / f"tool-tap-{view.lower()}-{size}.png")
+                        if view == "Impact":         # the multiple moves numbers: 6x and 10x
+                            slider = page.locator("[data-testid='stSlider'] input[type='range']").first
+                            texts = {}
+                            for label, key, n in (("6x", "ArrowLeft", 4), ("10x", "ArrowRight", 8)):
+                                slider.focus()
+                                for _ in range(n):
+                                    slider.press(key)
+                                page.wait_for_timeout(2500)
+                                texts[label] = page.evaluate("[...document.querySelectorAll('.kpi .v')].map(e => "
+                                                             "e.innerText).join(' | ')")
+                                page.screenshot(path=OUT / f"tool-tap-impact-{label}-{size}.png")
+                            moved = texts["6x"] != texts["10x"]
+                            results.append(f"4 Multiple moves numbers ({size}): {'met' if moved else 'FAILED'} "
+                                           f"6x: {texts['6x']} · 10x: {texts['10x']}")
+                        if view == "Evidence":       # chips stay inside their cards
+                            out = page.evaluate("[...document.querySelectorAll('[class*=st-key-moment]')].reduce("
+                                                "(n, c) => n + [...c.querySelectorAll('.tag')].filter(t => "
+                                                "t.getBoundingClientRect().right > c.getBoundingClientRect().right + 1)"
+                                                ".length, 0)")
+                            results.append(f"5 Evidence chips inside their cards ({size}): "
+                                           f"{'met' if out == 0 else 'FAILED'} ({out} outside)")
                         page.set_viewport_size({"width": w, "height": h})
                     page.locator("[data-testid='stButtonGroup'] button", has_text="Summary").first.click()
                 print(f"tool-{name}-{size}.png" + ("  HORIZONTAL SCROLL" if wide else ""))

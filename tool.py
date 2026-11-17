@@ -63,13 +63,14 @@ CSS = f"""<style>
 .bar i {{display:block; height:100%; border-right:2px solid {charts.CARD}}}
 .segs {{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px; color:{charts.MUTED}; margin-top:8px}}
 .segs b {{color:{charts.TEXT}; font-weight:600}}
-.plain {{font-size:14px; color:{charts.TEXT}; margin:8px 0 0; line-height:1.45}}
+.plain {{font-size:13px; color:{charts.TEXT}; margin:6px 0 0; line-height:1.4}}
 .hero details {{margin-top:6px; font-size:13px; color:{charts.ACCENT}}}
 .hero details summary {{cursor:pointer}}
 .hero details table {{width:100%; font-size:13px; color:{charts.TEXT}; margin-top:6px; border-collapse:collapse}}
 .hero details td, .hero details th {{padding:3px 6px; border-bottom:1px solid {charts.LINE}; text-align:left}}
 .hero details .f {{color:{charts.MUTED}; margin-top:6px}}
-.close {{margin-top:8px; font-size:13px; color:{charts.TEXT}}}
+.close {{margin-top:6px; font-size:13px; color:{charts.TEXT}; line-height:1.4}}
+.close .src span {{color:{charts.TEXT}}}
 .close b {{color:{charts.GREEN}}}
 .close ol {{margin:2px 0 0; padding-left:18px; color:{charts.MUTED}}}
 .close li span {{color:{charts.TEXT}}}
@@ -243,8 +244,8 @@ def closing(s) -> str:
     """What closes the gap: the three issues whose answer lowers the score most, and the score after them."""
     if not s.closers:
         return ""
-    items = "".join(f"<li>{E(k)} · {E(t)} <span>−{fmt_value(p)} pts</span></li>" for k, t, p in s.closers)
-    return (f'<div class="close"><b>{E(dl.closing_text(s))}</b><ol>{items}</ol></div>')
+    items = " · ".join(f"{E(t)} <span>−{fmt_value(p)}</span>" for k, t, p in s.closers)
+    return f'<div class="close"><b>{E(dl.closing_text(s))}</b> <span class="src">{items}</span></div>'
 
 
 def summary(c, a, layer) -> None:
