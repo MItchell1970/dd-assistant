@@ -1,4 +1,4 @@
-"""Write docs/VALIDATION.md: the findings on the real published accounts, classified, with the counts.
+"""Write docs/examples/validation/VALIDATION.md: the findings on the real published accounts, classified, with the counts.
 
 Run from the project folder:  python scripts\\validation_report.py
 The classification lives in tests/real_findings.py; the findings are recomputed here from the data files.
@@ -48,12 +48,12 @@ def main() -> None:
     if detection.exists():      # the benchmark by mutation (scripts/detection_benchmark.py): summary and link
         text = detection.read_text(encoding="utf-8").split("\n")
         lines += ["", "## Detection benchmark by mutation", ""] + [x for x in text[2:8] if x] + [
-            "", "Every run and every miss: [`docs/DETECTION.md`](DETECTION.md)."]
+            "", "Every run and every miss: [`docs/DETECTION.md`](../../DETECTION.md)."]
     lines += ["", "## Review by a person", "",
-              "`docs/REVIEW_SHEET.xlsx` lists the findings of the three demo companies with their evidence and the "
+              "`docs/examples/validation/REVIEW_SHEET.xlsx` lists the findings of the three demo companies with their evidence and the "
               "classification proposed by the agent, and empty columns for the reviewer's decision "
               "(`scripts/review_sheet.py`). Until those are filled, nothing here is reviewed by a person."]
-    out = ROOT / "docs" / "VALIDATION.md"
+    out = ROOT / "docs" / "examples" / "validation" / "VALIDATION.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{out}: {total} findings — " + ", ".join(f"{k}: {v}" for k, v in c.items()))
 

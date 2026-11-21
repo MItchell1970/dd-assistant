@@ -1,6 +1,6 @@
 # Fase 6 — desenho final (para o Opus implementar)
 
-Especificação, não código. Substitui a secção 3 da `docs/FASE5_DESIGN.md` (cor e símbolos) e acrescenta o resto. Textos do produto em inglês. Todos os números continuam a vir do motor e a passar pelo memo-checker. Sem Go/No-Go.
+Especificação, não código. Substitui a secção 3 da `docs/archive/FASE5_DESIGN.md` (cor e símbolos) e acrescenta o resto. Textos do produto em inglês. Todos os números continuam a vir do motor e a passar pelo memo-checker. Sem Go/No-Go.
 
 ## 1. Diagnóstico (capturas de 16 de novembro de 2026: app a 1440 e 375 px, site a 1440 px)
 

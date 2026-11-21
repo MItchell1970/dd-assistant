@@ -1,6 +1,6 @@
 # Fase 5 — desenho do produto final (para o Opus implementar as fases C e D)
 
-Especificação, não código. Vale o que está em `docs/FASE4_SPEC.md` (princípios, paleta, "Como trabalhar"); este ficheiro decide o que lá estava em aberto. Padrão: relatório de Financial Due Diligence de Big Four (conclusão primeiro, número, fonte). Sem Go/No-Go. Todos os números e títulos vêm do motor (`deal_layer.build`, `charts`) e passam pelo memo-checker. Textos do produto em inglês.
+Especificação, não código. Vale o que está em `docs/archive/FASE4_SPEC.md` (princípios, paleta, "Como trabalhar"); este ficheiro decide o que lá estava em aberto. Padrão: relatório de Financial Due Diligence de Big Four (conclusão primeiro, número, fonte). Sem Go/No-Go. Todos os números e títulos vêm do motor (`deal_layer.build`, `charts`) e passam pelo memo-checker. Textos do produto em inglês.
 
 ## 1. Ecrãs e ordem das secções
 
@@ -74,4 +74,4 @@ O visual 1 substitui o valuation impact bridge como assinatura: depois da revis�
 9. O site não tem nenhuma tabela que exista na app; a página de empresa cabe em 3 ecrãs a 1440 px.
 10. Suite completa OK; a paridade e a Velmora (0 alertas) não mudam.
 
-**Já no motor (não refazer):** a coluna "Protection or next step", o estado "not applicable –" do mapa de cobertura (terceiro símbolo da grelha) e o tipo "Working capital item" (`docs/FABLE_REVIEW.md`, linhas 5 a 8).
+**Já no motor (não refazer):** a coluna "Protection or next step", o estado "not applicable –" do mapa de cobertura (terceiro símbolo da grelha) e o tipo "Working capital item" (`docs/archive/FABLE_REVIEW.md`, linhas 5 a 8).

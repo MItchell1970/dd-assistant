@@ -2,7 +2,7 @@
 
 The AI does no calculations and creates no findings. It receives what layers 1–4 have
 already produced (findings with evidence and source, the rule catalogue, the metrics, the
-source figures) plus the full text of the data room, and follows docs/ai_memo_prompt.md
+source figures) plus the full text of the data room, and follows dd_assistant/ai_memo_prompt.md
 (the system prompt).
 
 The Claude API key comes from the ANTHROPIC_API_KEY environment variable or the .env file.
@@ -22,7 +22,7 @@ from .report import Reviews, fmt_value
 from .rules import RuleResult, alerts, fy
 
 ROOT = Path(__file__).resolve().parents[1]
-PROMPT_FILE = ROOT / "docs" / "ai_memo_prompt.md"
+PROMPT_FILE = Path(__file__).resolve().parent / "ai_memo_prompt.md"
 
 MODEL = "claude-opus-5-5"
 MAX_TOKENS = 64000      # streaming, so no timeout risk; the memo stays well below this
@@ -66,7 +66,7 @@ def load_env(path: Path = ROOT / ".env") -> None:
 
 
 def system_prompt() -> str:
-    """The prompt in docs/ai_memo_prompt.md from '## Role' onwards (the header is a note for people)."""
+    """The prompt in dd_assistant/ai_memo_prompt.md from '## Role' onwards (the header is a note for people)."""
     text = PROMPT_FILE.read_text(encoding="utf-8")
     start = text.find("## Role")
     return text[start:] if start >= 0 else text

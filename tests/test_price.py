@@ -1,4 +1,4 @@
-"""Price mechanism: the acceptance cases of docs/FASE2_SPEC.md, section 6. Expected values are those written in
+"""Price mechanism: the acceptance cases of docs/archive/FASE2_SPEC.md, section 6. Expected values are those written in
 the spec, by hand; none comes from the functions tested."""
 import unittest
 from datetime import date

@@ -3,7 +3,7 @@
 Copia o bloco abaixo e cola-o no Claude Code, com a pasta dd-assistant aberta.
 
 ```
-Lê integralmente docs/FASE2_SPEC.md e usa-o como especificação desta fase, junto com o CLAUDE.md.
+Lê integralmente docs/archive/FASE2_SPEC.md e usa-o como especificação desta fase, junto com o CLAUDE.md.
 
 Começa em modo de plano: inspeciona o repositório, corre os testes, confirma o estado descrito na secção 2 e entrega a tabela de diagnóstico. Depois cria docs/PROGRESS.md e docs/GAPS.md e implementa o M0, item a item, com testes e um commit local por incremento.
 
@@ -15,5 +15,5 @@ Fala comigo em português. Distingue sempre o que foi construído, testado autom
 Para retomar numa sessão nova, cola:
 
 ```
-Lê docs/FASE2_SPEC.md e docs/PROGRESS.md e continua a partir do próximo passo registado.
+Lê docs/archive/FASE2_SPEC.md e docs/PROGRESS.md e continua a partir do próximo passo registado.
 ```

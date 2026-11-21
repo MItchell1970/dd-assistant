@@ -1,6 +1,6 @@
 # DD Assistant — Fase 3: mais profundo, medido e visível
 
-Lê este ficheiro inteiro antes de mexer em código. Vale junto com o `CLAUDE.md` e com as regras de trabalho e de rigor do `docs/FASE2_SPEC.md` (secções 3 e 4: incrementos pequenos, `PROGRESS.md`, quatro estados, ausência ≠ zero, proveniência, sem push sem aprovação).
+Lê este ficheiro inteiro antes de mexer em código. Vale junto com o `CLAUDE.md` e com as regras de trabalho e de rigor do `docs/archive/FASE2_SPEC.md` (secções 3 e 4: incrementos pequenos, `PROGRESS.md`, quatro estados, ausência ≠ zero, proveniência, sem push sem aprovação).
 
 ## 1. Objetivo
 
@@ -94,13 +94,13 @@ Um script (`scripts/detection_benchmark.py`) que, sobre cada conjunto de contas 
 - resultado: **deteções / mutações** (recall) e **alertas novos não esperados** por mutação. Mutações abaixo da materialidade contam à parte ("below materiality by design").
 - as contas originais nunca são alteradas; cada mutação é feita em memória ou numa cópia temporária.
 
-O resultado vai para `docs/VALIDATION.md`, para o README e para a página. Publica o número que sair, incluindo as falhas, e lista as mutações não detetadas. Não afines as regras para o benchmark sem me mostrares primeiro o que falhou.
+O resultado vai para `docs/examples/validation/VALIDATION.md`, para o README e para a página. Publica o número que sair, incluindo as falhas, e lista as mutações não detetadas. Não afines as regras para o benchmark sem me mostrares primeiro o que falhou.
 
 ### B2. Auditoria independente da leitura
 Um subagente sem acesso ao código nem aos ficheiros transcritos recebe só o relatório de cada empresa e uma lista de 20 linhas (demonstrações e notas, anos diferentes) e devolve os valores com a página. Compara com o que o motor leu. Matriz: esperados · iguais · diferentes · ausentes. Sem tirar falhas do denominador.
 
 ### B3. A minha revisão
-Gera `docs/REVIEW_SHEET.xlsx`: os achados das três empresas, cada um com evidência, fonte, classificação proposta e uma coluna vazia para a minha decisão e comentário. Só depois de eu a preencher é que o `VALIDATION.md` pode dizer "reviewed by a person". Não a preenchas por mim.
+Gera `docs/examples/validation/REVIEW_SHEET.xlsx`: os achados das três empresas, cada um com evidência, fonte, classificação proposta e uma coluna vazia para a minha decisão e comentário. Só depois de eu a preencher é que o `VALIDATION.md` pode dizer "reviewed by a person". Não a preenchas por mim.
 
 ## 5. Bloco C — relatório em slides
 
@@ -177,5 +177,5 @@ Se o tempo apertar, o mínimo que vale a pena publicar é 1 + 3 + 5.
 ## Mensagem para colar no Claude Code
 
 ```
-Lê integralmente docs/FASE3_SPEC.md e usa-o como especificação, junto com o CLAUDE.md e as regras de trabalho do docs/FASE2_SPEC.md. Confirma o estado da secção 2, faz-me as três perguntas da secção 9 de uma vez e começa pelo bloco A1 + A2 enquanto eu respondo. Segue a ordem e os pontos de paragem da secção 7. Usa subagentes para as transcrições e para as verificações independentes. Fala comigo em português. Não faças push, não publiques e não faças chamadas pagas sem a minha aprovação.
+Lê integralmente docs/archive/FASE3_SPEC.md e usa-o como especificação, junto com o CLAUDE.md e as regras de trabalho do docs/archive/FASE2_SPEC.md. Confirma o estado da secção 2, faz-me as três perguntas da secção 9 de uma vez e começa pelo bloco A1 + A2 enquanto eu respondo. Segue a ordem e os pontos de paragem da secção 7. Usa subagentes para as transcrições e para as verificações independentes. Fala comigo em português. Não faças push, não publiques e não faças chamadas pagas sem a minha aprovação.
 ```

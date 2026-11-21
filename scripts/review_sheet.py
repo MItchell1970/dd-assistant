@@ -1,9 +1,9 @@
-"""Write docs/REVIEW_SHEET.xlsx: every key issue of the three demo companies, with its evidence and the classification
+"""Write docs/examples/validation/REVIEW_SHEET.xlsx: every key issue of the three demo companies, with its evidence and the classification
 the agent proposes, and empty columns for the reviewer's own decision.
 
     python scripts\\review_sheet.py
 
-The decision columns are for Bernardo. Nothing here fills them: docs/VALIDATION.md may say 'reviewed by a person'
+The decision columns are for Bernardo. Nothing here fills them: docs/examples/validation/VALIDATION.md may say 'reviewed by a person'
 only after he has. Running the script again keeps what he wrote (matched by company and key).
 """
 from __future__ import annotations
@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 from dd_assistant import demo  # noqa: E402
 from dd_assistant.rules import fy  # noqa: E402
 
-OUT = ROOT / "docs" / "REVIEW_SHEET.xlsx"
+OUT = ROOT / "docs" / "examples" / "validation" / "REVIEW_SHEET.xlsx"
 TRUE, REVIEW = "true positive", "to review"
 DECISIONS = ["true positive", "known false alarm", "to review", "not relevant"]
 # Proposed by Claude Code from the published figures and notes. (company slug, rule) -> (classification, why)

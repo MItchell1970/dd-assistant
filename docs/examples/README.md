@@ -6,9 +6,9 @@ The online demo (`DD_DEMO=1`) reads these folders. Each holds what Claude Code p
 
 | Folder | Company | Memo check |
 | --- | --- | --- |
-| `tap/` | TAP Air Portugal | passed: 142 figures, none without a source, no warning |
-| `toyota-caetano/` | Toyota Caetano Portugal | passed: 134 figures, none without a source, no warning |
-| `corticeira-amorim/` | Corticeira Amorim | passed: 139 figures, none without a source, no warning |
+| `tap/` | TAP Air Portugal | passed: 143 figures, none without a source, no warning |
+| `toyota-caetano/` | Toyota Caetano Portugal | passed: 133 figures, none without a source, no warning |
+| `corticeira-amorim/` | Corticeira Amorim | passed: 138 figures, none without a source, no warning |
 
 In each folder:
 
@@ -28,7 +28,7 @@ The memos are illustrations on public figures, not advice on the companies' secu
 
 ## Earlier example — Corticeira Amorim, FY2024
 
-`Corticeira_Amorim_FY2024_memo.md` was written by Claude Code running the `due-diligence` skill on `data/Corticeira_Amorim_2024_published.xlsx`, the consolidated statements the group published in its 2024 annual report. It used no API key and no prompt beyond `docs/ai_memo_prompt.md`.
+`corticeira-amorim-fy2024/memo.md` was written by Claude Code running the `due-diligence` skill on `data/Corticeira_Amorim_2024_published.xlsx`, the consolidated statements the group published in its 2024 annual report. It used no API key and no prompt beyond `dd_assistant/ai_memo_prompt.md`.
 
 What happened:
 
@@ -41,7 +41,7 @@ What happened:
    - missing documents.
 
    It also found post-employment benefits and income tax payable as debt-like items, and other financial liabilities and provisions to assess.
-3. Claude wrote the memo from the material file only. The first check found one figure without a source: a gross margin rounded to 52.9% where the material gives 52.8%. Claude corrected it, and the second check passed: 74 figures checked, none without a source, no warnings (`Corticeira_Amorim_FY2024_memo_check.md`).
+3. Claude wrote the memo from the material file only. The first check found one figure without a source: a gross margin rounded to 52.9% where the material gives 52.8%. Claude corrected it, and the second check passed: 74 figures checked, none without a source, no warnings (`corticeira-amorim-fy2024/memo_check.md`).
 
 To reproduce:
 

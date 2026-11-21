@@ -35,7 +35,7 @@ You are the reasoning layer of the DD Assistant. The engine (`python -m dd_assis
 
 4. **Take the decisions that are the user's.** For each management adjustment, give its values, what the data room says about it and the evidence that would support it; ask Accepted / Rejected / Under review. For items to assess, explain what would make them debt-like. Rerun with one `--adjustment "NAME=Accepted"` per decision (a prefix of the name is enough) and `--received "DOCUMENT"` for documents the user says were received.
 
-5. **Write the memo yourself.** Read `docs/ai_memo_prompt.md` from `## Role` and follow it exactly — the purpose in the material sets the reader and the angle — with `output\<name>_ai_material.md` as the material. Save it as `output\<name>_memo.md`.
+5. **Write the memo yourself.** Read `dd_assistant/ai_memo_prompt.md` from `## Role` and follow it exactly — the purpose in the material sets the reader and the angle — with `output\<name>_ai_material.md` as the material. Save it as `output\<name>_memo.md`.
 
 6. **Verify and fix.**
    ```

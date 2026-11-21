@@ -1,6 +1,6 @@
 """Check of the AI memo (deterministic, no AI).
 
-Automatically confirms part of the checklist in docs/ai_memo_prompt.md:
+Automatically confirms part of the checklist in dd_assistant/ai_memo_prompt.md:
   - every figure in the memo exists in the material sent to the AI, or is a rounding of one, for the period
     cited next to it ('€27,739k in FY24' fails when that is the FY23 value);
   - every finding appears in the memo;

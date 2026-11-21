@@ -293,7 +293,7 @@ def page(title: str, description: str, body: str, path: str = "") -> str:
 """
 
 
-# ---------------------------------------------------------------- pages (docs/FASE6_DESIGN.md: the site shows conclusions)
+# ---------------------------------------------------------------- pages (docs/archive/FASE6_DESIGN.md: the site shows conclusions)
 SHAPE = {"High": "▲", "Medium": "●", "Low": "○"}
 SEV = {"High": "var(--red)", "Medium": "var(--amber)", "Low": "var(--muted)"}
 SEV_HEX = {"High": "#f85149", "Medium": "#d29922", "Low": "#8b949e"}

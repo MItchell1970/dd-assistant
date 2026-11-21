@@ -1,13 +1,13 @@
 # Fase 2 — progresso
 
-Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de cada incremento.
+Ficheiro de retoma. Especificação: `docs/archive/FASE2_SPEC.md`. Atualizado no fim de cada incremento.
 
 **Estados:** construído · testado automaticamente · conferido contra a fonte · revisto pelo Bernardo. Um estado só aparece quando aconteceu.
 
 ## Agora
 
 - **Módulo:** M2, databook.
-- **M0 concluído:** M0.1 (o verificador do memo liga cada número ao ano citado), M0.2 (ausência ≠ zero), M0.3 (R13 com descobertos; a Amorim ficou fechada com a nota 19 do relatório publicado, conferida no PDF descarregado com autorização do Bernardo), M0.4 (alertas das empresas reais classificados; contagem em `docs/VALIDATION.md`).
+- **M0 concluído:** M0.1 (o verificador do memo liga cada número ao ano citado), M0.2 (ausência ≠ zero), M0.3 (R13 com descobertos; a Amorim ficou fechada com a nota 19 do relatório publicado, conferida no PDF descarregado com autorização do Bernardo), M0.4 (alertas das empresas reais classificados; contagem em `docs/examples/validation/VALIDATION.md`).
 - **M2 feito até agora:** databook com as 12 folhas (`dd_assistant/databook.py`), fórmulas nos totais e pontes, recálculo pelo Excel e comparação com o Python; na app (botão "Download databook") e na linha de comandos (`--databook`).
 - **M2e feito:** R27 (D&A muito acima do imobilizado), R28 (rubrica "outra" acima de 10% da receita, listada "a avaliar" no net debt), R29 (crescimento com aquisições), EBITDA antes da IFRS 16 (QoE) e nota IFRS 16 (Net Debt). Dividendos como possível leakage ficam para o M3.
 - **M3 feito:** `dd_assistant/price.py` (completion accounts, locked box, leakage, sensibilidade), candidatos a leakage lidos da DFC (dividendos pagos), folhas EV to Equity e Leakage no databook, secção "Price" na app (mecanismo obrigatório, sem escolha por defeito).
@@ -16,7 +16,7 @@ Ficheiro de retoma. Especificação: `docs/FASE2_SPEC.md`. Atualizado no fim de 
 
 ## Diagnóstico (4 de novembro de 2026)
 
-Estado confirmado no repositório: 21 commits no ramo `main`, igual ao GitHub; 124 testes a passar; só `docs/FASE2_SPEC.md` e `docs/FASE2_INICIO.md` por registar. A app foi verificada em sessões anteriores em modo headless (Streamlit AppTest) e no browser; nesta fase ainda não foi aberta.
+Estado confirmado no repositório: 21 commits no ramo `main`, igual ao GitHub; 124 testes a passar; só `docs/archive/FASE2_SPEC.md` e `docs/archive/FASE2_INICIO.md` por registar. A app foi verificada em sessões anteriores em modo headless (Streamlit AppTest) e no browser; nesta fase ainda não foi aberta.
 
 Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (linha identificada, fonte `Folha!Célula` ou etiqueta XBRL) → `CompanyData.lines` → `metrics.py` → `rules.py` (alerta com evidência) e `deal.py` (pontes) → `report.py` (Excel/CSV) e `ai_memo.py` (material) → `memo_check.py`.
 
@@ -59,16 +59,16 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
-| M6 simples | README atualizado (29 regras, databook, preço, limites); roteiro de demo em `docs/DEMO.md`; fluxo da app visto no browser (Overview → Deal view → Price: CA €7,099k na Duriva, sem erros na consola) | Sim | 165 testes OK | Números do roteiro conferidos na app | Databook revisto pelo Bernardo no Excel (exercício Net Debt → NWC, Toyota); README e roteiro pendentes |
+| M6 simples | README atualizado (29 regras, databook, preço, limites); roteiro de demo em `docs/archive/DEMO.md`; fluxo da app visto no browser (Overview → Deal view → Price: CA €7,099k na Duriva, sem erros na consola) | Sim | 165 testes OK | Números do roteiro conferidos na app | Databook revisto pelo Bernardo no Excel (exercício Net Debt → NWC, Toyota); README e roteiro pendentes |
 | M3 | EV → equity (completion accounts, locked box), registo de leakage, sensibilidade só com EV derivado; folhas no databook; secção na app | Sim | 165 testes OK (14 em `tests/test_price.py` com os casos da secção 6; 1 no databook recalculado); app headless: sem mecanismo não calcula, CA €7,099k e LB €9,050k na Duriva | Casos da especificação (esperados escritos na especificação); Duriva conferida à mão (EV 10,000 + 603 − 4,350 + 846) | Pendente |
 | M2e | Regras R27–R29, item "a avaliar" para rubricas "outras" materiais, EBITDA antes da IFRS 16 | Sim | 149 testes OK; Velmora continua com zero alertas analíticos | Toyota: esperados calculados à mão a partir da DRE, Balanço e DFC publicados (`test_what_a_reviewer_found`) | Pendente |
 | M2a–d | Databook: Read Me, Executive Summary, Source Register (com SHA-256), Financials, QoE (registo de ajustes com estado), NWC (política de inclusão), Net Debt (classificação e inclusão), Issues & Requests (pedidos fundidos), Checks; EV to Equity, Leakage e Monthly & LTM dizem que ainda não existem | Sim | 148 testes OK (10 novos em `tests/test_databook.py`, 2 recalculam no Excel); app headless com o botão nas 4 amostras | Totais do Excel = Python na Duriva e na Toyota (11 e 6 controlos) | Pendente (inspeção visual tua) |
 | M0.1 | `memo_check` liga cada número ao ano citado | Sim | 127 testes OK (3 novos em `PeriodTest`) | Valores da Toyota conferidos na DRE publicada (outros rendimentos FY23 27.739.438 €, FY24 34.746.983 €) | Pendente |
-| M0.4 | Alertas das empresas reais classificados (5 verdadeiros positivos, 4 por rever; o alarme falso da Amorim foi resolvido no M0.3); `scripts/validation_report.py` escreve `docs/VALIDATION.md` | Sim | 138 testes OK | Classificação feita a partir dos números publicados (Toyota DRE/DFC, Amorim DR/DFC) | Pendente: a classificação é uma proposta |
+| M0.4 | Alertas das empresas reais classificados (5 verdadeiros positivos, 4 por rever; o alarme falso da Amorim foi resolvido no M0.3); `scripts/validation_report.py` escreve `docs/examples/validation/VALIDATION.md` | Sim | 138 testes OK | Classificação feita a partir dos números publicados (Toyota DRE/DFC, Amorim DR/DFC) | Pendente: a classificação é uma proposta |
 | M0.3 | R13: diferença explicada por descobertos ou caixa restrita passa a reconciliação (memo no net debt) | Sim | 138 testes OK (4 novos em `tests/test_cash_reconciliation.py`); paridade igual | Sim: Amorim, nota 19 (p. 426), igual ao milhar nos dois anos | Pendente |
 | M0.2 | Ausência ≠ zero: net debt, NWC, FCF, R12, R14, mapa da dívida; avisos "incompleto" na app, no Excel, no memo e no JSON | Sim | 133 testes OK (6 novos em `tests/test_absence.py`); app headless sem erros nas 4 amostras | Não aplicável (casos construídos a partir da Velmora) | Pendente |
 
-## Demo online (docs/DEMO_ONLINE_SPEC.md)
+## Demo online (docs/archive/DEMO_ONLINE_SPEC.md)
 
 - **Feito:** TAP FY2025 transcrita do 2025 Integrated Report (site da TAP, obtido a 4 de novembro de 2026; o PDF enviado pelo Bernardo, `ANN153482.pdf`, tem o mesmo texto nas páginas das demonstrações e das notas). Resultado operacional reconstruído ao euro nos dois anos; balanço fechado; teste em `tests/test_real_companies.py` (`TapTest`). O dicionário aprendeu um P&L de companhia aérea; a R12 usa os totais publicados quando existem; as rubricas "outras" medem-se sem os itens já classificados.
 - **Não há ESEF da TAP** (não está no filings.xbrl.org). O relatório consolidado de 2025 só existe dentro do Integrated Report.
@@ -84,7 +84,7 @@ Percurso de um número: ficheiro → `dataroom.py` / `esef.py` / `extract.py` (l
 - **Publicado** pelo Bernardo a 4 de novembro de 2026 em https://dd-assistant-tickmark.streamlit.app; conferido no browser: as três empresas abrem, sem upload, e o memo passa no verificador também na cloud (89, 78 e 85 números). O `server.address = "localhost"` não impediu a cloud de abrir a app.
 - **Pendente:** rever o texto "Built by" do README e as case notes.
 
-## Demo UX (docs/DEMO_UX_SPEC.md, 9 de novembro de 2026)
+## Demo UX (docs/archive/DEMO_UX_SPEC.md, 9 de novembro de 2026)
 
 A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 lições da mensagem foram aplicadas.
 
@@ -97,7 +97,7 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Testes:** 203 OK.
 - **Pendente:** confirmar a linha "Built by … ex-EY Transaction Services intern" (o README diz "International Tax and Transaction Services"); push com aprovação; carregar a social preview no GitHub.
 
-## Fase 3 (docs/FASE3_SPEC.md, 10 de novembro de 2026)
+## Fase 3 (docs/archive/FASE3_SPEC.md, 10 de novembro de 2026)
 
 **Decisões do Bernardo:** materialidade "o normal do mercado" (ficou 5% do EBITDA reportado para itens de resultados e 1% das vendas para itens de balanço, editável); linha de autor "former intern in International Tax and Transaction Services at EY"; nome público por decidir (no GitHub e na app continua "DD Assistant").
 
@@ -133,8 +133,8 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
-| B1 | `scripts/detection_benchmark.py`: 19 distorções e 2 controlos, uma de cada vez, nas três empresas da demo; resultado em `docs/DETECTION.md` e resumo em `docs/VALIDATION.md`, README e página inicial | Sim | 8 testes em `tests/test_detection.py` (252 no total) | Não aplicável: mede o motor contra distorções plantadas | Pendente |
-| B3 | `docs/REVIEW_SHEET.xlsx` (`scripts/review_sheet.py`): 23 achados e 16 itens de net debt, com evidência, estado das notas e classificação proposta; colunas de decisão vazias | Sim | Sim (colunas do revisor vazias; folha atual) | — | **À espera do Bernardo** |
+| B1 | `scripts/detection_benchmark.py`: 19 distorções e 2 controlos, uma de cada vez, nas três empresas da demo; resultado em `docs/DETECTION.md` e resumo em `docs/examples/validation/VALIDATION.md`, README e página inicial | Sim | 8 testes em `tests/test_detection.py` (252 no total) | Não aplicável: mede o motor contra distorções plantadas | Pendente |
+| B3 | `docs/examples/validation/REVIEW_SHEET.xlsx` (`scripts/review_sheet.py`): 23 achados e 16 itens de net debt, com evidência, estado das notas e classificação proposta; colunas de decisão vazias | Sim | Sim (colunas do revisor vazias; folha atual) | — | **À espera do Bernardo** |
 
 - **Tabela do esperado escrita antes de correr** (`MUTATIONS` no script). Não foi alterada depois da primeira corrida, nem nenhum limite.
 - **Resultado da primeira e única corrida: 48 de 49 detetadas (98%).** 8 ficaram fora da taxa porque a regra já disparava nas contas reais (por exemplo, R07 na TAP, R09 na Toyota); 11 outras regras dispararam ao lado, todas consequência plausível da distorção (por exemplo, juros mais altos baixam o lucro e disparam também a R25).
@@ -163,7 +163,7 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Não feito:** a ponte de caixa ainda não tem folha no databook (fica em GAPS); os slides da demo refletem a análise por defeito, como o memo.
 
 
-### Fecho da Fase 3 (docs/FASE3_FINAL.md, 16 de novembro de 2026): site, app e README
+### Fecho da Fase 3 (docs/archive/FASE3_FINAL.md, 16 de novembro de 2026): site, app e README
 
 | # | Incremento | Construído | Testado | Conferido contra a fonte | Revisto |
 |---|---|---|---|---|---|
@@ -176,7 +176,7 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - **Fora deste fecho, por decisão:** slides, kit de candidaturas, regras novas.
 - **Pendente:** push com aprovação do Bernardo; ativar o GitHub Pages (passos em `docs/DEPLOY.md`); nome público ("DD Assistant" mantido).
 
-## Fase 4 (docs/FASE4_SPEC.md, 16 de novembro de 2026)
+## Fase 4 (docs/archive/FASE4_SPEC.md, 16 de novembro de 2026)
 
 ### Fase A — gráficos (feita, à espera de aprovação)
 - `dd_assistant/charts.py`: um só modelo e um só desenho (SVG) para as pontes; o site e a app usam o SVG, os slides usam o mesmo modelo em gráficos nativos do PowerPoint. Cor pelo efeito para o comprador (vermelho pior, verde melhor, totais cinzentos), maior item em cor plena e os outros a 45%, no máximo 7 colunas (itens abaixo de 1% do maior total em "Others", capex e alienações em "Net capex", depois saem os subtotais intermédios), action title e anotação por regra a partir do motor, nota de arredondamento. Paleta escura no site.
@@ -187,7 +187,7 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 ### Fase B — camada de deal (feita a 16 de novembro de 2026, à espera da revisão)
 
 **Feito**
-- Antes da B (decisão do Bernardo sobre a A): no telemóvel, a anotação do gráfico aparece por baixo do título, fora do SVG; o número de destaque já estava no título. Ponto 7 (mapa de cobertura) acrescentado à `docs/FASE4_SPEC.md`.
+- Antes da B (decisão do Bernardo sobre a A): no telemóvel, a anotação do gráfico aparece por baixo do título, fora do SVG; o número de destaque já estava no título. Ponto 7 (mapa de cobertura) acrescentado à `docs/archive/FASE4_SPEC.md`.
 - `dd_assistant/deal_layer.py` (pontos 1–7): valuation impact (EBITDA × 6x/8x/10x + itens de net debt + NWC contra o peg indicativo, "Illustrative, not a valuation"); top 5 deal issues com proteção típica e momento; risk score 0–100 com fórmula e decomposição por 5 áreas; encaminhamentos (Legal, HR, Tax, Regulatory) a partir das notas; open items em 3 grupos; ações por momento; mapa de cobertura com o documento que desbloqueia cada regra. Uma só request list (`request_list`) para o databook e os open items, com as regras bloqueadas, sem duplicados.
 - Databook: folhas Top Issues, Valuation Impact (fórmulas; Excel = Python nas três empresas) e Open Items (com a grelha de cobertura). Material do memo: secção 1c, para o verificador conhecer os números novos. Gráfico `charts.valuation` (mesmo gerador). Site: secção "Deal view" em cada página de empresa. `docs/examples/<empresa>/deal_layer.md` gerado por `scripts/demo_examples.py`.
 - Resultados: risk score TAP 50, Toyota 62, Amorim 30; Duriva 100 (problemas plantados), Velmora 0. Cobertura: 22 de 30 regras nas três cotadas, 29 de 30 na Duriva. Impacto a 8x: TAP −€2,547m, Toyota +€16,013k, Amorim −€79,293k (sem ajustes de EBITDA: igual a qualquer múltiplo).
@@ -208,15 +208,15 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 - A página inicial do site ainda não tem o risk score por empresa (Fase D).
 - Os encaminhamentos dependem das notas transcritas; sem notas, só a pensão (item de net debt) é encaminhada.
 
-### Revisão da Fase B (16 de novembro de 2026, `docs/FABLE_REVIEW.md`)
+### Revisão da Fase B (16 de novembro de 2026, `docs/archive/FABLE_REVIEW.md`)
 - **Corrigido:** o valuation impact só conta ajustes de diligence. Os leasings passam a "Standard EV-to-equity item" (o EBITDA é pós-IFRS 16) e o NWC contra o peg a "Price mechanism" (completion accounts): mostram-se, não contam. Impacto a qualquer múltiplo: TAP −€177m (antes −€2,547m), Toyota −€1,508k (antes +€16,013k), Amorim −€7,779k (antes −€79,293k). Os resultados da Fase B acima ficam como registo histórico.
 - **Risk score novo:** severidade × materialidade × evidência (aberto 1, parcialmente explicado 0,75, explicado 0,5), sobre achados e itens de balanço por classificar. TAP 61, Toyota 52, Amorim 32, Duriva 100, Velmora 0.
 - **Testes:** 297 OK. Databooks, `deal_layer.md` e site regenerados; slides não mudam.
 - **Linhas 5 a 8, aprovadas e feitas:** coluna "Protection or next step"; a receita diferida de uma companhia aérea é um item de working capital (`sectors.OPERATING_ITEMS`, com a razão à vista; NWC e net debt não mudam); a R25 só dá escrow com uma nota de contingências fiscais; R05 e R06 ficam "not applicable" em contas publicadas. TAP: score 54 (Toyota 52, Amorim 32). 299 testes OK; databooks, slides, site e `deal_layer.md` regenerados.
 
-**Próximo passo exato:** com aprovação do Bernardo, a Fase C segundo `docs/FASE5_DESIGN.md`.
+**Próximo passo exato:** com aprovação do Bernardo, a Fase C segundo `docs/archive/FASE5_DESIGN.md`.
 
-## Fase 5 — fases C e D (docs/FASE5_DESIGN.md, 16 de novembro de 2026)
+## Fase 5 — fases C e D (docs/archive/FASE5_DESIGN.md, 16 de novembro de 2026)
 
 **Feito**
 - **C, ferramenta** (`tool.py`, chamada pelo `app.py` em modo demo): cabeçalho (empresa, FY, unidade, modo, download), quatro vistas (Summary, Findings, Impact, Evidence), tema escuro com a paleta única (`.streamlit/config.toml`). Summary: faixa de estado, 4 KPIs com a fonte, 5 chips de área que abrem Findings filtrado, top 5. Findings: filtros, cartões com evidência citada, pergunta, documento, proteção e momento, decisão do revisor e comentário (na sessão). Impact: ponte de net debt em duas camadas (leasings a cinzento), valuation impact com slider 4x–12x, "Shown, not counted", ponte de caixa. Evidence: mapa de cobertura, open items, ações por momento, encaminhamentos, downloads (a request list só exporta os aceites).
@@ -243,7 +243,7 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 
 **Próximo passo exato:** aprovação do Bernardo para o push; depois, ativar o GitHub Pages se ainda não estiver (passos em `docs/DEPLOY.md`).
 
-## Fase 6 (docs/FASE6_DESIGN.md, 17 de novembro de 2026)
+## Fase 6 (docs/archive/FASE6_DESIGN.md, 17 de novembro de 2026)
 
 **Feito** (três commits locais, sem push)
 - **Erro do R11 corrigido.** O 4.º top issue da TAP (R11, €450m, High) era de FY23; em FY25 a dívida a menos de um ano é 2,8%. Um achado que só disparou antes do último ano testado passa a *historical*: Low, com o ano, em Findings; fora do top, do score e das ações. Teste `CurrentYearTest` (falha se um achado antigo entrar no top 5 como atual). Também históricos: R24 da TAP, R11/R27/R29/R25 da Toyota, R11/R10 da Amorim, R13/R14 da Duriva.
@@ -274,3 +274,9 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 **Capturas e critérios** (`scripts/demo_review.py`, 1440 e 375 px): topo legível; Summary sem scroll (top 5 acaba aos 832 px); telemóvel sem scroll horizontal, score aos 257 px; múltiplo 6x vs 10x muda EV e equity; chips do Evidence dentro dos cartões; pontes ≥ 96% do cartão; página da TAP 2609 px (< 3 ecrãs). **317 testes OK.**
 
 **Próximo passo exato:** aprovação do Bernardo para o push.
+
+## Arrumação antes da Fase 7 (21 de novembro de 2026, pedidos do Bernardo)
+
+**Feito** (commits locais, sem push)
+1. **Site:** saiu o "Answer these 3: 40 → 17" (página inicial e páginas de empresa); ficam os 3 principais issues, numa lista "Main issues". A app Streamlit não mudou. A verificação "48 of 49" fica neutra: a falha passa a uma linha cinzenta com link para `docs/DETECTION.md`. O teste do site pede agora pelo menos 3 números verificados por cartão (os cartões ficaram com score, ano e net debt).
+2. **Repositório:** `tool.py` passou para `dd_assistant/tool.py`; o prompt do memo para `dd_assistant/ai_memo_prompt.md` (é lido pelo código); as especificações antigas (FASE2 a FASE6, DEMO_*, FABLE_REVIEW*, DEMO.md) para `docs/archive/`; `VALIDATION.md` e `REVIEW_SHEET.xlsx` para `docs/examples/validation/`; o memo da Amorim FY2024 para `docs/examples/corticeira-amorim-fy2024/`. Removidos: `scripts/demo_screenshots.py` (já não corria) e seis imagens que nada usava. README curto; o detalhe técnico passou para `docs/ARCHITECTURE.md`. LICENSE (MIT). Links internos verificados por script (0 partidos).

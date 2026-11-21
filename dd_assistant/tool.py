@@ -1,4 +1,4 @@
-"""The public tool (demo mode of app.py): Summary · Findings · Impact · Evidence, as in docs/FASE6_DESIGN.md.
+"""The public tool (demo mode of app.py): Summary · Findings · Impact · Evidence, as in docs/archive/FASE6_DESIGN.md.
 
 Opens on TAP. Every figure and title comes from the engine (deal_layer.build, charts) and is in the memo material;
 the reviewer's decisions live in the session and drive the request list export (accepted findings only). No

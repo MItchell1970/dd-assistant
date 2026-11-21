@@ -7,7 +7,7 @@ gatherUsageStats = false
 address = "localhost"
 
 [theme]
-# the single palette (docs/FASE4_SPEC.md): background, cards, text, secondary, lines; red worse, green better, grey neutral
+# the single palette (docs/archive/FASE4_SPEC.md): background, cards, text, secondary, lines; red worse, green better, grey neutral
 base = "dark"
 primaryColor = "#e6edf3"
 backgroundColor = "#0d1117"

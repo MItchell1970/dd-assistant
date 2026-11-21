@@ -80,7 +80,7 @@ class ReviewSheetTest(unittest.TestCase):
         ws = load_workbook(review_sheet.OUT)["Review"]
         stored = [(r[0], r[1]) for r in ws.iter_rows(min_row=5, values_only=True) if r[0]]
         self.assertEqual(stored, [(r[0], r[1]) for r in review_sheet.rows()],
-                         "docs/REVIEW_SHEET.xlsx is stale: run python scripts\\review_sheet.py")
+                         "docs/examples/validation/REVIEW_SHEET.xlsx is stale: run python scripts\\review_sheet.py")
 
 
 if __name__ == "__main__":

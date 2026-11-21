@@ -1,6 +1,6 @@
 # Revisão da Fase B (camada de deal) — 16 de novembro de 2026
 
-Revisão feita como um manager de Transaction Services, seguindo `docs/FABLE_REVIEW_PROMPT.md`. As oito linhas foram corrigidas no código (`dd_assistant/deal_layer.py`, `issues.py`, `sectors.py`, com testes em `tests/test_deal_layer.py`; 299 testes OK). As linhas 5 a 8 foram aprovadas pelo Bernardo a 16 de novembro de 2026.
+Revisão feita como um manager de Transaction Services, seguindo `docs/archive/FABLE_REVIEW_PROMPT.md`. As oito linhas foram corrigidas no código (`dd_assistant/deal_layer.py`, `issues.py`, `sectors.py`, com testes em `tests/test_deal_layer.py`; 299 testes OK). As linhas 5 a 8 foram aprovadas pelo Bernardo a 16 de novembro de 2026.
 
 | # | Problema | Onde | Porquê | Correção |
 |---|---|---|---|---|

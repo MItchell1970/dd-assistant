@@ -120,7 +120,7 @@ class SiteTest(unittest.TestCase):
                 self.assertTrue(external)
 
     def test_design_criteria(self):
-        """docs/FASE5_DESIGN.md: only the palette (3), no investment wording (7), no table the tool also shows and
+        """docs/archive/FASE5_DESIGN.md: only the palette (3), no investment wording (7), no table the tool also shows and
         the company page limited to its five blocks (9)."""
         from dd_assistant import charts
         palette = charts.PALETTE

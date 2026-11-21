@@ -1,6 +1,6 @@
 # DD Assistant — fecho da Fase 3 (só o site)
 
-Substitui as secções 6 e 7 do `docs/FASE3_SPEC.md`. Tudo o resto daquele ficheiro (B2, D3, A6, mais slides) **fica fora**. Não faças kit de candidaturas, nem mais PowerPoint, nem novas regras.
+Substitui as secções 6 e 7 do `docs/archive/FASE3_SPEC.md`. Tudo o resto daquele ficheiro (B2, D3, A6, mais slides) **fica fora**. Não faças kit de candidaturas, nem mais PowerPoint, nem novas regras.
 
 ## Objetivo
 
@@ -56,5 +56,5 @@ Se ainda não tiveres as respostas, usa "DD Assistant" e "Built by Bernardo Espi
 ## Mensagem para colar no Claude Code
 
 ```
-Lê docs/FASE3_FINAL.md e segue-o. Só os passos 1 a 3: nada de slides, kit de candidaturas ou regras novas. Começa pelo docs/PROGRESS.md em vez de releres o repositório todo, e segue as regras de poupança de tokens do ficheiro. Fala comigo em português, com respostas curtas. Não faças push sem a minha aprovação.
+Lê docs/archive/FASE3_FINAL.md e segue-o. Só os passos 1 a 3: nada de slides, kit de candidaturas ou regras novas. Começa pelo docs/PROGRESS.md em vez de releres o repositório todo, e segue as regras de poupança de tokens do ficheiro. Fala comigo em português, com respostas curtas. Não faças push sem a minha aprovação.
 ```

@@ -1,6 +1,6 @@
 # DD Assistant — demo online com empresas portuguesas reais
 
-Lê este ficheiro inteiro antes de mexer em código. Vale junto com o `CLAUDE.md` e o `docs/FASE2_SPEC.md` (regras de rigor, rastreabilidade, ausência ≠ zero, quatro estados).
+Lê este ficheiro inteiro antes de mexer em código. Vale junto com o `CLAUDE.md` e o `docs/archive/FASE2_SPEC.md` (regras de rigor, rastreabilidade, ausência ≠ zero, quatro estados).
 
 ## 1. Objetivo
 
@@ -81,5 +81,5 @@ Mostra-me, em português: o que mudou; os testes corridos; as fontes de cada emp
 ## Mensagem para colar no Claude Code
 
 ```
-Lê integralmente docs/DEMO_ONLINE_SPEC.md e usa-o como especificação, junto com o CLAUDE.md. Começa por confirmar o que já existe (app, databook, exemplos, testes das empresas reais) e por obter as contas da TAP. Depois implementa por incrementos, com testes e um commit local por incremento. Fala comigo em português. Não faças push nem publiques sem a minha aprovação.
+Lê integralmente docs/archive/DEMO_ONLINE_SPEC.md e usa-o como especificação, junto com o CLAUDE.md. Começa por confirmar o que já existe (app, databook, exemplos, testes das empresas reais) e por obter as contas da TAP. Depois implementa por incrementos, com testes e um commit local por incremento. Fala comigo em português. Não faças push nem publiques sem a minha aprovação.
 ```

@@ -1,4 +1,4 @@
-"""Review captures for docs/FASE6_DESIGN.md (section 7), with the layout criteria measured in the browser:
+"""Review captures for docs/archive/FASE6_DESIGN.md (section 7), with the layout criteria measured in the browser:
 the tool (demo mode of app.py) for the three companies and its four views on TAP, and the static site.
 
 1. Start the tool:   $env:DD_DEMO=1; streamlit run app.py --server.port 8599

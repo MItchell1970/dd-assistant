@@ -5,7 +5,7 @@
   to review          the figures are right, but whether it matters needs information the accounts do not give
 
 Proposed by Claude Code from the published figures; not yet reviewed by Bernardo (state: proposed). Used by
-tests/test_real_companies.py and scripts/validation_report.py (docs/VALIDATION.md).
+tests/test_real_companies.py and scripts/validation_report.py (docs/examples/validation/VALIDATION.md).
 """
 TRUE, FALSE_ALARM, REVIEW = "true positive", "known false alarm", "to review"
 REVIEWED_BY = ""   # the reviewer's name once Bernardo has gone through the list (declared locally, no login)

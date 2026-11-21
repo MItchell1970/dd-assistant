@@ -124,7 +124,7 @@ class PeriodTest(unittest.TestCase):
         self.assertEqual((c.unmatched_numbers, c.misdated_numbers), ([], []))
 
     def test_the_amorim_example_memo_cites_every_period_right(self):
-        memo = (DATA.parent / "docs" / "examples" / "Corticeira_Amorim_FY2024_memo.md").read_text(encoding="utf-8")
+        memo = (DATA.parent / "docs" / "examples" / "corticeira-amorim-fy2024" / "memo.md").read_text(encoding="utf-8")
         c = check_memo(memo, self.amorim, [])
         self.assertGreater(c.numbers_checked, 50)
         self.assertEqual((c.unmatched_numbers, c.misdated_numbers, c.other_line_numbers), ([], [], []))

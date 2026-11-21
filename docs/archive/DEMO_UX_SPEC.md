@@ -1,6 +1,6 @@
 # DD Assistant — melhorar a demo online (o que um recrutador vê)
 
-Lê este ficheiro inteiro antes de mexer em código. Vale junto com o `CLAUDE.md`, o `docs/DEMO_ONLINE_SPEC.md` e as regras de rigor do `docs/FASE2_SPEC.md`.
+Lê este ficheiro inteiro antes de mexer em código. Vale junto com o `CLAUDE.md`, o `docs/archive/DEMO_ONLINE_SPEC.md` e as regras de rigor do `docs/archive/FASE2_SPEC.md`.
 
 ## 1. Objetivo
 
@@ -80,5 +80,5 @@ Mostra-me, em português: o que mudou, com as capturas de antes e depois da pág
 ## Mensagem para colar no Claude Code
 
 ```
-Lê integralmente docs/DEMO_UX_SPEC.md e usa-o como especificação, junto com o CLAUDE.md. Começa por confirmar na app os 4 problemas da secção 2 e corrige-os com testes. Depois segue a ordem da secção 8, com verificação visual por capturas a 1440 e 375 px depois de cada incremento e um commit local por incremento. Fala comigo em português. Não faças push sem a minha aprovação.
+Lê integralmente docs/archive/DEMO_UX_SPEC.md e usa-o como especificação, junto com o CLAUDE.md. Começa por confirmar na app os 4 problemas da secção 2 e corrige-os com testes. Depois segue a ordem da secção 8, com verificação visual por capturas a 1440 e 375 px depois de cada incremento e um commit local por incremento. Fala comigo em português. Não faças push sem a minha aprovação.
 ```
