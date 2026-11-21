@@ -200,7 +200,8 @@ border-radius:12px;padding:18px 22px;margin-top:20px}
 .hero6 details{color:var(--blue);font-size:.82rem;margin-top:6px}
 .hero6 .pts{display:grid;grid-template-columns:minmax(0,1fr) auto 40px;gap:2px 12px;color:var(--ink);font-size:.8rem;margin-top:6px}
 .hero6 .pts span:nth-child(3n){text-align:right}.hero6 .f{color:var(--muted);font-size:.78rem;margin-top:6px}
-.close6{margin-top:8px;font-size:.85rem}.close6 b{color:var(--green)}.close6 ol{margin:2px 0 0;padding-left:18px;color:var(--muted)}.close6 li span{color:var(--ink)}
+.close6{margin-top:8px;font-size:.85rem}.close6 b{color:var(--ink)}.close6 ol{margin:2px 0 0;padding-left:18px;color:var(--muted)}
+.main3{margin-top:14px}.main3 .eyebrow{margin:0 0 4px}.main3 ol{margin:0;padding-left:18px;font-size:.85rem;color:var(--ink);line-height:1.45}
 .rt{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px}
 .rq{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.9rem}.rq .why{color:var(--muted);font-size:.8rem}
 @media (max-width:600px){.rq{grid-template-columns:1fr;gap:2px}}
@@ -217,7 +218,7 @@ border-left:3px solid var(--muted);border-radius:6px;background:#8b949e14;margin
 .vstat .n{font:700 3rem/1 var(--sans);color:var(--ink);letter-spacing:-.02em}
 .vstat .t{color:var(--ink);font-weight:600;margin:10px 0 6px;line-height:1.35}
 .vstat code{display:block;color:var(--muted);font-size:.75rem;word-break:break-word}
-.vstat .miss{font-size:.8rem;margin:4px 0 0}.vstat .miss a{color:var(--red)}
+.vstat .miss{font-size:.75rem;margin:6px 0 0;color:var(--muted)}.vstat .miss a{color:var(--muted);text-decoration:underline;text-decoration-color:var(--line)}
 .how3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:20px}
 .how3 div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
 .how3 b{display:block;color:var(--ink);margin-bottom:4px}.how3 p{margin:0;color:var(--muted);font-size:.88rem}
@@ -345,11 +346,15 @@ def hero(c, a, layer) -> str:
 
 
 def closing(s) -> str:
-    from dd_assistant import deal_layer as dl
     if not s.closers:
         return ""
-    items = "".join(f"<li>{E(k)} · {E(t)} <span>−{fmt_points(p)} pts</span></li>" for k, t, p in s.closers)
-    return f'<div class="close6"><b>{E(dl.closing_text(s))}</b><ol>{items}</ol></div>'
+    return f'<div class="close6"><b>Main issues</b>{main_issues(s)}</div>'
+
+
+def main_issues(s) -> str:
+    """The three issues that weigh most in the score, as a short list (no 'answer these' arithmetic on the site)."""
+    return "<ol>" + "".join(f"<li>{E(t if k.startswith('ND: ') else f'{k} · {t}')}</li>"
+                            for k, t, _ in s.closers) + "</ol>"
 
 
 def requests(a) -> str:
@@ -472,8 +477,7 @@ def index(cases: list) -> str:
 <div class="score" style="color:{colour};margin-top:4px">{layer.score.score}<span> / 100</span></div>
 <p class="small" style="color:{colour};margin:4px 0 0">{E(word)}</p>{score_bar(layer.score, colour)}
 <p class="kv"><span>Adjusted net debt, {E(fy(B))}</span><b>{E(a.money.fmt(a.view.net_debt_adjusted[B]).replace("-€", "−€"))}</b></p>
-<p class="action">{E(dl.closing_text(layer.score))}</p>
-<p class="muted small">{E("; ".join(t if k.startswith("ND: ") else f"{k} · {t}" for k, t, _ in layer.score.closers))}</p>
+<div class="main3"><p class="eyebrow">Main issues</p>{main_issues(layer.score)}</div>
 <a class="more" href="{PAGES[c.slug]}">The case →</a>
 </article>""")
     limits = " · ".join(demo.LIMITS)

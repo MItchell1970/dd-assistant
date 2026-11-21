@@ -70,7 +70,9 @@ class SiteTest(unittest.TestCase):
             for slug, text in parts.items():
                 with self.subTest(page=name, company=slug):
                     checked, unmatched, misdated, _ = _check_numbers(text, self.material[slug])
-                    self.assertGreater(checked, 3)
+                    # The index cards carry three figures (score, year, adjusted net debt) since the
+                    # "answer these 3: 40 → 17" line left the site; the company pages carry many more.
+                    self.assertGreaterEqual(checked, 3)
                     self.assertEqual((unmatched, misdated), ([], []))
 
     def test_verification_figures_are_counted_now(self):
