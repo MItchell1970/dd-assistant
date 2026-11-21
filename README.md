@@ -61,7 +61,7 @@ dd_assistant/     the engine: reading, metrics, rules, deal view, databook, memo
 scripts/          data builders, the static site, the detection benchmark, review captures
 tests/            parity with the Excel template, real companies, detection, site and tool
 data/             published accounts, the fictitious Duriva and Velmora data rooms
-docs/             ARCHITECTURE · DETECTION · DEPLOY · PROGRESS · GAPS
+docs/             ARCHITECTURE · DETECTION · DEPLOY · PROGRESS · GAPS · FASE7_SPEC (next phase)
 docs/examples/    stored results: memos, checks, databooks, slides, validation
 docs/archive/     earlier phase specifications and reviews
 site/             the static website (GitHub Pages)
