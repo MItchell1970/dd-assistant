@@ -329,7 +329,8 @@ class AreasOpenItemsCoverageTest(unittest.TestCase):
             self.assertGreater(len(duriva.run), len(c.run), name)
             self.assertEqual(c.mode, "outside-in (published accounts)")
             self.assertEqual(len(c.run) + len(c.blocked) + len(c.not_applicable), c.total)
-            self.assertEqual([r for r, *_ in c.not_applicable], ["R05", "R06"])     # no management EBITDA published
+            # no management EBITDA published; bank statements and supplier listings are not published (R31, R32)
+            self.assertEqual([r for r, *_ in c.not_applicable], ["R05", "R06", "R31", "R32"])
             self.assertEqual(c.status("R05")[0], "not applicable –")
             self.assertFalse([k for k, v in dl.request_list(company(name)).items()
                               if "coverage: R05" in v or "coverage: R06" in v])

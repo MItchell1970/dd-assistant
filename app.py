@@ -76,7 +76,8 @@ KPI_RULES = {"Revenue": ["R01", "R02", "R16", "R29"],
              "Net working capital": ["R07", "R08", "R09", "R23", "R28"]}
 # Within a severity, what moves the price first: EBITDA quality, cash, debt, then revenue, working capital, data.
 IMPACT = ["R19", "R05", "R04", "R26", "R27", "R10", "R20", "R21", "R11", "R13", "R22", "R28", "R01", "R02", "R29",
-          "R03", "R07", "R09", "R08", "R24", "R06", "R23", "R17", "R12", "R15", "R14", "R16", "R30", "R25", "R18"]
+          "R03", "R07", "R09", "R08", "R24", "R06", "R23", "R17", "R12", "R15", "R14", "R16", "R30", "R25", "R18",
+          "R31", "R32"]
 WHERE = {"Quality of earnings": "Deal view", "Net working capital": "Deal view", "Debt": "Deal view",
          "Consistency": "Data room", "Information": "Data room"}
 SUMMARY_ROWS = ["vendas", "g_vendas", "cagr_vendas", "gm", "ebitda", "ebitda_m", "ebitda_adj", "ebitda_ex_gain", "cgo", "conv",

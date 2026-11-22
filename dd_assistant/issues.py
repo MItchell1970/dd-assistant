@@ -106,6 +106,8 @@ AMOUNTS = {
     "R28": ("bs", "largest 'other' current line", lambda d, m, y, p, r: m["other_wc"][y] * d.v("vendas", y)),
     "R29": ("bs", "acquisitions of businesses paid", lambda d, m, y, p, r: -d.v("acq", y)),
     "R30": ("bs", "largest restated line", lambda d, m, y, p, r: m["restated_max"][y]),
+    "R31": ("bs", "cash in the ledger not in the bank", lambda d, m, y, p, r: m["cash_unproven"][y]),
+    "R32": ("bs", "supplier listing against the ledger", lambda d, m, y, p, r: m["ap_unreconciled"][y]),
 }
 
 # rule ID -> (implication, the typical treatment in one sentence)
@@ -155,6 +157,10 @@ TREATMENT = {
     "R29": ("Further diligence", "Growth is split into like-for-like and acquired before it is extrapolated."),
     "R30": ("Further diligence", "The restatement is reconciled and explained before trends are read; a corrected "
                                  "error is usually covered by the accounts warranty."),
+    "R31": ("Price: net debt", "Cash not in the bank is taken out of the cash deducted from the price; the entries "
+                               "behind it are traced before signing."),
+    "R32": ("Price: net debt", "Unreconciled supplier balances are treated as debt-like until the reconciliation "
+                               "explains them."),
 }
 
 

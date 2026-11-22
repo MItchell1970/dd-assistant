@@ -126,6 +126,10 @@ class CompanyData:
     prior_sources: dict[str, str] = field(default_factory=dict)
     overlap_years: list[int] = field(default_factory=list)       # years both reports give
     restatements: list[dict] = field(default_factory=list)       # lines restated in the overlap years
+    # a messy data room (ledger_room.py): monthly figures from the ledger, and the proof of cash by year
+    monthly: dict[str, dict[tuple[int, int], float]] = field(default_factory=dict)   # key -> (year, month) -> EUR k
+    proof: dict[int, dict] = field(default_factory=dict)         # year -> cash_k, cash_month, ap_k (proof_of_cash)
+    proof_text: dict[int, str] = field(default_factory=dict)     # year -> what the differences look like, with sources
 
     def v(self, key: str, year: int) -> float | None:
         """Value of a line in a year (None if missing)."""

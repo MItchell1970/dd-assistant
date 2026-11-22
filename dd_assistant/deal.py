@@ -192,11 +192,29 @@ def deal_view(d: CompanyData, m: Metrics, decisions: dict[str, str] | None = Non
     L = B[-1]
     if len(B) >= 2 and average is not None:
         wc.append(Line(f"Average of the {len(B)} year-ends (indicative peg reference)", {L: average}, "memo",
-                       note="a peg is set on 12–24 monthly balances: request them"))
+                       note="a peg is set on 12–24 monthly balances: see the month-ends below" if d.monthly else
+                       "a peg is set on 12–24 monthly balances: request them"))
         gap = nwc[L] - average
         wc.append(Line("Latest year-end less the average", {L: gap}, "memo",
                        note="below the average: check whether working capital was run down before the sale" if gap < 0
                        else "above the average: structural (growth) or a temporary build-up of receivables or stock?"))
+    if d.monthly:   # a ledger with month-ends (ledger_room.py): the peg reference and the LTM from the months
+        from .ledger_room import EBITDA_KEYS, ltm, monthly_nwc
+        months = monthly_nwc(d)
+        last12 = list(months.items())[-12:]
+        if len(last12) == 12:
+            avg12 = sum(v for _, v in last12) / 12
+            (y0, m0), (y1, m1) = last12[0][0], last12[-1][0]
+            wc.append(Line(f"Average of the last 12 month-ends ({y0}-{m0:02d} to {y1}-{m1:02d}, ledger)", {L: avg12},
+                           "memo", note="monthly balances from the ERP exports: the basis for a peg, still to "
+                                        "normalise for one-offs and seasonality"))
+            wc.append(Line("Lowest and highest month-end in those 12 months", {L: min(v for _, v in last12)}, "memo",
+                           note=f"highest {max(v for _, v in last12):,.0f}"))
+            end = last12[-1][0]
+            qoe.append(Line(f"Memo: LTM revenue to {end[0]}-{end[1]:02d} (ledger)", {Y[-1]: ltm(d, "vendas", end)},
+                            "memo", note="sum of the last twelve months"))
+            qoe.append(Line(f"Memo: LTM EBITDA to {end[0]}-{end[1]:02d} (ledger, before adjustments)",
+                            {Y[-1]: ltm(d, [k for k in EBITDA_KEYS if k in d.monthly], end)}, "memo"))
     return DealView(Y, B, qoe, nd, wc, rep, mgmt, dd, upside, reported, adjusted, nwc, average, incomplete)
 
 

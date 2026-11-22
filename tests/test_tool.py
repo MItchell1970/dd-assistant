@@ -146,7 +146,7 @@ class ToolTest(unittest.TestCase):
         a = demo.analysis(demo.CASE_BY_SLUG["tap"])
         self.assertEqual(charts.net_debt(a, company="TAP").title, "Leases, a standard item, explain €2,158m of "
                          "TAP's €2,293m adjusted net debt; diligence adds €177m")
-        self.assertTrue(dl.coverage_title(dl.coverage(a)).startswith("22 of 30 rules run on published accounts"))
+        self.assertTrue(dl.coverage_title(dl.coverage(a)).startswith("22 of 32 rules run on published accounts"))
         r07 = next(d for d in dl.deal_issues(a) if d.key == "R07")
         self.assertEqual(dl.issue_title(r07, a.money), "Receivables grew €63m ahead of revenue: completion accounts, "
                                                        "not price")

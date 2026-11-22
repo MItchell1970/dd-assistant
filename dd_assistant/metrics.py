@@ -88,6 +88,8 @@ EXTENDED_LABELS = {
     "cagr_ebitda": "EBITDA CAGR over the three years",
     "restated": "Lines restated against the prior report (count)",
     "restated_max": "Largest restatement against the prior report",
+    "cash_unproven": "Cash in the ledger not in the bank statements (largest month-end, EUR k)",
+    "ap_unreconciled": "Supplier listing less the ledger's supplier account (year-end, EUR k)",
 }
 ALL_LABELS = LABELS | EXTENDED_LABELS
 
@@ -386,6 +388,10 @@ def compute_metrics(d: CompanyData) -> Metrics:
     put("restated", d.years, lambda y: len(hits(y)) if y in d.overlap_years else None)
     put("restated_max", d.years, lambda y: (max((abs(r["difference"]) for r in hits(y)), default=0.0)
                                             if y in d.overlap_years else None))
+    # proof of cash (a messy data room with bank statements and supplier listings); unknown without them
+    put("cash_unproven", d.years, lambda y: abs(d.proof[y]["cash_k"]) if y in d.proof else None)
+    put("ap_unreconciled", d.years, lambda y: abs(d.proof[y]["ap_k"]) if d.proof.get(y, {}).get("ap_k") is not None
+        else None)
     return m
 
 

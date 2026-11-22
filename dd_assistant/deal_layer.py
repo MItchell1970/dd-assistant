@@ -27,7 +27,8 @@ RULE_AREA = {"Revenue": "Quality of earnings", "Margins": "Quality of earnings",
              "Cash generation": "Cash flow", "Debt": "Net debt", "Tax": "Tax"}
 # the consistency checks belong to the statement they test
 RULE_AREA_BY_ID = {"R12": "Net debt", "R13": "Cash flow", "R14": "Cash flow", "R15": "Quality of earnings",
-                   "R16": "Quality of earnings", "R17": "Net debt", "R30": "Quality of earnings"}
+                   "R16": "Quality of earnings", "R17": "Net debt", "R30": "Quality of earnings",
+                   "R31": "Cash flow", "R32": "Working capital"}
 INFORMATION_RULES = ("R18",)     # missing documents: counted in coverage and open items, not in the score
 
 MULTIPLES = (6.0, 8.0, 10.0)
@@ -50,7 +51,9 @@ PROTECTION_STANDARD = "Net debt definition in the SPA"
 PROTECTION_TAX = "Tax indemnity (standard)"
 COLUMN = "Protection or next step"       # requesting information is a step, not a protection
 NOT_APPLICABLE = {"R05": "no management-adjusted EBITDA in published accounts",
-                  "R06": "no management adjustments in published accounts"}
+                  "R06": "no management adjustments in published accounts",
+                  "R31": "bank statements are not published: needs the data room",
+                  "R32": "supplier listings are not published: needs the data room"}
 NOT_COUNTED_WHY = {STANDARD: "Standard EV-to-equity item: reported EBITDA is after IFRS 16, so the multiple already "
                              "assumes it is deducted",
                    MECHANISM: "Price mechanism: settled euro for euro by completion accounts; the average of the "

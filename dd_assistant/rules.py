@@ -482,6 +482,39 @@ NEW_RULES = [
 ]
 
 # Every template rule in plain words, and where the practice comes from.
+NEW_RULES += [
+    _r("R31", "Consistency", "Cash not supported by the bank statements",
+       "Largest month-end difference between the ledger's cash and the bank statements (EUR thousands)",
+       ">", 5, "eur", "cash_unproven", "High",
+       "Cash that is in the books but not in the bank: a receipt booked without the money, or a transfer between the "
+       "company's own accounts counted twice.",
+       "What is the difference between the ledger and the bank statement in the month it appears? Please provide the "
+       "bank reconciliation of that month-end and the support of the entries behind it.",
+       "Monthly bank reconciliations; general ledger detail of the cash accounts; bank confirmation letters",
+       "Cash is deducted from the price euro for euro: cash that does not exist overstates the equity value, and a "
+       "receipt without the money may hide revenue that was never collected.",
+       ev=lambda c: (c.d.proof_text.get(c.L) or "") + " Source: proof of cash (ledger exports and bank statements).",
+       plain="The ledger shows more (or less) cash than the bank statements at a month-end.",
+       practice="Proof of cash: every month, opening + receipts − payments = closing, tied to the bank statements.",
+       in_template=False),
+    _r("R32", "Consistency", "Supplier balances do not agree with the ledger",
+       "Supplier listing less the ledger's supplier account at the year-end (EUR thousands)",
+       ">", 5, "eur", "ap_unreconciled", "Medium",
+       "A supplier sub-ledger that does not add up to the ledger: missing invoices, unrecorded liabilities, or "
+       "entries made in the ledger only.",
+       "Why does the supplier listing not add up to the ledger's supplier account? Please provide the reconciliation "
+       "and the largest reconciling items.",
+       "Reconciliation of the supplier sub-ledger to the general ledger; supplier statements of the largest suppliers",
+       "Unrecorded liabilities are debt-like in the price; a sub-ledger that does not agree weakens every working "
+       "capital figure built on it.",
+       ev=lambda c: f"Supplier listing less the ledger at {fy(c.L)}: {c.cur(-(c.d.proof.get(c.L, {}).get('ap_k') or 0))}"
+                    f" short. Source: supplier listings and the ledger's supplier account.",
+       plain="The listing of open supplier balances does not add up to the supplier account of the ledger.",
+       practice="Working capital: sub-ledgers (customers, suppliers) are reconciled to the general ledger at each "
+                "year-end.",
+       in_template=False),
+]
+
 _PLAIN = {
     "R01": ("One customer brings in more than a fifth of revenue: losing it would hurt badly.",
             "Revenue quality: customer concentration is tested in every commercial and financial due diligence; "

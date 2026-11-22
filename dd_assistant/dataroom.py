@@ -133,10 +133,13 @@ def _found_documents(names_and_text: list[tuple[str, str]]) -> set[str]:
 
 
 def read_data_room(files: list[tuple[str, bytes]], client: anthropic.Anthropic | None = None,
-                   read_pdf: str | None = None) -> Extraction:
+                   read_pdf: str | None = None, mapping_decisions: dict | None = None) -> Extraction:
     """Read every document of a data room. read_pdf: the PDF to read the statements from with Claude, when the
     data room has no Excel statements (it uses the Claude API)."""
     files = sorted(files, key=lambda f: f[0].lower())
+    from .ledger_room import is_ledger_room, read_ledger_room
+    if is_ledger_room(files):    # ERP exports or trial balances: the ledger is mapped and the figures come from it
+        return read_ledger_room(files, mapping_decisions)
     reports = [(n, c) for n, c in files if n.lower().endswith(ESEF) and is_esef(n, c)]
     if len(reports) > 1:
         raise ExtractionError("Upload one ESEF report at a time (each already has two years): "
@@ -223,8 +226,9 @@ _KIND_NAMES = {"pl": "income statement", "bs": "balance sheet", "cf": "cash flow
 def files_in(paths: list[str | Path]) -> list[tuple[str, bytes]]:
     """The files given on the command line: files, or every supported file in a folder."""
     out = []
-    for p in map(Path, paths):
-        members = sorted(p.iterdir()) if p.is_dir() else [p]
-        out += [(f.name, f.read_bytes()) for f in members
-                if f.is_file() and f.suffix.lower() in SPREADSHEETS + DOCUMENTS + ESEF and not f.name.startswith("~$")]
+    for p in map(Path, paths):   # a folder: every supported file, also in its sub-folders (named 'folder/file')
+        members = sorted(p.rglob("*")) if p.is_dir() else [p]
+        out += [(f.relative_to(p).as_posix() if p.is_dir() else f.name, f.read_bytes()) for f in members
+                if f.is_file() and f.suffix.lower() in SPREADSHEETS + DOCUMENTS + ESEF + (".csv",)
+                and not f.name.startswith("~$")]
     return out

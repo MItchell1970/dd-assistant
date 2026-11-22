@@ -591,6 +591,7 @@ class Extraction:
     notes_file: str = ""
     notes_not_read: list = field(default_factory=list)   # (topic, reason) the transcriber could not read
     esef: dict = field(default_factory=dict)             # an ESEF report: text blocks of the notes, tag conflicts
+    ledger_room: object = None                           # a messy data room: ledger, mapping, proof (ledger_room.py)
 
 
 # ---------------------------------------------------------------- Excel helpers
