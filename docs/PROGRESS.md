@@ -383,3 +383,40 @@ TAP, à mão a partir do balanço publicado (p.152): o vendedor tira as pensões
 **Testes:** `tests/test_net_debt_definition.py` (9: predefinições da TAP, só empréstimos e caixa, um interruptor mexe net debt, leverage, equity e impacto mas não o EV, o comprador dá os números de hoje nas três empresas a 6x, 8x e 10x, a tabela, a folha e Excel = Python). `test_databook` e `test_demo` atualizados (folha nova; 3 controlos a mais). **Suite completa uma vez: 356 testes, 355 OK**; a falha era o site com o número antigo de testes (347), regenerado; o `test_site` passou a seguir.
 
 **Próximo passo exato:** revisão do Bernardo e aprovação do push; depois, a peça B.
+
+## Fase 7, peça B: data room desarrumado da Duriva (22 de novembro de 2026)
+
+**Feito** (commits locais por bloco, sem push). Tudo é **FICTITIOUS, synthetic test data**, escrito em cada ficheiro e folha.
+
+| Bloco | Commit | O quê |
+|---|---|---|
+| 1 | `b3984f7` | `scripts/duriva_messy.py` gera `data/Duriva_messy_data_room/` a partir das contas anuais da Duriva: plano de contas próprio (códigos ERP, nomes abreviados), balancetes anuais 2023–2025, 36 exportações mensais em três formatos (CSV `;` e 1.234,56 com título acima do cabeçalho; CSV `,` e (1,234.56) com 'jan-24' e Windows-1252; Excel com o cabeçalho na linha 5 e as colunas 'Saldo' e 'Movimento' trocadas), a conta de clientes renomeada (4120 → 4121) em julho de 2024, agosto de 2024 em falta, extratos de dois bancos (CSV e PDF de texto), mapas de fornecedores. `ledger.py` e `mapping.py`. |
+| — | `dbfd2c3` | `.gitattributes`: PDF, Excel, PowerPoint e PNG como binários (o Git ia converter fins de linha dentro dos PDF). |
+| — | `e46341f` | **Estimativa manual fixada antes da corrida do agente** (`docs/examples/duriva-messy/manual_estimate.md`). |
+| 2 | `b4b534c` | `proof_of_cash.py`, regras R31 e R32, `ledger_room.py` (o data room lido inteiro), peg de 12 meses e LTM. |
+| 3 | `cec405b` | Folhas Mapping, Proof of Cash e Monthly & LTM no databook; `timing.py`; `scripts/duriva_messy_report.py` (databook, `timing.md`, `coverage.md`). |
+| 4 | (este commit) | App: modo do data room desarrumado (separadores Mapping, Proof of cash, Time: manual vs agent); capturas. |
+
+**Resultados (Duriva desarrumada)**
+- **Leitura:** 36 contas, 36 meses; colunas trocadas detetadas pelo conteúdo (a coluna do saldo é a que continua o saldo do mês anterior); conta renomeada ligada (a nova abre no saldo de fecho da antiga); agosto de 2024 reconstruído a partir de setembro e marcado como derivado; os três balancetes iguais às exportações de dezembro (36 de 36).
+- **Mapeamento:** 33 de 36 contas com confiança **High (91,7%)**; Medium: OIN520 (mais-valias; as palavras apontam também para ativos fixos, o comportamento decide); Low: MSC990 ("Diversos") e SUS999 (conta transitória, nula). As Low **nunca entram pelo agente**: ficam pendentes e a ligação às contas anuais mostra a diferença (outros gastos e equity, €13,5k–€16,5k por ano) até o revisor decidir. Com as duas decisões: **78 de 78 linhas iguais às contas anuais ao euro** (3 anos de DRE, 4 fins de ano de balanço).
+- **Proof of cash:** 72 meses-banco, todos fecham (saldo inicial + recebimentos − pagamentos = saldo final). As três distorções plantadas foram encontradas e confirmadas contra a chave guardada **fora do projeto** (`projetos/Duriva_messy_gabarito.json`): Banco Meridiano, set-2025, €258,000 ("um recebimento no razão que não está no banco"; aparece também no teste dos recebimentos contra receita + IVA − variação de clientes); Banco Norte, nov-2025, €232,000 ("uma transferência entre bancos contada duas vezes": o montante é o de uma transferência desse mês); fornecedores, 31-12-2025, mapa €227,000 abaixo do razão. Velmora desarrumada, gerada da mesma forma sem nada plantado: **zero diferenças e zero alertas analíticos**.
+- **Regras:** os 15 achados da Duriva limpa, iguais (regra, ano, severidade), mais **R31** (High, €490k de caixa sem banco, material) e **R32** (Medium, €227k). Cobertura: só com as três demonstrações anuais, **22 de 32** regras (como a TAP); com o data room inteiro, **31 de 32**: desbloqueiam R01, R02, R05, R06, R16, R17, R20, R31 e R32 (`docs/examples/duriva-messy/coverage.md`).
+- **Databook:** folhas Mapping, Proof of Cash e Monthly & LTM com fórmulas; **25 de 25 totais Excel = Python**.
+- **Dados mensais:** média dos últimos 12 fins de mês €4,168k (contra €3,742k da média dos fins de ano); LTM a dez-2025 igual ao FY25 (receita €21,400k, EBITDA €1,415k).
+- **Tempo:** manual estimado **620 min (10,3 h)** contra agente **1,2 s** medidos no script (1,1 s na app) **+ revisão por cronometrar**; lado a lado por tarefa (`docs/examples/duriva-messy/timing.md` e o separador da app).
+
+**Decisões (a opção mais simples e defensável)**
+- **Gabarito.** O `Duriva_gabarito.xlsx` original **não está neste PC** (procurei em todo o perfil). O teste que o lê (`OriginalAnswerKeyTest`) corre quando `DD_GABARITO` aponta para ele; aqui ficou saltado. Em vez dele, um teste exige que os achados vindos do data room desarrumado sejam os da Duriva limpa. As três distorções novas têm a chave escrita pelo gerador fora do projeto. **O gerador, por ter de as plantar, descreve-as no código** (`PLANTED`); o motor e os testes de deteção não o leem.
+- **Os números vêm do razão.** As linhas da DRE e do balanço são a soma das contas mapeadas, com ficheiro e linha; as contas anuais verificam o mapeamento e dão a DFC e os mapas que um razão não tem.
+- **Confiança:** High = uma regra (palavras da conta, código SNC de 6 dígitos ou dicionário das demonstrações) e o comportamento do saldo concorda; Medium = regras que apontam para linhas diferentes ou comportamento contrário; Low = só o comportamento. O dicionário das demonstrações não conta quando aponta para duas linhas (empréstimos correntes e não correntes têm os mesmos sinónimos).
+- **Decisões do revisor.** As do exemplo (`docs/examples/duriva-messy/mapping_decisions.json`) foram tomadas por mim para o exemplo e dizem-no ("to be confirmed by Bernardo"). Na app, cada decisão pede o motivo e fica registada.
+- **Regras novas fora do template:** R31 (> €5k, High) e R32 (> €5k, Medium); a materialidade decide o resto. Nas cotadas ficam "não aplicáveis" (extratos e mapas não são públicos), por isso a TAP passou de "22 of 30" para "22 of 32 rules run". IVA a 23% no teste dos recebimentos, numa célula amarela do databook.
+- **Velmora "zero alertas":** a R18 (documentos em falta) dispara também na Velmora limpa quando lida pelo data room; o zero é de alertas analíticos, como na Velmora do template.
+- **Tempo do revisor:** não estimado. A app tem um campo para o Bernardo pôr os minutos quando os cronometrar.
+
+**Testes novos:** `test_ledger.py`, `test_mapping.py`, `test_proof_of_cash.py` (um saltado sem o gabarito original), `test_databook_ledger.py`. **Suite completa uma vez: 388 testes, 386 OK, 1 saltado**; a falha era o site com o número antigo de testes, regenerado; o `test_site` passou a seguir. Atualizados: `test_rules`, `test_clean_company`, `test_deal_layer`, `test_tool`.
+
+**Capturas (1440 px):** `docs/images/messy-mapping.png` (duas contas à espera do revisor, 92% High, 72 de 78 linhas ligadas), `messy-proof-of-cash.png` (as duas diferenças de caixa com o diagnóstico, o gráfico mês a mês, o mês dos recebimentos), `messy-time.png` (620 min contra 1,1 s, tarefa a tarefa).
+
+**Próximo passo exato:** revisão do Bernardo (estimativa manual, decisões do exemplo, cronometrar a revisão) e aprovação do push; depois, a peça C.

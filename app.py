@@ -59,6 +59,7 @@ if DEMO:   # the public tool (docs/archive/FASE5_DESIGN.md): Summary · Findings
     st.stop()
 DATA = Path(__file__).parent / "data"
 SAMPLES = {"Duriva — data room in 5 documents, planted issues": DATA / "Duriva_data_room",
+           "Duriva — messy data room (FICTITIOUS): ledger, banks, months": DATA / "Duriva_messy_data_room",
            "Velmora — clean company": DATA / "Velmora_data_room.xlsx",
            "TAP Air Portugal — real FY25 accounts (EN)": DATA / "TAP_2025_published.xlsx",
            "Toyota Caetano Portugal — real FY25 accounts (PT)": DATA / "Toyota_Caetano_2025_published.xlsx",
@@ -188,9 +189,11 @@ def pill(severity: str) -> str:
 
 
 @st.cache_resource(max_entries=8, show_spinner=False)
-def read_room(files: tuple[tuple[str, bytes], ...], read_pdf: str | None):
-    """Layer 1: read the data room (cached by content, so a PDF is only sent to Claude once)."""
-    return read_data_room(list(files), read_pdf=read_pdf)
+def read_room(files: tuple[tuple[str, bytes], ...], read_pdf: str | None, decisions: str = "{}"):
+    """Layer 1: read the data room (cached by content, so a PDF is only sent to Claude once). decisions: the
+    reviewer's decisions on Low accounts of a messy data room, as JSON (so the cache key changes with them)."""
+    import json
+    return read_data_room(list(files), read_pdf=read_pdf, mapping_decisions=json.loads(decisions) or None)
 
 
 def show_check(check: MemoCheck) -> None:
@@ -575,7 +578,9 @@ file_key = hashlib.sha1(b"".join(n.encode() + c for n, c in files)).hexdigest()[
 started = time.perf_counter()
 try:
     with st.spinner("Reading the data room…"):
-        ext = read_room(files, st.session_state.get(f"pdf-{file_key}"))
+        decisions = st.session_state.setdefault(f"decisions-{file_key}", {})
+        import json as _json
+        ext = read_room(files, st.session_state.get(f"pdf-{file_key}"), _json.dumps(decisions, sort_keys=True))
     if not DEMO and not uploaded and listed:   # where the package came from, for the Source Register
         _, filing, got, _ = listed
         ext = _replace(ext, files=[{**row, "Found": row["Found"] + f" · downloaded from {filing.url} ({got.note})"}
@@ -714,6 +719,13 @@ if a.quality:   # an ESEF report: how far the reading can be relied on, first
          f"{len(a.checks)} reading checks passed. Time: "
          + (f"search and download {fetched:.1f} s, " if fetched is not None else "")
          + f"reading and analysis {time.perf_counter() - started:.1f} s.")
+room = getattr(ext, "ledger_room", None)
+if room is not None:   # a messy data room: the ledger is the source of the figures
+    st.markdown("<div class='dd-banner'>FICTITIOUS, synthetic test data: a messy data room built to test the agent "
+                f"(own chart of accounts, monthly ERP exports in mixed formats, two banks, supplier listings). "
+                f"{len(room.ledger.series)} accounts, {room.high:.0%} mapped with High confidence, "
+                f"{len(room.pending)} waiting for you (Mapping tab).</div>", unsafe_allow_html=True)
+analysis_seconds = time.perf_counter() - started
 if not a.checks_ok:
     st.warning("Reading check failed: a subtotal rebuilt from the lines read does not match the published one. "
                "A line may be missing or misclassified — see Data room before relying on the figures.")
@@ -724,9 +736,19 @@ if DEMO:
         tour(case, a)   # a dialog reruns on its own when its buttons are used
     key_insights(case)
 
-tab_ov, tab_ki, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai = st.tabs(
+tab_ov, tab_ki, tab_deal, tab_rf, tab_sec, tab_src, tab_rules, tab_m, tab_ai, *tab_ledger = st.tabs(
     ["Overview", f"Key issues ({len(a.issues)})", "Deal view", f"Red flags ({len(al)})", "Sector", "Data room",
-     "Rulebook", "Metrics", "Memo" if DEMO else "AI memo"])
+     "Rulebook", "Metrics", "Memo" if DEMO else "AI memo"]
+    + (["Mapping" + (f" ({len(room.pending)} to decide)" if room.pending else ""), "Proof of cash",
+        "Time: manual vs agent"] if room is not None else []))
+if room is not None:
+    from dd_assistant.app_ledger import mapping_tab, proof_tab, time_tab
+    with tab_ledger[0]:
+        mapping_tab(room, st.session_state[f"decisions-{file_key}"])
+    with tab_ledger[1]:
+        proof_tab(room)
+    with tab_ledger[2]:
+        time_tab(room, analysis_seconds)
 
 # ---------------------------------------------------------------- overview
 with tab_ov:
