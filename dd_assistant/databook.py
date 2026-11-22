@@ -917,7 +917,8 @@ def _open_items(ws, a) -> None:
     _finish(ws, [26, 70, 60], "A5", 4, 3)
 
 
-def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price=None, spa: dict | None = None) -> int:
+def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price=None, spa: dict | None = None,
+            extra: list | None = None) -> int:
     """Reconciliations and the databook's own controls; returns the row of the recalculation status."""
     _title(ws, "Checks", "Reading checks, consistency rules and the databook's own controls: each total of this "
                          "workbook against the value computed in Python. Tolerance €1k (rounding of the source).")
@@ -960,6 +961,8 @@ def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price
         for key, label in (("buyer", "SPA net debt — buyer's view"), ("seller", "SPA net debt — seller's view"),
                            ("chosen", f"SPA net debt — chosen ({spa['name']})")):
             control(label, spa["year"], f"'SPA net debt schedule'!C{spa['rows'][key]}", spa[key])
+    for label, year, ref, value in extra or []:      # a messy data room: mapping, proof of cash, monthly
+        control(label, year, ref, value)
     r += 2
     _put(ws, r, 1, "Reading checks (subtotals rebuilt from the lines vs as published)", _BOLD)
     for c in a.checks:
@@ -1106,17 +1109,27 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, 
     _source_register(sheets["Source Register"], a)
     ev = _ev_to_equity(sheets["EV to Equity"], a, qoe, nd, nwc, price)
     _leakage(sheets["Leakage"], a, price)
-    _placeholder(sheets["Monthly & LTM"], "Monthly & LTM", [
-        "Not available: the data room has no monthly figures.",
-        "Without 12–24 monthly balances there is no LTM, no seasonality and no defensible working capital peg.",
-        "Request: monthly management accounts (P&L) and month-end balances of receivables, inventories and payables "
-        "for the last 24 months."])
+    extra = []
+    if getattr(a.ext, "ledger_room", None) is not None:      # a messy data room: the ledger's own sheets
+        from .databook_ledger import mapping_sheet, monthly_sheet, proof_sheet
+        at = wb.sheetnames.index("Source Register") + 1
+        extra += mapping_sheet(wb.create_sheet("Mapping", at), a)
+        extra += proof_sheet(wb.create_sheet("Proof of Cash", at + 1), a)
+    if a.data.monthly:
+        from .databook_ledger import monthly_sheet
+        extra += monthly_sheet(sheets["Monthly & LTM"], a)
+    else:
+        _placeholder(sheets["Monthly & LTM"], "Monthly & LTM", [
+            "Not available: the data room has no monthly figures.",
+            "Without 12–24 monthly balances there is no LTM, no seasonality and no defensible working capital peg.",
+            "Request: monthly management accounts (P&L) and month-end balances of receivables, inventories and payables "
+            "for the last 24 months."])
     _key_issues(sheets["Key Issues"], a, reviews)
     _top_issues(sheets["Top Issues"], a)
     _valuation_impact(sheets["Valuation Impact"], a)
     _open_items(sheets["Open Items"], a)
     _issues(sheets["Issues & Requests"], a, reviews)
-    _checks(sheets["Checks"], a, qoe, nd, nwc, ev, price, spa)
+    _checks(sheets["Checks"], a, qoe, nd, nwc, ev, price, spa, extra)
     _read_me(sheets["Read Me"], a, stamp)
     _summary(sheets["Executive Summary"], a, fin_rows, qoe, nd, nwc)
     wb.calculation.fullCalcOnLoad = True     # Excel calculates every formula when the file opens

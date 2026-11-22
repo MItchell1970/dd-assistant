@@ -1,0 +1,12 @@
+{
+ "MSC990": {
+  "key": "ogast",
+  "reason": "'Diversos': small recurring operating costs, debit balance in every month, no other line fits; other expenses",
+  "who": "Claude Code, for this example; to be confirmed by Bernardo"
+ },
+ "SUS999": {
+  "key": "exclude",
+  "reason": "Transit account, nil at every month-end: nothing to map",
+  "who": "Claude Code, for this example; to be confirmed by Bernardo"
+ }
+}
