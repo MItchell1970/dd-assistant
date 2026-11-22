@@ -148,7 +148,8 @@ FIELDS = [
        ["fornecimentos e servicos externos", "fornecimento e servicos externos", "fse", "otros gastos de explotacion", "servicios exteriores",
         "autres achats et charges externes", "charges externes", "costi per servizi", "per servizi",
         "external supplies and services",
-        "external services", "third party supplies and services", "supplies and services", "aircraft fuel"], -1,
+        "external services", "third party supplies and services", "supplies and services", "aircraft fuel",
+        "gastos de servicios"], -1,
        adds=["costi per godimento di beni di terzi", "per godimento di beni di terzi", "traffic operating costs",
              "aircraft maintenance costs", "comercial communication and marketing costs",
              "commercial communication and marketing costs"],
@@ -167,14 +168,15 @@ FIELDS = [
        ["imparidade de dividas a receber", "imparidades de dividas a receber", "imparidade de clientes",
         "perdidas deterioro y variacion de provisiones por operaciones comerciales", "svalutazioni dei crediti",
         "impairment of trade receivables", "impairment of receivables", "expected credit losses", "bad debt expense",
-        "impairment losses in receivables"],
+        "impairment losses in receivables", "correccion valorativa de deudores comerciales y activos de contrato",
+        "correccion valorativa de deudores comerciales"],
        -1, optional=True, above_ebit=True),   # often presented within a wider impairment line
     _f("orend", "Other income", "pl",
        ["outros rendimentos e ganhos", "outros rendimentos", "otros ingresos de explotacion", "ingresos accesorios",
         "autres produits d exploitation", "autres produits", "sonstige betriebliche ertrage", "altri ricavi e proventi",
-        "other operating income", "other income"],
+        "other operating income", "other income", "other gains and losses"],
        adds=["subsidios a exploracao", "operating grants", "subvenciones de explotacion incorporadas al resultado",
-             "subvenciones de explotacion", "subventions d exploitation"], above_ebit=True),
+             "subvenciones de explotacion", "subventions d exploitation", "other gains and losses"], above_ebit=True),
     _f("own", "Own work capitalised", "pl",
        ["trabalhos para a propria entidade", "trabajos realizados por la empresa para su activo", "production immobilisee",
         "andere aktivierte eigenleistungen", "aktivierte eigenleistungen",
@@ -183,12 +185,13 @@ FIELDS = [
     _f("ogast", "Other expenses (incl. write-downs and provisions)", "pl",
        ["outros gastos e perdas", "outros gastos", "otros gastos", "otros resultados", "autres charges",
         "sonstige betriebliche aufwendungen", "oneri diversi di gestione", "other operating expenses", "other expenses",
-        "other costs and losses", "other costs"], -1,
+        "other costs and losses", "other costs", "taxes other than income tax", "restructuring", "impairment losses"], -1,
        adds=["imparidade de inventarios", "imparidades de inventarios", "perdas por imparidade em inventarios",
              "provisoes", "inventory write downs", "provisions", "impairments of assets", "impairment of assets",
              "ajustamentos de imparidade de ativos", "ajustamentos de imparidade",
              "impairment losses", "impots taxes et versements assimiles", "accantonamenti per rischi",
-             "altri accantonamenti", "restructuring", "other non recurrent items", "other non recurring items"],
+             "altri accantonamenti", "restructuring", "other non recurrent items", "other non recurring items",
+             "taxes other than income tax"],
        above_ebit=True),
     _f("assoc", "Share of profit of associates and JVs (above operating profit)", "pl",
        ["share of profit of associates and joint ventures", "share of profit loss of associates and joint ventures",
@@ -583,6 +586,7 @@ class Extraction:
     notes: list = field(default_factory=list)            # notes to the accounts, transcribed (notes.NoteTable)
     notes_file: str = ""
     notes_not_read: list = field(default_factory=list)   # (topic, reason) the transcriber could not read
+    esef: dict = field(default_factory=dict)             # an ESEF report: text blocks of the notes, tag conflicts
 
 
 # ---------------------------------------------------------------- Excel helpers

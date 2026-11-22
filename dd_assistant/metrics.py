@@ -392,12 +392,15 @@ def compute_metrics(d: CompanyData) -> Metrics:
 # ---------------------------------------------------------------- reading checks
 def rounding_tolerance(d: CompanyData, keys, y: int, floor: float = 1.0) -> float:
     """The rounding a sum of printed lines can carry: half a unit per line when the statements are printed in
-    thousands (every figure a whole EUR k), else €1k. Eight lines in thousands: up to €4k, as printed."""
+    thousands (every figure a whole EUR k), else €1k. Eight lines in thousands: up to €4k, as printed. When every
+    line is a whole EUR million, the statements are printed in millions (a large listed group): half a million per
+    line."""
     values = [d.v(k, y) for k in keys if d.v(k, y) is not None]
     if not values or any(abs(x - round(x)) > 1e-9 for x in values):
         return floor
+    unit = next(u for u in (1000, 1) if all(abs(x / u - round(x / u)) < 1e-9 for x in values))
     rows = sum(1 + d.sources.get(k, "").count(" + ") for k in keys if d.v(k, y) is not None)
-    return max(floor, 0.5 * rows)
+    return max(floor, 0.5 * unit * rows)
 
 
 def reading_checks(d: CompanyData, tolerance: float | None = None) -> list[dict]:

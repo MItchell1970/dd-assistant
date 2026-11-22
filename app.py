@@ -15,14 +15,17 @@ import html
 import io
 import os
 import re
+import time
 import types
+from dataclasses import replace as _replace
 from pathlib import Path
 
 import altair as alt
 import pandas as pd
 import streamlit as st
 
-from dd_assistant import charts, demo, europe, sectors
+from dd_assistant import charts, demo, europe, registry, sectors
+from dd_assistant.esef_quality import COMPLETE, NOTES_MISSING, not_analysed
 from dd_assistant.ai_memo import EFFORT, MODEL, PROMPT_FILE, MemoError, build_material, load_env, write_memo
 from dd_assistant.deal import (ADJUSTMENT_STATES, Line, cash_steps, ifrs16_steps, net_debt_steps, qoe_steps,
                                value_at_stake)
@@ -511,24 +514,71 @@ if DEMO:   # no upload: the visitor picks one of the three companies
     name = case.path.name
 else:
     with st.sidebar:
+        listed = st.session_state.get("esef-file")   # (path, Filing, Download, seconds) once downloaded
+        with st.expander("Find a listed company", expanded=True, icon=":material/travel_explore:"):
+            st.caption("Any EU listed company, from its ESEF annual report: the name gives the LEI (GLEIF) and the LEI "
+                       "the reports (filings.xbrl.org). Free, no API key. Nothing is downloaded until you click.")
+            query = st.text_input("Company name or LEI", key="esef-query", placeholder="e.g. Jeronimo Martins")
+            if st.button("Search", key="esef-search", disabled=not query.strip(), icon=":material/search:"):
+                t0 = time.perf_counter()
+                try:
+                    st.session_state["esef-found"] = (query, registry.search(query), time.perf_counter() - t0, "")
+                except registry.RegistryError as e:
+                    st.session_state["esef-found"] = (query, [], time.perf_counter() - t0, str(e))
+            searched = st.session_state.get("esef-found")
+            if searched:
+                asked, companies, took, error = searched
+                if not companies:
+                    st.warning(not_analysed(error or f"No company matching '{asked}' has an ESEF report on "
+                                            "filings.xbrl.org.").text())
+                else:
+                    reports = [f for c in companies for f in c.filings]
+                    pick = st.selectbox(f"Annual report ({len(companies)} compan{'y' if len(companies) == 1 else 'ies'}"
+                                        f" found in {took:.1f} s)", range(len(reports)), key="esef-pick",
+                                        format_func=lambda i: reports[i].label)
+                    chosen = reports[pick]
+                    size = f"{chosen.size / 1024 ** 2:,.1f} MB" if chosen.size else "size unknown"
+                    st.caption(f"LEI {chosen.lei} · [{chosen.file_name}]({chosen.url}) · filings.xbrl.org counted "
+                               f"{chosen.errors} validation errors and {chosen.inconsistencies} calculation "
+                               "inconsistencies.")
+                    if st.button(f"Download and analyse ({size})", type="primary", key="esef-get",
+                                 icon=":material/download:"):
+                        t0 = time.perf_counter()
+                        try:
+                            got = registry.download(chosen)
+                            st.session_state["esef-file"] = (str(got.path), chosen, got, took + time.perf_counter() - t0)
+                            st.rerun()
+                        except registry.RegistryError as e:
+                            st.error(not_analysed(str(e)).text())
+            if listed and st.button("Back to the samples", key="esef-clear"):
+                st.session_state.pop("esef-file", None)
+                st.rerun()
         uploaded = st.file_uploader(
             "Data room", type=[x.strip(".") for x in SPREADSHEETS + DOCUMENTS + ESEF], accept_multiple_files=True,
             help="Drop every document at once: Excel statements and schedules (in one file or many), the management "
                  "report, the audit report, contracts (PDF, Word, text). Portuguese, Spanish, French, German, Italian "
                  "or English statements, in euros. No template needed. A listed company: drop its ESEF annual report "
                  "package (.zip, from filings.xbrl.org) and every figure is read from its IFRS tag.")
-        sample = st.radio("…or open a sample data room", list(SAMPLES), disabled=bool(uploaded))
+        sample = st.radio("…or open a sample data room", list(SAMPLES), disabled=bool(uploaded or listed))
     if uploaded:
         files = tuple((f.name, f.getvalue()) for f in uploaded)
         name = files[0][0] if len(files) == 1 else f"{len(files)} documents"
+    elif listed:
+        files = tuple(files_in([listed[0]]))
+        name = f"ESEF FY{listed[1].year} · {listed[1].file_name}"
     else:
         files = tuple(files_in([SAMPLES[sample]]))
         name = SAMPLES[sample].name
 file_key = hashlib.sha1(b"".join(n.encode() + c for n, c in files)).hexdigest()[:12]
 
+started = time.perf_counter()
 try:
     with st.spinner("Reading the data room…"):
         ext = read_room(files, st.session_state.get(f"pdf-{file_key}"))
+    if not DEMO and not uploaded and listed:   # where the package came from, for the Source Register
+        _, filing, got, _ = listed
+        ext = _replace(ext, files=[{**row, "Found": row["Found"] + f" · downloaded from {filing.url} ({got.note})"}
+                                   if row["File"] == got.path.name else row for row in ext.files])
 except NeedsPdfReading as e:
     st.markdown("<div class='dd-eyebrow'>Data room without Excel statements</div>"
                 f"<div class='dd-title'>{html.escape(name)}</div>", unsafe_allow_html=True)
@@ -543,7 +593,7 @@ except NeedsPdfReading as e:
         st.warning("Add ANTHROPIC_API_KEY to the .env file (see .env.example) and restart the app to read PDFs.")
     st.stop()
 except ExtractionError as e:
-    st.error(str(e))
+    st.error(not_analysed(str(e)).text() if not DEMO and not uploaded and listed else str(e))
     st.stop()
 except anthropic.AnthropicError as e:
     st.error(f"Claude API error while reading the PDF: {e}")
@@ -654,6 +704,14 @@ if DEMO:
         source, url = case.context_source
         st.caption(f"Context, not used in the analysis or the memo: {case.context} Source: [{source}]({url}).")
     downloads = st.container()   # filled after Deal view, so the databook carries the visitor's price inputs
+if a.quality:   # an ESEF report: how far the reading can be relied on, first
+    fetched = listed[3] if not DEMO and not uploaded and listed else None
+    show = st.success if a.quality.level == COMPLETE else st.info if a.quality.level == NOTES_MISSING else st.error
+    from dd_assistant.deal_layer import coverage
+    show(f"**{a.quality.text()}** {coverage(a).text}, {len(a.checks) - sum(not c['OK'] for c in a.checks)} of "
+         f"{len(a.checks)} reading checks passed. Time: "
+         + (f"search and download {fetched:.1f} s, " if fetched is not None else "")
+         + f"reading and analysis {time.perf_counter() - started:.1f} s.")
 if not a.checks_ok:
     st.warning("Reading check failed: a subtotal rebuilt from the lines read does not match the published one. "
                "A line may be missing or misclassified — see Data room before relying on the figures.")

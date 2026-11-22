@@ -941,6 +941,7 @@ def _read_me(ws, a, stamp: str) -> None:
             ("Sector", a.sector.name), ("Years", ", ".join(fy(y) for y in a.data.years)),
             ("Currency and unit", "EUR thousands in every sheet (negatives in brackets)"),
             ("How the figures were read", a.ext.method),
+            *([("ESEF data quality", a.quality.text().removeprefix("ESEF data quality: "))] if a.quality else []),
             ("Data", "SYNTHETIC DEMO DATA (fictitious company built to test the rules)"
              if any(n in a.ext.company for n in ("Duriva", "Velmora")) else
              "As provided in the data room: say whether it is real, synthetic or mixed when sharing this file"),

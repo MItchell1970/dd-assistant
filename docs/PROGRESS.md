@@ -283,3 +283,44 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 3. **Fase 7 desenhada:** `docs/FASE7_SPEC.md` (A: qualquer cotada da UE pelo ESEF; B: data room desarrumado da Duriva com mapeamento e proof of cash; C: diligence viva com o Diligence Gap a evoluir). Nada construído; a ordem é A, B, C.
 
 **Próximo passo exato:** revisão da especificação pelo Bernardo e aprovação do push; depois, a peça A.
+
+## Fase 7, peça A: qualquer cotada da UE pelo ESEF (22 de novembro de 2026)
+
+**Feito** (commit local, sem push)
+- **Pesquisa** (`dd_assistant/registry.py`): o nome dá os LEI pela GLEIF (`fuzzycompletions`); um só pedido ao filings.xbrl.org diz quais têm relatórios (o site limita pedidos: respondeu 429 quando se perguntava LEI a LEI); depois, os relatórios do primeiro, o mais recente primeiro, com país, ano e tamanho (HEAD dos 4 mais recentes). Um LEI salta a GLEIF. Um 429 é repetido com espera (até 3 vezes).
+- **Descarga** só com clique ou `--yes`, para `output/esef_cache/` (fora do git), até 300 MB. O SHA-256 é comparado com o que o filings.xbrl.org publica e vai para o Source Register com o URL.
+- **Proteção do ZIP** (`esef.check_package`): 300 MB descompactados, rácio de compressão até 200 em cada ficheiro acima de 1 MB, 5 000 ficheiros, nenhum caminho com `..`, absoluto ou com letra de disco. Lacuna do GAPS fechada.
+- **Aviso de qualidade** (`dd_assistant/esef_quality.py`): *Complete*; *Notes missing: …* (text blocks IFRS de borrowings, provisions, leases, related parties, other income, segments); *Reading check failed, do not rely* (subtotal que não fecha, balanço que não fecha, a mesma etiqueta com dois valores no mesmo período, nenhum subtotal para verificar, ou D&A em falta). Um quarto estado, *Not analysed*, com o motivo, para o que não chega a ser lido. Aparece na app, no Read Me do databook, no material do memo (secção 7), no JSON e na linha de comandos.
+- **Entrada:** "Find a listed company" na app local (barra lateral); `--esef "<nome>"`, `--lei <LEI>`, `--year`, `--yes` na linha de comandos, com o tempo de cada passo.
+- **Testes:** `tests/test_registry.py` (8, respostas reais gravadas em `tests/fixtures/registry/`, nenhum pedido à rede) e `tests/test_esef_quality.py` (12: os níveis, o ZIP-bomba, o limite, o caminho fora da pasta). **337 testes**: suite completa corrida uma vez, 336 OK; a falha era o site com o número antigo de testes (317), regenerado com `scripts/build_site.py`, e o `test_site` passou a seguir.
+
+**Três cotadas novas** (`docs/examples/esef_coverage.md`, `scripts/esef_coverage.py --fresh`, tempos com a descarga):
+
+| Empresa | Qualidade | Regras | Reading checks | Tempo |
+|---|---|---|---|---|
+| Jerónimo Martins (retalho, PT, FY2025) | Complete | 19 de 30 | 4 de 4 | 9,6 s |
+| Schneider Electric (industrial, FR, FY2025) | Complete | 21 de 30 | 4 de 4 | 10,3 s |
+| Iberdrola (energia, ES, FY2025) | Notes missing: other income | 20 de 30 | 4 de 4 | 2,8 s |
+| Siemens (DE) | Not analysed: não está no filings.xbrl.org | — | — | 0,6 s |
+
+**Primeira corrida, antes das correções** (registada também no `esef_coverage.md`): a JM falhava a reading check por €1m (contas em milhões); a Schneider não era lida (ficheiros da taxonomia sem o prefixo `link:`) e depois tinha o balanço em duas partes, D&A em conceitos próprios com nome IFRS e reestruturação e imparidade do goodwill entre o EBITA e o resultado operacional; a Iberdrola era recusada (pacote `.xbri`) e depois tinha os custos com o sinal de ganhos (conceitos próprios definidos como credores).
+
+**Decisões (a opção mais simples e defensável)**
+- **Arredondamento em milhões:** a tolerância das reading checks continua a ser meia unidade impressa por linha; quando todas as linhas são múltiplos de €1m, a unidade é o milhão. Não reconheço €100k (milhões com uma casa decimal): nas empresas fictícias, três linhas redondas por acaso alargariam a tolerância.
+- **Sinal das extensões:** o esquema da empresa (`.xsd`) dá o saldo dos conceitos próprios; um conceito credor que o dicionário lê como custo (ou devedor lido como rendimento) muda de sinal à entrada, com "(sign turned: credit concept)" no rótulo. Os conceitos IFRS não mudam (o saldo deles condiz com o nome).
+- **Balanço em duas partes:** a segunda completa a primeira só quando a primeira tem o ativo sem capital próprio e passivo e a segunda o contrário. Noutros casos, continua a valer a primeira demonstração de cada tipo.
+- **Conceito próprio com nome IFRS** (`schneiderelectric:AdjustmentsForDepreciationOfPropertyPlantAndEquipment`): lido como o conceito IFRS; a etiqueta, que é a fonte, mostra que é da empresa.
+- **Reestruturação e imparidade do goodwill** entram em "Other expenses (incl. write-downs and provisions)", como no template; o EBITDA fica prudente (inclui a imparidade como custo).
+- **SHA-256 diferente do publicado:** a descarga é recusada e apagada (não é o relatório que o registo lista).
+- **D&A em falta** passou a falha de leitura: sem ela, as reading checks passavam com o EBITDA igual ao resultado operacional (aconteceu na Schneider a meio das correções).
+- **Escolha do relatório:** a primeira empresa da GLEIF com relatórios e o relatório mais recente, salvo `--year`; a app deixa escolher qualquer um da lista.
+- **Setor:** nas três, o motor sugeriu mal (JM e Iberdrola "Industrial distribution", pela palavra *distribution*; Schneider "General"). As corridas do `esef_coverage.md` usam o setor que um revisor escolheria; a sugestão fica registada ao lado.
+
+**Critérios de aceitação da especificação**
+1. Testes sem rede e sem API: cumprido.
+2. Cinco cotadas de cinco países: **3 de 5** (PT, FR, ES). Pedido do Bernardo: 3 empresas de setores diferentes. A Siemens (DE) não está no filings.xbrl.org; IT não foi tentada.
+3. EDP FY2025 ao milhar: **não reconferido** (o pacote de 96 MB está fora do projeto). O `test_esef.py` passa sem mudanças nas asserções; a única mudança no teste é o parâmetro `edit` do pacote sintético.
+
+**Capturas** (1440 px, `scripts/esef_screenshots.py`, Playwright com o Edge): `docs/images/esef-search.png` (pesquisa com a Schneider encontrada) e `docs/images/esef-result.png` (resultado com o aviso "Complete", 21 de 30 regras, 4 de 4 checks).
+
+**Próximo passo exato:** revisão do Bernardo; depois, a peça B.

@@ -176,12 +176,13 @@ def _definition() -> str:
                      f'all/ias_1_2014-03-05_role-610000">{"".join(parts)}</link:definitionLink>')
 
 
-def package(currency: str = "EUR") -> bytes:
+def package(currency: str = "EUR", edit=None) -> bytes:
+    """edit: a function that changes the report's text (tests/test_esef_quality.py)."""
     buf = io.BytesIO()
     base, tax = "acme-2025-12-31", "acme-2025-12-31/www.acme.pt/2025-12-31/acme-2025-12-31"
-    with zipfile.ZipFile(buf, "w") as z:
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(f"{base}/META-INF/reportPackage.json", '{"documentInfo": {"documentType": "esef"}}')
-        z.writestr(f"{base}/reports/{base}.xhtml", _report(currency))
+        z.writestr(f"{base}/reports/{base}.xhtml", (edit or (lambda t: t))(_report(currency)))
         z.writestr(f"{tax}_pre.xml", _presentation())
         z.writestr(f"{tax}_lab-en.xml", _labels(LABELS_EN, "en"))
         z.writestr(f"{tax}_lab-pt.xml", _labels(LABELS_PT, "pt"))

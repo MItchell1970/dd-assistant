@@ -11,6 +11,8 @@ Usage:
     python -m dd_assistant data/Duriva_data_room.xlsx --purpose lend    # a credit review instead of M&A
     python -m dd_assistant --sectors                               # the sectors and their calibrated thresholds
     python -m dd_assistant --rules                                 # the rulebook, in plain words
+    python -m dd_assistant --esef "Jeronimo Martins"               # a listed company: its latest ESEF report
+    python -m dd_assistant --lei 259400A8SZP10GB5IB19 --year 2024 --yes
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 from . import europe, sectors
@@ -73,6 +76,11 @@ def main(argv=None) -> int:
                                             "financial statements.")
     p.add_argument("financials", nargs="*", help="The data room: files or folders (Excel, PDF, Word, text, an ESEF "
                                                  "report package .zip), or a completed DD template")
+    p.add_argument("--esef", metavar="NAME", help="A listed company by name: finds its LEI (GLEIF) and its ESEF "
+                   "reports (filings.xbrl.org), downloads the most recent one with your OK and analyses it")
+    p.add_argument("--lei", help="The same, from the company's LEI (20 characters)")
+    p.add_argument("--year", type=int, help="With --esef or --lei: the financial year (default: the most recent)")
+    p.add_argument("--yes", action="store_true", help="With --esef or --lei: download without asking")
     p.add_argument("--read-pdf", metavar="PDF", help="Read the financial statements from this PDF with Claude (paid), "
                                                      "when the data room has no Excel statements")
     p.add_argument("--prior", metavar="FILE", help="The prior year's report (Excel): adds the earlier year and "
@@ -109,8 +117,16 @@ def main(argv=None) -> int:
     if args.sectors or args.rules:
         _print_sectors() if args.sectors else _print_rules()
         return 0
+    clock = {"start": time.perf_counter()}
+    origin = None
+    if args.esef or args.lei:
+        found = _find_listed(args.esef or args.lei, args.year, args.yes, clock)
+        if isinstance(found, int):
+            return found
+        origin = found
+        args.financials = [str(found[1].path)]
     if not args.financials:
-        p.error("the data room is required: one or more files, or a folder")
+        p.error("the data room is required: one or more files, or a folder (or --esef NAME, --lei LEI)")
 
     paths = [Path(x) for x in args.financials]
     for f in paths + [Path(x) for x in (args.data_room, args.check_memo, args.prior, args.notes) if x]:
@@ -123,6 +139,11 @@ def main(argv=None) -> int:
         load_env()   # reading a PDF's statements uses the Claude API
     try:
         ext = read_data_room(files_in(paths), read_pdf=args.read_pdf)
+        if origin:   # where the package came from, for the Source Register
+            filing, got = origin
+            for row in ext.files:
+                if row["File"] == got.path.name:
+                    row["Found"] += f" · downloaded from {filing.url} ({got.note})"
         if args.prior:
             from .history import add_prior_report
             ext = add_prior_report(ext, read_data_room(files_in([Path(args.prior)])), Path(args.prior).name)
@@ -141,8 +162,14 @@ def main(argv=None) -> int:
         print(f"{e} Run again with --read-pdf \"{e.pdfs[0]}\" (uses the Claude API).", file=sys.stderr)
         return 1
     except (ExtractionError, ValueError) as e:
+        if origin:   # a listed company that could not be read: a quality warning with the reason
+            from .esef_quality import not_analysed
+            print(not_analysed(str(e)).text(), file=sys.stderr)
+            _timing(clock)
+            return 1
         print(str(e), file=sys.stderr)
         return 1
+    clock["analysis"] = time.perf_counter()
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -162,11 +189,69 @@ def main(argv=None) -> int:
     if args.material or args.memo or args.check_memo:
         _material(a, out, path)
     print(f"\nResults saved to: {out.resolve()}")
+    if origin:
+        _timing(clock)
 
     rc = _memo(a, out, path) if args.memo else 0
     if args.check_memo:
         rc = max(rc, _check(a, Path(args.check_memo), out, path))
     return rc
+
+
+def _find_listed(query: str, year: int | None, yes: bool, clock: dict):
+    """--esef / --lei: the company, its report for the year, the download with the user's OK -> (Filing, Download);
+    or an exit code."""
+    from .esef_quality import not_analysed
+    from .registry import RegistryError, download, search
+
+    print(f"Searching GLEIF and filings.xbrl.org for {query!r}...")
+    try:
+        companies = search(query)
+    except RegistryError as e:
+        print(not_analysed(str(e)).text(), file=sys.stderr)
+        return 1
+    clock["search"] = time.perf_counter()
+    if not companies:
+        print(not_analysed(f"No company matching {query!r} has an ESEF report on filings.xbrl.org (German issuers "
+                           "file with the Bundesanzeiger and are often not there).").text(), file=sys.stderr)
+        return 1
+    for c in companies:
+        print(f"  {c.name} · LEI {c.lei} · reports for " + ", ".join(f"FY{f.year}" for f in c.filings))
+    company = companies[0]
+    chosen = [f for f in company.filings if year is None or f.year == year]
+    if not chosen:
+        print(not_analysed(f"{company.name} has no ESEF report for FY{year} on filings.xbrl.org.").text(),
+              file=sys.stderr)
+        return 1
+    filing = chosen[0]
+    print(f"Report: {filing.label}\n  {filing.url}")
+    if filing.errors or filing.inconsistencies:
+        print(f"  filings.xbrl.org counted {filing.errors} validation errors and {filing.inconsistencies} calculation "
+              "inconsistencies in this report.")
+    if not yes:
+        if not sys.stdin.isatty():
+            print("Run again with --yes to download it.", file=sys.stderr)
+            return 1
+        if input("Download it? [y/N] ").strip().lower() not in ("y", "yes", "s", "sim"):
+            return 1
+    try:
+        got = download(filing)
+    except RegistryError as e:
+        print(not_analysed(str(e)).text(), file=sys.stderr)
+        return 1
+    clock["download"] = time.perf_counter()
+    print(f"{'Already in the cache' if got.cached else 'Downloaded'}: {got.path} · SHA-256 {got.sha256} ({got.note})")
+    return filing, got
+
+
+def _timing(clock: dict) -> None:
+    """How long each step took, in seconds, for a listed company."""
+    parts, last = [], clock["start"]
+    for key, name in (("search", "Search"), ("download", "Download"), ("analysis", "Reading and analysis")):
+        if key in clock:
+            parts.append(f"{name} {clock[key] - last:.1f} s")
+            last = clock[key]
+    print(f"Time: {' · '.join(parts)} · total {time.perf_counter() - clock['start']:.1f} s")
 
 
 def _databook(a: Analysis, path: Path) -> None:
@@ -194,6 +279,10 @@ def _print(a: Analysis) -> None:
     if a.ext.missing:
         print(f"Line items not found: {', '.join(a.ext.missing)}")
     failed = [c for c in a.checks if not c["OK"]]
+    if a.quality:
+        print(a.quality.text())
+    from .deal_layer import coverage
+    print(f"Rules: {coverage(a).text}")
     print(f"Reading checks: {len(a.checks) - len(failed)} of {len(a.checks)} passed"
           + "".join(f"\n  NOT OK: {c['Check']} {fy(c['Year'])} (difference {m.fmt(c['Difference'])})" for c in failed))
     print()

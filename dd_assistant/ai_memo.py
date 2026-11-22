@@ -298,6 +298,8 @@ def _sector_section(a) -> list[str]:
 
 def _checks_section(a) -> list[str]:
     out = ["## 7. Reading checks (did the code read the statements correctly?)"]
+    if a.quality:   # an ESEF report: the warning comes first, so the memo cannot rely on a failed reading
+        out.append(a.quality.text())
     if not a.checks:
         return out + ["No published subtotals to check against."]
     out.append(f"Reading checks passed: {sum(bool(c['OK']) for c in a.checks)} of {len(a.checks)} published subtotals "

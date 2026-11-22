@@ -1,0 +1,89 @@
+{
+ "data": [
+  {
+   "type": "fuzzycompletions",
+   "attributes": {
+    "value": "JERÓNIMO MARTINS SGPS SA"
+   },
+   "relationships": {
+    "lei-records": {
+     "data": {
+      "type": "lei-records",
+      "id": "259400A8SZP10GB5IB19"
+     },
+     "links": {
+      "related": "https://api.gleif.org/api/v1/lei-records/259400A8SZP10GB5IB19"
+     }
+    }
+   }
+  },
+  {
+   "type": "fuzzycompletions",
+   "attributes": {
+    "value": "JERONIMO MARTINS POLSKA SPÓŁKA AKCYJNA"
+   },
+   "relationships": {
+    "lei-records": {
+     "data": {
+      "type": "lei-records",
+      "id": "2594005LY2PPF83Q0M49"
+     },
+     "links": {
+      "related": "https://api.gleif.org/api/v1/lei-records/2594005LY2PPF83Q0M49"
+     }
+    }
+   }
+  },
+  {
+   "type": "fuzzycompletions",
+   "attributes": {
+    "value": "JERÓNIMO MARTINS - AGRO-ALIMENTAR, S.A."
+   },
+   "relationships": {
+    "lei-records": {
+     "data": {
+      "type": "lei-records",
+      "id": "259400VOZ0ILJN63FF23"
+     },
+     "links": {
+      "related": "https://api.gleif.org/api/v1/lei-records/259400VOZ0ILJN63FF23"
+     }
+    }
+   }
+  },
+  {
+   "type": "fuzzycompletions",
+   "attributes": {
+    "value": "Jerónimo Martins - Distribuiçao de Produtos de Consumo, LDA"
+   },
+   "relationships": {
+    "lei-records": {
+     "data": {
+      "type": "lei-records",
+      "id": "2594003IME01216P4Z26"
+     },
+     "links": {
+      "related": "https://api.gleif.org/api/v1/lei-records/2594003IME01216P4Z26"
+     }
+    }
+   }
+  },
+  {
+   "type": "fuzzycompletions",
+   "attributes": {
+    "value": "JERONIMO MARTINS DROGERIE I FARMACJA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ"
+   },
+   "relationships": {
+    "lei-records": {
+     "data": {
+      "type": "lei-records",
+      "id": "2594001K7RTQP26GM918"
+     },
+     "links": {
+      "related": "https://api.gleif.org/api/v1/lei-records/2594001K7RTQP26GM918"
+     }
+    }
+   }
+  }
+ ]
+}

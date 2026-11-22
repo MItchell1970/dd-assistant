@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field, replace
 
-from . import europe, issues, sectors
+from . import esef_quality, europe, issues, sectors
 from .deal import DealView, benchmark_rows, deal_view
 from .extract import Extraction, apply_edits
 from .input_loader import CompanyData, Named
@@ -47,6 +47,7 @@ class Analysis:
     materiality: issues.Materiality = field(default_factory=issues.Materiality)
     thresholds: dict = field(default_factory=dict)                # materiality in EUR thousands: 'pl' and 'bs'
     issues: list = field(default_factory=list)                    # findings and net debt items, by amount at stake
+    quality: esef_quality.Quality | None = None                   # an ESEF report: how far the reading can be relied on
 
     @property
     def checks_ok(self) -> bool:
@@ -100,12 +101,14 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
     general_years = {r.rule.id: r.years_text for r in alerts(evaluate(data, m))}
     view = deal_view(data, m, decisions, analyst, include)
     findings = issues.by_amount(alerts(results))
-    return Analysis(ext, data, m, results, findings, reading_checks(data), view, s, suggested, words,
+    checks = reading_checks(data)
+    return Analysis(ext, data, m, results, findings, checks, view, s, suggested, words,
                     Money.for_data(data), benchmark_rows(data, m, view, s), dict(decisions or {}), c, c_suggested,
                     c_why, purpose, general_years, dict(include or {}), list(analyst or []), materiality,
                     materiality.thresholds(data, m),
                     issues.key_issues(findings, view, data, m, materiality, implications, ext.notes, money,
-                                      sectors.OPERATING_ITEMS.get(s.key)))
+                                      sectors.OPERATING_ITEMS.get(s.key)),
+                    esef_quality.assess(ext, data, checks, m))
 
 
 PURPOSE_EFFECTS = {
@@ -182,6 +185,8 @@ def to_dict(a: Analysis) -> dict:
                    "peers": f"{a.sector.benchmarks['industry']} — {sectors.BENCHMARK_SOURCE}"},
         "reading_checks": [{**c, "Year": fy(c["Year"])} for c in a.checks],
         "reading_checks_ok": a.checks_ok,
+        "esef_quality": {"level": a.quality.level, "headline": a.quality.headline, "reasons": a.quality.reasons,
+                         "notes_tagged": a.quality.notes_found} if a.quality else None,
         "lines_not_found": a.ext.missing,
         "lines_not_used": a.ext.unmapped,
         "findings": [{"id": r.rule.id, "name": r.rule.name, "plain_words": r.rule.plain, "area": r.rule.area,

@@ -454,7 +454,8 @@ def coverage(a) -> Coverage:
     the rules on management adjustments are not applicable instead: published accounts have no management EBITDA, so
     there is no document to ask for yet."""
     names = " ".join(str(f) for f in getattr(a.ext, "files", []) or [])
-    mode = "outside-in (published accounts)" if "published" in names.lower() or a.ext.notes else "data room"
+    mode = ("outside-in (published accounts)" if "published" in names.lower() or a.ext.notes or a.ext.esef
+            else "data room")
     outside = mode.startswith("outside-in") and not a.view.ebitda_mgmt
     run, blocked, na = [], [], []
     for r in a.results:

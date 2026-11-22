@@ -29,7 +29,7 @@ from .extract import Extraction, ExtractionError, _fill_review, _norm, _sheet_ty
 
 SPREADSHEETS = (".xlsx", ".xlsm")
 DOCUMENTS = (".pdf", ".docx", ".txt", ".md", ".csv")
-ESEF = (".zip", ".xhtml", ".html")          # ESEF report package (the report alone is refused with a clear message)
+ESEF = (".zip", ".xbri", ".xhtml", ".html")          # ESEF report package (the report alone is refused with a clear message)
 
 # key documents recognised from a file's name or first lines (Portuguese, Spanish, French, German, Italian, English)
 _AGEING = r"aging|ageing|antiguidade|antiguedad|balance agee|altersstruktur|scadenzario|vencimientos"
@@ -177,6 +177,7 @@ def read_data_room(files: list[tuple[str, bytes]], client: anthropic.Anthropic |
             ext.method = ext.method.replace("Excel — dictionary mapping, figures read from the cells",
                                             "ESEF (iXBRL) — each line read from its tag" + " and Excel" * bool(sheets))
             ext.source_text = f"## ESEF report '{esef.name}'\n{esef.text}\n\n{ext.source_text}".strip()
+            ext.esef = {"file": esef.name, "blocks": esef.blocks, "conflicts": esef.conflicts}
             table.append({"File": esef.name, "Read as": "ESEF — tagged financial statements (iXBRL)",
                           "Found": f"income statement, balance sheet, cash flow statement ({esef.facts} facts in euros)"})
         for n, _ in sheets:

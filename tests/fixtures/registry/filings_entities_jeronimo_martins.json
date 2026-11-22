@@ -1,0 +1,31 @@
+{
+ "data": [
+  {
+   "type": "entity",
+   "id": "2276",
+   "attributes": {
+    "identifier": "259400A8SZP10GB5IB19",
+    "name": "JERÓNIMO MARTINS SGPS SA"
+   },
+   "relationships": {
+    "filings": {
+     "links": {
+      "related": "/api/entities/259400A8SZP10GB5IB19/filings"
+     }
+    }
+   },
+   "links": {
+    "self": "/api/entities/259400A8SZP10GB5IB19"
+   }
+  }
+ ],
+ "links": {
+  "self": "https://filings.xbrl.org/api/entities?filter=%5B%7B%22name%22%3A+%22identifier%22%2C+%22op%22%3A+%22in_%22%2C+%22val%22%3A+%5B%22259400A8SZP10GB5IB19%22%2C+%222594005LY2PPF83Q0M49%22%2C+%22259400VOZ0ILJN63FF23%22%2C+%222594003IME01216P4Z26%22%2C+%222594001K7RTQP26GM918%22%5D%7D%5D"
+ },
+ "meta": {
+  "count": 1
+ },
+ "jsonapi": {
+  "version": "1.0"
+ }
+}

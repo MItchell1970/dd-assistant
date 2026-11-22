@@ -1,0 +1,188 @@
+{
+ "data": [
+  {
+   "type": "filing",
+   "id": "3077",
+   "attributes": {
+    "period_end": "2021-12-31",
+    "country": "PT",
+    "fxo_id": "259400A8SZP10GB5IB19-2021-12-31-ESEF-PT-0",
+    "date_added": "2022-04-05 00:00:00",
+    "processed": "2023-01-18 11:02:56.162575",
+    "published": "2022-03-25 18:42:00",
+    "sha256": "0333268607f676dd04d1e3d7df9aaf7871bbd1b90c7521883ade70bdf24624a5",
+    "viewer_url": "/259400A8SZP10GB5IB19/2021-12-31/ESEF/PT/0/000320-2021-12-31/reports/ixbrlviewer.html",
+    "package_url": "/259400A8SZP10GB5IB19/2021-12-31/ESEF/PT/0/000320-2021-12-31.zip",
+    "report_url": "/259400A8SZP10GB5IB19/2021-12-31/ESEF/PT/0/000320-2021-12-31/reports/000320-2021-12-31.xhtml",
+    "json_url": "/259400A8SZP10GB5IB19/2021-12-31/ESEF/PT/0/000320-2021-12-31.json",
+    "error_count": 0,
+    "warning_count": 2,
+    "inconsistency_count": 28
+   },
+   "relationships": {
+    "entity": {
+     "links": {
+      "related": "/api/entities/259400A8SZP10GB5IB19"
+     }
+    },
+    "validation_messages": {
+     "links": {
+      "related": "/api/filings/3077/validation_messages"
+     }
+    }
+   },
+   "links": {
+    "self": "/api/filings/3077"
+   }
+  },
+  {
+   "type": "filing",
+   "id": "7724",
+   "attributes": {
+    "period_end": "2022-12-31",
+    "country": "PT",
+    "fxo_id": "259400A8SZP10GB5IB19-2022-12-31-ESEF-PT-0",
+    "date_added": "2023-09-05 13:38:01.054139",
+    "processed": "2023-09-05 15:30:04.838508",
+    "published": null,
+    "sha256": "0277fd950be21189918c641f1b893d0c8e760a8fe8d48b17e788e86a856c5262",
+    "viewer_url": "/259400A8SZP10GB5IB19/2022-12-31/ESEF/PT/0/000320-2022-12-31/reports/ixbrlviewer.html",
+    "package_url": "/259400A8SZP10GB5IB19/2022-12-31/ESEF/PT/0/000320-2022-12-31.zip",
+    "report_url": "/259400A8SZP10GB5IB19/2022-12-31/ESEF/PT/0/000320-2022-12-31/reports/000320-2022-12-31.xhtml",
+    "json_url": "/259400A8SZP10GB5IB19/2022-12-31/ESEF/PT/0/000320-2022-12-31.json",
+    "error_count": 0,
+    "warning_count": 4,
+    "inconsistency_count": 22
+   },
+   "relationships": {
+    "entity": {
+     "links": {
+      "related": "/api/entities/259400A8SZP10GB5IB19"
+     }
+    },
+    "validation_messages": {
+     "links": {
+      "related": "/api/filings/7724/validation_messages"
+     }
+    }
+   },
+   "links": {
+    "self": "/api/filings/7724"
+   }
+  },
+  {
+   "type": "filing",
+   "id": "26696",
+   "attributes": {
+    "period_end": "2023-12-31",
+    "country": "PT",
+    "fxo_id": "259400A8SZP10GB5IB19-2023-12-31-ESEF-PT-0",
+    "date_added": "2026-10-22 11:46:54.607049",
+    "processed": "2026-10-22 15:52:23.466480",
+    "published": "2024-03-22 17:32:00",
+    "sha256": "e1b75c699784191cc78202c27f5c548b45d76ea35cb75f4924c521769ea26a0f",
+    "viewer_url": "/259400A8SZP10GB5IB19/2023-12-31/ESEF/PT/0/000320-2023-12-31/reports/ixbrlviewer.html",
+    "package_url": "/259400A8SZP10GB5IB19/2023-12-31/ESEF/PT/0/000320-2023-12-31.zip",
+    "report_url": "/259400A8SZP10GB5IB19/2023-12-31/ESEF/PT/0/000320-2023-12-31/reports/000320-2023-12-31.xhtml",
+    "json_url": "/259400A8SZP10GB5IB19/2023-12-31/ESEF/PT/0/000320-2023-12-31.json",
+    "error_count": 0,
+    "warning_count": 3,
+    "inconsistency_count": 0
+   },
+   "relationships": {
+    "entity": {
+     "links": {
+      "related": "/api/entities/259400A8SZP10GB5IB19"
+     }
+    },
+    "validation_messages": {
+     "links": {
+      "related": "/api/filings/26696/validation_messages"
+     }
+    }
+   },
+   "links": {
+    "self": "/api/filings/26696"
+   }
+  },
+  {
+   "type": "filing",
+   "id": "26740",
+   "attributes": {
+    "period_end": "2024-12-31",
+    "country": "PT",
+    "fxo_id": "259400A8SZP10GB5IB19-2024-12-31-ESEF-PT-0",
+    "date_added": "2026-10-22 15:00:37.154763",
+    "processed": "2026-10-22 16:26:37.096398",
+    "published": "2025-03-27 16:09:00",
+    "sha256": "c8ced1d9540fc3808b1614520ebb701585f14f9aa6ce56438d40bda13571bb53",
+    "viewer_url": "/259400A8SZP10GB5IB19/2024-12-31/ESEF/PT/0/000320-2024-12-31/reports/ixbrlviewer.html",
+    "package_url": "/259400A8SZP10GB5IB19/2024-12-31/ESEF/PT/0/000320-2024-12-31.zip",
+    "report_url": "/259400A8SZP10GB5IB19/2024-12-31/ESEF/PT/0/000320-2024-12-31/reports/000320-2024-12-31.xhtml",
+    "json_url": "/259400A8SZP10GB5IB19/2024-12-31/ESEF/PT/0/000320-2024-12-31.json",
+    "error_count": 0,
+    "warning_count": 3,
+    "inconsistency_count": 0
+   },
+   "relationships": {
+    "entity": {
+     "links": {
+      "related": "/api/entities/259400A8SZP10GB5IB19"
+     }
+    },
+    "validation_messages": {
+     "links": {
+      "related": "/api/filings/26740/validation_messages"
+     }
+    }
+   },
+   "links": {
+    "self": "/api/filings/26740"
+   }
+  },
+  {
+   "type": "filing",
+   "id": "26793",
+   "attributes": {
+    "period_end": "2025-12-31",
+    "country": "PT",
+    "fxo_id": "259400A8SZP10GB5IB19-2025-12-31-ESEF-PT-0",
+    "date_added": "2026-10-22 15:06:07.180308",
+    "processed": "2026-10-22 17:08:02.364837",
+    "published": "2026-03-30 14:42:00",
+    "sha256": "ba97d24735db035c3d947e263316f651e1bc783f54c78d23b0151010d624f911",
+    "viewer_url": "/259400A8SZP10GB5IB19/2025-12-31/ESEF/PT/0/000320-2025-12-31/reports/ixbrlviewer.html",
+    "package_url": "/259400A8SZP10GB5IB19/2025-12-31/ESEF/PT/0/000320-2025-12-31.zip",
+    "report_url": "/259400A8SZP10GB5IB19/2025-12-31/ESEF/PT/0/000320-2025-12-31/reports/000320-2025-12-31.xhtml",
+    "json_url": "/259400A8SZP10GB5IB19/2025-12-31/ESEF/PT/0/000320-2025-12-31.json",
+    "error_count": 0,
+    "warning_count": 2,
+    "inconsistency_count": 0
+   },
+   "relationships": {
+    "entity": {
+     "links": {
+      "related": "/api/entities/259400A8SZP10GB5IB19"
+     }
+    },
+    "validation_messages": {
+     "links": {
+      "related": "/api/filings/26793/validation_messages"
+     }
+    }
+   },
+   "links": {
+    "self": "/api/filings/26793"
+   }
+  }
+ ],
+ "links": {
+  "self": "https://filings.xbrl.org/api/entities/259400A8SZP10GB5IB19/filings"
+ },
+ "meta": {
+  "count": 5
+ },
+ "jsonapi": {
+  "version": "1.0"
+ }
+}
