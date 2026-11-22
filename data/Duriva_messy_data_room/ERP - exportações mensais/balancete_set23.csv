@@ -1,0 +1,40 @@
+﻿FICTITIOUS, synthetic test data — Duriva Distribuição Industrial, S.A. — ERP export
+Período: 30.09.2023
+
+Conta;Descrição;Movimento;Saldo final
+REV100;Vendas merc. nac.;-969.680,00;-8.225.168,00
+REV110;Vendas merc. grossistas;-594.320,00;-5.041.232,00
+CST200;CMVMC;1.116.900,00;9.473.940,00
+CST300;FSE - rendas e alugueres;56.875,00;511.875,00
+CST310;FSE - transportes merc.;49.725,00;421.785,00
+622100;Trab. especializ.;56.875,00;511.875,00
+HR400;Remuner. pessoal;109.850,00;988.650,00
+HR410;Encargos s/ remuner.;30.983,33;278.850,00
+OIN500;Out. rendim. operac.;-3.750,00;-33.750,00
+OIN520;Mais-val. alien. AFT;0,00;0,00
+IMP600;Imparid. clientes;0,00;0,00
+OGS650;Out. gastos operac.;2.916,67;26.250,00
+MSC990;Diversos;1.250,00;11.250,00
+DEP700;Amortiz. exerc.;31.666,67;285.000,00
+FIN800;Juros supor. financ.;17.916,67;161.250,00
+TAX900;IRC estimado;18.500,00;166.500,00
+FA100;Equip. básico e transp.;11.940,67;5.739.647,93
+FA190;Amort. acum. AFT;-30.173,43;-2.105.125,39
+STK200;Mercadorias;14.488,99;2.517.437,12
+4120;Clientes c/c;41.242,42;3.030.943,88
+OAC300;Out. devedores;601,81;188.706,08
+OAC310;Diferim. ativos;749,30;128.170,36
+BNK001;DO Banco Meridiano 4512;-10.156,97;271.390,10
+BNK002;DO Banco Norte 7733;-8.310,25;222.046,45
+CX001;Caixa;0,00;2.500,00
+EQ400;Capital social;0,00;-1.000.000,00
+EQ410;Reservas legais;0,00;-200.000,00
+EQ420;Result. transitados;0,00;-1.700.000,00
+LN500;Emprést. banc. MLP;33.401,03;-3.335.234,36
+LN510;Emprést. banc. CP;231,10;-535.869,07
+LN520;Conta caucionada;-5.431,84;-214.289,94
+221100;Forn. c/c;13.976,50;-1.907.155,92
+OPC600;Estado - IVA a pagar;12.801,19;-290.569,78
+OPC610;Out. credores;-599,55;-157.334,11
+OPC620;Acrésc. gastos;-469,31;-192.338,35
+SUS999;Conta transit.;0,00;0,00
