@@ -10,11 +10,14 @@ the middle band only, blue = interaction only (never a figure), grey = neutral, 
 from __future__ import annotations
 
 import html
+import io
 import re
+from datetime import datetime
 
 import streamlit as st
 
 from dd_assistant import charts, deal_layer as dl, demo
+from dd_assistant import net_debt_definition as ndd
 from dd_assistant.ai_memo import fmt_value
 from dd_assistant.deal import cash_steps
 from dd_assistant.rules import fy
@@ -355,25 +358,94 @@ def findings(c, a, layer) -> None:
         st.info("No finding matches these filters.")
 
 
-def impact(c, a, layer) -> None:
-    b = charts.net_debt(a, company=short_name(c))
-    if b:
-        st.markdown(charts.svg(b, a.money), unsafe_allow_html=True)
-    multiple = st.slider("Illustrative multiple (x EBITDA)", 4.0, 12.0, 8.0, 0.5, key="multiple")
-    e = dl.equity_view(a, multiple)
-    impact_colour = charts.RED if e.impact < 0 else charts.GREEN if e.impact > 0 else charts.TEXT
-    cards = [(f"EV at {multiple:g}x", money(a, e.ev), f"{multiple:g} × reported EBITDA of {money(a, e.ebitda)}",
-              charts.TEXT),
-             ("Adjusted net debt", money(a, e.net_debt), "deducted from EV", charts.TEXT),
-             ("Equity value", money(a, e.equity), "EV − adjusted net debt", charts.TEXT),
-             ("Impact of the findings", money(a, e.impact), f"{dl.pct(e.share)} of equity value", impact_colour)]
-    st.markdown(f'<div class="sec">{E(dl.ILLUSTRATIVE)}</div><div class="kpis">' + "".join(
+def definition(c, a) -> tuple[ndd.Definition, list]:
+    """The net debt definition: buyer, seller and the gap on top; the preset; one switch per component, with an
+    optional reason; every change kept in the session. Returns the definition and the components."""
+    cs = ndd.components(a)
+    state = st.session_state.setdefault(f"ndd-{c.slug}", {"version": 0, "base": ndd.BUYER,
+                                                            "def": ndd.Definition(ndd.BUYER, ndd.preset(cs, ndd.BUYER))})
+    n = ndd.negotiation(cs)
+    gap = None if n.gap is None else abs(n.gap)
+    cards = [("Net debt, buyer's view", money(a, n.buyer), "the engine's default: adjusted net debt", charts.TEXT),
+             ("Net debt, seller's view", money(a, n.seller), "the vendor's usual position", charts.TEXT),
+             ("In negotiation", money(a, gap), "buyer's less seller's net debt: euros of price", charts.TEXT)]
+    st.markdown(f'<div class="sec">Net debt definition · {fy(a.view.bs_years[-1])}</div><div class="kpis">' + "".join(
         f'<div class="kpi" style="border-top-color:{col if col != charts.TEXT else charts.LINE}"><div class="l">'
         f'{E(l)}</div><div class="v" style="color:{col}">{E(v_)}</div><div class="s">{E(src)}</div></div>'
         for l, v_, src, col in cards) + "</div>", unsafe_allow_html=True)
-    if not e.depends:
+
+    def pick() -> None:                    # a preset replaces the switches; the change is kept
+        name = st.session_state.get(f"ndd-preset-{c.slug}") or state["base"]
+        if name == ndd.CUSTOM:
+            return
+        state["base"], state["version"] = name, state["version"] + 1
+        d = state["def"]
+        d.name, d.chosen = name, ndd.preset(cs, name)
+        d.changes.append(ndd.Change("preset", f"Preset: {name}", True, "", datetime.now().strftime("%Y-%m-%d %H:%M")))
+
+    d = state["def"]
+    control = st.empty()                   # drawn after the switches are read, so it shows Custom at once
+    base = ndd.preset(cs, state["base"])
+    rows = [{"Include": base[x.key], "Group": x.group, "Item": x.label, "Value": money(a, x.value),
+             "Buyer": "in" if x.buyer else "out", "Seller": "in" if x.seller else "out",
+             "Reason (optional)": d.reason(x.key), "Source": x.source} for x in cs]
+    edited = st.data_editor(rows, key=f"ndd-edit-{c.slug}-{state['version']}", hide_index=True, width="stretch",
+                            height=35 * (len(rows) + 1) + 3,
+                            disabled=["Group", "Item", "Value", "Buyer", "Seller", "Source"],
+                            column_config={"Include": st.column_config.CheckboxColumn(width="small"),
+                                           "Value": st.column_config.TextColumn(width="small")})
+    chosen = {x.key: bool(row["Include"]) for x, row in zip(cs, edited)}
+    when = datetime.now().strftime("%Y-%m-%d %H:%M")
+    for x, row in zip(cs, edited):
+        reason = (row.get("Reason (optional)") or "").strip()
+        if chosen[x.key] != d.chosen.get(x.key, x.buyer):
+            d.changes.append(ndd.Change(x.key, x.label, chosen[x.key], reason, when))
+        elif reason and reason != d.reason(x.key):   # a reason added after the switch
+            d.changes.append(ndd.Change(x.key, x.label, chosen[x.key], reason, when))
+    d.chosen = chosen
+    d.name = next((p for p in (ndd.BUYER, ndd.SELLER) if chosen == ndd.preset(cs, p)), ndd.CUSTOM)
+    st.session_state[f"ndd-preset-{c.slug}"] = d.name
+    control.segmented_control("Definition", ndd.PRESETS, key=f"ndd-preset-{c.slug}", on_change=pick,
+                              help="Buyer = the engine's default (conservative). Seller = the vendor's usual position. "
+                                   "Change any switch and the definition becomes Custom.")
+    changes = [ch for ch in d.changes if ch.key != "preset"]
+    if d.changes:
+        with st.expander(f"Changes to the definition ({len(changes)})"):
+            st.dataframe([{"When": ch.when, "Item": ch.label,
+                           "Now": "—" if ch.key == "preset" else "in" if ch.included else "out", "Reason": ch.reason}
+                          for ch in d.changes], hide_index=True, width="stretch")
+    return d, cs
+
+
+def impact(c, a, layer) -> None:
+    b = charts.net_debt(a, company=short_name(c))
+    d, cs = definition(c, a)
+    multiple = st.slider("Illustrative multiple (x EBITDA)", 4.0, 12.0, 8.0, 0.5, key="multiple")
+    r = ndd.evaluate(a, cs, d.chosen, multiple)
+    impact_colour = charts.RED if r.impact < 0 else charts.GREEN if r.impact > 0 else charts.TEXT
+    lev = "n/a" if r.leverage is None else f"{r.leverage:.2f}x"
+    cards = [(f"EV at {multiple:g}x", money(a, r.ev), f"{multiple:g} × reported EBITDA of {money(a, r.ebitda)}",
+              charts.TEXT),
+             (f"Net debt · {d.name}", money(a, r.net_debt), f"leverage {lev} diligence-adjusted EBITDA", charts.TEXT),
+             ("Equity value", money(a, r.equity), "EV − net debt", charts.TEXT),
+             ("Impact of the findings", money(a, r.impact), f"{dl.pct(r.share)} of equity value", impact_colour)]
+    st.markdown(f'<div class="sec">{E(dl.ILLUSTRATIVE)} · definition: {E(d.name)}</div><div class="kpis">' + "".join(
+        f'<div class="kpi" style="border-top-color:{col if col != charts.TEXT else charts.LINE}"><div class="l">'
+        f'{E(l)}</div><div class="v" style="color:{col}">{E(v_)}</div><div class="s">{E(src)}</div></div>'
+        for l, v_, src, col in cards) + "</div>", unsafe_allow_html=True)
+    if not dl.valuation_impact(a).ebitda:
         st.caption("No EBITDA adjustment: the impact of the findings does not depend on the multiple; only EV and "
                    "equity value move.")
+    book = io.BytesIO()
+    from dd_assistant.databook import write_databook
+    write_databook(a, book, definition=d)
+    st.download_button("Download databook with this definition", book.getvalue(),
+                       f"{c.slug}_databook_{d.name.split()[0].lower()}.xlsx", icon=":material/download:",
+                       help="Adds the 'SPA net debt schedule' sheet with your choices and reasons (Excel recalculates "
+                            "on opening).")
+    st.caption("The charts below are the buyer's view (the engine's default).")
+    if b:
+        st.markdown(charts.svg(b, a.money), unsafe_allow_html=True)
     v = charts.valuation(a, multiple)
     if v:
         st.markdown(charts.svg(v, a.money), unsafe_allow_html=True)

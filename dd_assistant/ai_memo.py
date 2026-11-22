@@ -162,6 +162,12 @@ def _deal_layer_section(a) -> list[str]:
     from .deal_layer import in_price
     out += ["", "Already in the price (shown apart from the findings, not scored):"]
     out += _table(["Item", "Why", "Amount"], [[p.label, p.why, fmt_value(p.amount)] for p in in_price(a)])
+    from . import net_debt_definition as ndd
+    n = ndd.negotiation(ndd.components(a))
+    out += ["", f"Net debt definition for the SPA at {fy(a.view.bs_years[-1])}, EUR thousands: buyer's view (the "
+                f"engine's default, adjusted net debt) {fmt_value(n.buyer)}; seller's view {fmt_value(n.seller)}; in "
+                f"negotiation (buyer's less seller's) {fmt_value(n.gap)}. Presets and reasons: "
+                "net_debt_definition.RULES."]
     out += ["", f"Valuation impact ({ILLUSTRATIVE}), {fy(vi.year)}, EUR thousands:"]
     out += ["Only diligence adjustments count as the impact of the findings. Standard EV-to-equity items (lease "
             "liabilities: reported EBITDA is after IFRS 16) and working capital against the indicative peg (the "

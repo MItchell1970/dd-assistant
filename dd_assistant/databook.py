@@ -1,7 +1,8 @@
 """Layer 4b — the databook: the Excel a transaction team works in (deterministic, no AI).
 
 One workbook, readable and auditable:
-  Read Me · Executive Summary · Source Register · Financials · QoE · NWC · Net Debt · EV to Equity · Leakage ·
+  Read Me · Executive Summary · Source Register · Financials · QoE · NWC · Net Debt · SPA net debt schedule ·
+  EV to Equity · Leakage ·
   Monthly & LTM · Issues & Requests · Checks
   - figures from the data room are inputs (blue), totals and bridges are formulas (black), links to another
     sheet are green; the cells the analyst decides (status, include, owner) are the only unlocked ones;
@@ -391,6 +392,65 @@ def _net_debt(ws, a, fin_rows: dict[str, int]) -> dict:
                        "statements do not give.")
     _finish(ws, [52, 40, 10, 44] + [13] * len(years) + [34], "E5", 4, last + 1)
     return {"cols": cols, "reported": reported_row, "adjusted": adjusted_row, "items": item_rows}
+
+
+def _spa_schedule(ws, a, definition=None) -> dict:
+    """The net debt definition for the SPA: each component with its value and source, the buyer's and the seller's
+    presets, the analyst's choice (yellow) and the reason; the three net debts and the gap are SUMIFS formulas, and
+    the changes the analyst made are listed below. Returns the rows of the totals (for Checks) and the Python values."""
+    from . import net_debt_definition as ndd
+    cs = ndd.components(a)
+    definition = definition or ndd.Definition(ndd.BUYER, ndd.preset(cs, ndd.BUYER))
+    chosen = {**ndd.preset(cs, ndd.BUYER), **definition.chosen}
+    B = a.view.bs_years[-1]
+    _title(ws, "SPA net debt schedule", f"Net debt definition at {fy(B)}, EUR thousands: + adds to net debt (debt-like), "
+                                        "− deducts (cash-like). Buyer = the engine's default (adjusted net debt); seller "
+                                        "= the vendor's usual position. Choose Yes/No in the yellow cells: the totals "
+                                        "recalculate.")
+    _put(ws, 3, 1, f"Definition chosen: {definition.name}", _BOLD)
+    _header(ws, 4, ["Item", "Group", f"Value {fy(B)}", "Source", "Buyer", "Seller", "Choice", "Reason of the choice",
+                    "Why the presets differ"])
+    first = r = 5
+    yes = lambda flag: "Yes" if flag else "No"
+    for c in cs:
+        _put(ws, r, 1, c.label)
+        _put(ws, r, 2, c.group)
+        _put(ws, r, 3, c.value, _INPUT, _NUM)
+        _put(ws, r, 4, c.source)
+        _put(ws, r, 5, yes(c.buyer))
+        _put(ws, r, 6, yes(c.seller))
+        _put(ws, r, 7, yes(chosen[c.key]), fill=_DECISION, unlocked=True)
+        _put(ws, r, 8, definition.reason(c.key), fill=_DECISION, unlocked=True)
+        _put(ws, r, 9, c.why)
+        r += 1
+    last = r - 1
+    _validation(ws, ["Yes", "No"], f"G{first}:G{last}")
+    rows = {}
+    r += 1
+    for key, label, col in (("buyer", "Net debt — buyer's view", "E"), ("seller", "Net debt — seller's view", "F"),
+                            ("chosen", f"Net debt — chosen definition ({definition.name})", "G")):
+        _put(ws, r, 1, label, _BOLD)
+        _formula(ws, r, 3, f'=SUMIFS(C{first}:C{last},{col}{first}:{col}{last},"Yes")', bold=True)
+        rows[key] = r
+        r += 1
+    _put(ws, r, 1, "In negotiation (buyer's less seller's net debt)", _BOLD)
+    _formula(ws, r, 3, f"=C{rows['buyer']}-C{rows['seller']}", bold=True)
+    rows["gap"] = r
+    if definition.changes:
+        r += 2
+        _put(ws, r, 1, "Changes made by the analyst", _BOLD)
+        r += 1
+        _header(ws, r, ["Item", "When", "Included after the change", "Reason"])
+        for ch in definition.changes:
+            r += 1
+            for col, value in enumerate((ch.label, ch.when, yes(ch.included) if ch.key != "preset" else "—",
+                                         ch.reason), 1):
+                _put(ws, r, col, value)
+    _finish(ws, [46, 16, 14, 40, 8, 8, 9, 34, 70], "B5", 4, 9)
+    ws.auto_filter.ref = f"A4:I{last}"
+    n = ndd.negotiation(cs)
+    return {"rows": rows, "year": B, "buyer": n.buyer, "seller": n.seller, "chosen": ndd.net_debt(cs, chosen),
+            "name": definition.name}
 
 
 def _nwc(ws, a, fin_rows: dict[str, int], nd: dict) -> dict:
@@ -857,7 +917,7 @@ def _open_items(ws, a) -> None:
     _finish(ws, [26, 70, 60], "A5", 4, 3)
 
 
-def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price=None) -> int:
+def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price=None, spa: dict | None = None) -> int:
     """Reconciliations and the databook's own controls; returns the row of the recalculation status."""
     _title(ws, "Checks", "Reading checks, consistency rules and the databook's own controls: each total of this "
                          "workbook against the value computed in Python. Tolerance €1k (rounding of the source).")
@@ -896,6 +956,10 @@ def _checks(ws, a, qoe: dict, nd: dict, nwc: dict, ev: dict | None = None, price
             value = locked_box_equity(price.locked_box)["equity"] if price.locked_box else None
             ref = f"'EV to Equity'!B{ev['equity_lb']}"
         control(f"Equity value — {price.mechanism.lower()}", v.bs_years[-1], ref, value)
+    if spa:
+        for key, label in (("buyer", "SPA net debt — buyer's view"), ("seller", "SPA net debt — seller's view"),
+                           ("chosen", f"SPA net debt — chosen ({spa['name']})")):
+            control(label, spa["year"], f"'SPA net debt schedule'!C{spa['rows'][key]}", spa[key])
     r += 2
     _put(ws, r, 1, "Reading checks (subtotals rebuilt from the lines vs as published)", _BOLD)
     for c in a.checks:
@@ -1022,13 +1086,15 @@ def _summary(ws, a, fin_rows, qoe, nd, nwc) -> None:
     ws.protection.sheet = True
 
 
-def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, price=None) -> None:
+def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, price=None, definition=None) -> None:
     """The databook of an analysis (pipeline.Analysis). price (price.PriceInputs): what the analyst entered for the
-    price mechanism; without it the EV to Equity sheet waits for the mechanism to be chosen."""
+    price mechanism; without it the EV to Equity sheet waits for the mechanism to be chosen. definition
+    (net_debt_definition.Definition): the net debt definition chosen in the tool; by default the buyer's."""
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     wb = Workbook()
     sheets = {name: (wb.active if i == 0 else wb.create_sheet(name)) for i, name in enumerate(
-        ["Read Me", "Executive Summary", "Source Register", "Financials", "QoE", "NWC", "Net Debt", "EV to Equity",
+        ["Read Me", "Executive Summary", "Source Register", "Financials", "QoE", "NWC", "Net Debt",
+         "SPA net debt schedule", "EV to Equity",
          "Leakage", "Monthly & LTM", "Key Issues", "Top Issues", "Valuation Impact", "Open Items",
          "Issues & Requests", "Checks"])}
     sheets["Read Me"].title = "Read Me"
@@ -1036,6 +1102,7 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, 
     qoe = _qoe(sheets["QoE"], a, fin_rows)
     nd = _net_debt(sheets["Net Debt"], a, fin_rows)
     nwc = _nwc(sheets["NWC"], a, fin_rows, nd)
+    spa = _spa_schedule(sheets["SPA net debt schedule"], a, definition)
     _source_register(sheets["Source Register"], a)
     ev = _ev_to_equity(sheets["EV to Equity"], a, qoe, nd, nwc, price)
     _leakage(sheets["Leakage"], a, price)
@@ -1049,7 +1116,7 @@ def write_databook(a, path: str | Path | BinaryIO, reviews: dict | None = None, 
     _valuation_impact(sheets["Valuation Impact"], a)
     _open_items(sheets["Open Items"], a)
     _issues(sheets["Issues & Requests"], a, reviews)
-    _checks(sheets["Checks"], a, qoe, nd, nwc, ev, price)
+    _checks(sheets["Checks"], a, qoe, nd, nwc, ev, price, spa)
     _read_me(sheets["Read Me"], a, stamp)
     _summary(sheets["Executive Summary"], a, fin_rows, qoe, nd, nwc)
     wb.calculation.fullCalcOnLoad = True     # Excel calculates every formula when the file opens

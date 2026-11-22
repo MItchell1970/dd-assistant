@@ -353,3 +353,33 @@ Só regras gerais, nada ajustado a uma empresa. Commit local, sem push.
 **`docs/examples/esef_coverage.md`** regenerado com descargas novas (`--fresh`): coluna do setor sugerido e da net debt ajustada, secção da revisão. Os tempos de descarga desta vez foram ~1 s por pacote (o servidor já os tinha em cache), contra 7–8 s na primeira corrida.
 
 **Próximo passo exato:** revisão do Bernardo e aprovação do push; depois, a peça B.
+
+## Definição de net debt (22 de novembro de 2026, antes da peça B)
+
+**Feito** (commit local, sem push)
+- **Motor** (`dd_assistant/net_debt_definition.py`): cada componente da net debt (empréstimos não correntes e correntes, caixa e cada item debt-like ou cash-like do balanço) com valor, fonte, grupo (Borrowings, Cash, Leases, Pensions, Taxes, Provisions, Other debt-like, Other cash-like, To assess) e interruptor. Três predefinições: **Buyer (conservative)** (a do motor: dá a net debt ajustada), **Seller** e **Custom** (qualquer interruptor mudado). A tabela `RULES` tem, por categoria, comprador, vendedor e a razão numa linha. `evaluate` recalcula net debt, leverage (sobre o EBITDA *diligence-adjusted*), EV ao múltiplo, equity value e impacto dos achados com as mesmas fórmulas de `deal_layer.equity_view` e `valuation_impact`; a app só escolhe.
+- **App** (separador Impact da ferramenta): no topo, net debt do comprador, do vendedor e "In negotiation"; a predefinição; uma tabela com um interruptor e um motivo opcional por componente; os cartões (EV, net debt e leverage, equity value, impacto) recalculam; cada alteração fica registada (quando, item, incluído ou não, motivo); botão "Download databook with this definition". Os gráficos por baixo continuam a ser a visão do comprador (legenda à vista).
+- **Databook:** folha **"SPA net debt schedule"** (item, grupo, valor, fonte, comprador, vendedor, escolha a amarelo, motivo, razão das predefinições); totais por SUMIFS para comprador, vendedor e escolha, e a diferença; o registo das alterações por baixo; três controlos novos na Checks. Databooks da demo regenerados e recalculados pelo Excel: **12 de 12 totais = Python** nas três empresas (eram 9).
+- **Site:** uma linha na página de cada empresa ("Net debt definition, FY25: seller's view to buyer's view"); os números estão no material do memo (secção 1c), como o teste do site exige.
+
+**Resultados**
+
+| Empresa | Comprador | Vendedor | Em negociação |
+|---|---|---|---|
+| TAP | €2,293m | €2,073m | €220m |
+| Toyota Caetano | €78,039k | €72,385k | €5,654k |
+| Corticeira Amorim | €83,638k | €36,597k | €47,041k |
+
+TAP, à mão a partir do balanço publicado (p.152): o vendedor tira as pensões (173,153.669) e o imposto a pagar (3,873.215) e conta como caixa os outros ativos financeiros (680.947 + 13,178.431) e os ativos detidos para venda (28,869.179): 2,292,544.633 − 219,755.441 = 2,072,789.192. Só empréstimos e caixa: −42,784.156 = borrowings less cash. Visto no browser: excluir as pensões dá net debt €2,119m, leverage 2.92x, equity value €3,687m e impacto −€4m a 8x; "Seller" dá €2,073m, 2.86x e impacto +€43m.
+
+**Decisões (a opção mais simples e defensável)**
+- **Comprador = o motor**, sem exceção: um teste obriga a coluna do comprador a ser igual às predefinições de `extract.DEBT_LIKE` e `CASH_LIKE`. Assim a net debt ajustada, o Diligence Gap, o databook e o memo não mudam.
+- **Vendedor** (a posição habitual de um vendedor, não uma regra de mercado): leasings dentro (o EBITDA é pós-IFRS 16, os dois lados costumam aceitar); pensões, imposto sobre o rendimento, *deferred consideration*, *factoring* e dívida presumida fora; títulos negociáveis, outros ativos financeiros, caixa restrita e ativos detidos para venda dentro como caixa. Provisões e itens "to assess" fora nos dois.
+- **"In negotiation"** = net debt do comprador menos a do vendedor, mostrada em valor absoluto e a cinzento (o âmbar é só para Medium).
+- **Impacto dos achados** com a definição escolhida: ajustes de EBITDA × múltiplo mais os itens de balanço incluídos que não são empréstimos, caixa ou leasings (o mesmo critério de `valuation_impact`). Com a escolha do vendedor pode ficar positivo (TAP +€43m), porque itens cash-like contam a favor.
+- **Registo:** a mudança de predefinição também fica registada. As decisões vivem na sessão do browser, como as outras decisões da ferramenta; saem no databook descarregado.
+- **Captura:** `docs/images/tool-impact-net-debt-definition.png` (TAP, 1440 px, Playwright com o Edge).
+
+**Testes:** `tests/test_net_debt_definition.py` (9: predefinições da TAP, só empréstimos e caixa, um interruptor mexe net debt, leverage, equity e impacto mas não o EV, o comprador dá os números de hoje nas três empresas a 6x, 8x e 10x, a tabela, a folha e Excel = Python). `test_databook` e `test_demo` atualizados (folha nova; 3 controlos a mais). **Suite completa uma vez: 356 testes, 355 OK**; a falha era o site com o número antigo de testes (347), regenerado; o `test_site` passou a seguir.
+
+**Próximo passo exato:** revisão do Bernardo e aprovação do push; depois, a peça B.

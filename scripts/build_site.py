@@ -510,6 +510,17 @@ def index(cases: list) -> str:
                 "what is still open in the diligence, from their published accounts.", body)
 
 
+def definition_line(a) -> str:
+    """One line: the net debt the buyer's and the seller's definitions give, and the gap (the tool has the switches)."""
+    from dd_assistant import net_debt_definition as ndd
+    n = ndd.negotiation(ndd.components(a))
+    if n.buyer is None or n.seller is None:
+        return ""
+    f = lambda x: E(a.money.fmt(x).replace("-€", "−€"))
+    return (f"<p class='kv'><span>Net debt definition, {E(fy(a.view.bs_years[-1]))}: seller's view to buyer's "
+            f"view</span><b>{f(n.seller)} to {f(n.buyer)} · {f(abs(n.gap))} in negotiation</b></p>")
+
+
 def company(c, a) -> str:
     from dd_assistant import charts
     from dd_assistant import deal_layer as dl
@@ -528,6 +539,7 @@ def company(c, a) -> str:
 {legend()}
 <div class="issues3">{top3}</div>
 {in_price(a)}
+{definition_line(a)}
 </div></section>
 <section class="tight" data-check="{c.slug}"><div class="wrap">
 {charts.svg(b, a.money) if b else ""}
