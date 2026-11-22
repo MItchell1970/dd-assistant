@@ -319,8 +319,12 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 **Critérios de aceitação da especificação**
 1. Testes sem rede e sem API: cumprido.
 2. Cinco cotadas de cinco países: **3 de 5** (PT, FR, ES). Pedido do Bernardo: 3 empresas de setores diferentes. A Siemens (DE) não está no filings.xbrl.org; IT não foi tentada.
-3. EDP FY2025 ao milhar: **não reconferido** (o pacote de 96 MB está fora do projeto). O `test_esef.py` passa sem mudanças nas asserções; a única mudança no teste é o parâmetro `edit` do pacote sintético.
+3. EDP FY2025 ao milhar: **cumprido** (reconferido a 22 de novembro de 2026, com autorização do Bernardo). Pesquisa pelo LEI `529900CLC3WDMGI9VH80`, pacote de 91,8 MB descarregado do filings.xbrl.org em 81 s, SHA-256 igual ao publicado (`1b95264f…5c229968`); resultado operacional reconstruído em 2,999,414 (FY25) e 2,261,983 (FY24) milhares de euros, diferença zero; *Complete*; 20 de 30 regras; 2 de 2 reading checks; leitura e análise em 2,8 s.
 
 **Capturas** (1440 px, `scripts/esef_screenshots.py`, Playwright com o Edge): `docs/images/esef-search.png` (pesquisa com a Schneider encontrada) e `docs/images/esef-result.png` (resultado com o aviso "Complete", 21 de 30 regras, 4 de 4 checks).
+
+**Revisão de segurança automática (depois do commit):** dois achados no `registry.py`, ambos corrigidos. (1) Os URLs das respostas dos registos (pacote, página seguinte) e os redirecionamentos eram seguidos sem limite: agora só `https` em `api.gleif.org` e `filings.xbrl.org`; o resto é recusado (ou, numa resposta, ignorado). (2) O nome do ficheiro na cache usava o LEI, a data e o nome do pacote como vinham: agora são validados e o caminho tem de ficar dentro da cache. Três testes novos. Um teste antigo (limite de 300 MB) passou a substituir o opener próprio; antes da correção desse teste, chegou a fazer um pedido real à rede.
+
+**Pesquisa pelo nome antigo:** "EDP Energias de Portugal" não encontra a EDP (o nome legal é "EDP, S.A." desde 2022); "EDP, S.A." e o LEI encontram. Fica em GAPS.
 
 **Próximo passo exato:** revisão do Bernardo; depois, a peça B.

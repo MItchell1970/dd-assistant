@@ -27,6 +27,9 @@ CACHE = Path(__file__).resolve().parent.parent / "output" / "esef_cache"
 MAX_DOWNLOAD = MAX_EXPANDED              # a package is never larger compressed than expanded
 AGENT = "DD-Assistant/1.0 (ESEF reader)"
 LEI = re.compile(r"[A-Z0-9]{18}[0-9]{2}")
+HOSTS = {"api.gleif.org", "filings.xbrl.org"}   # the only places the reader asks or downloads from
+PERIOD = re.compile(r"\d{4}-\d{2}-\d{2}")
+PACKAGE = re.compile(r"[\w.-]+\.(?:zip|xbri)", re.I)
 
 
 class RegistryError(Exception):
@@ -37,10 +40,30 @@ class NotFound(RegistryError):
     """The register has no such record (HTTP 404): for filings.xbrl.org, a LEI with no ESEF report."""
 
 
+def checked(url: str) -> str:
+    """Only https on the two registers: a URL from a register's answer (a package, the next page) or a redirect that
+    points anywhere else (another host, http, file://) is refused."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme != "https" or parts.hostname not in HOSTS or parts.username or parts.port not in (None, 443):
+        raise RegistryError(f"Refused: {url} is not on {' or '.join(sorted(HOSTS))} over https.")
+    return url
+
+
+class _SameHosts(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        checked(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_SameHosts)
+
+
 class Http:
-    """The internet, through urllib. Tests pass a recorded one instead (tests/test_registry.py)."""
+    """The internet, through urllib, limited to the two registers. Tests pass a recorded one instead
+    (tests/test_registry.py)."""
 
     def get(self, url: str, limit: int | None = None) -> bytes:
+        checked(url)
         for attempt in range(4):         # a register that says 'too many requests' is asked again, politely
             try:
                 return self._get(url, limit)
@@ -59,7 +82,7 @@ class Http:
     @staticmethod
     def _get(url: str, limit: int | None) -> bytes:
         req = urllib.request.Request(url, headers={"User-Agent": AGENT, "Accept": "application/vnd.api+json, */*"})
-        with urllib.request.urlopen(req, timeout=120) as r:
+        with _OPENER.open(req, timeout=120) as r:
             size = int(r.headers.get("Content-Length") or 0)
             if limit and size > limit:
                 raise RegistryError(f"{url} is {size / 1024 ** 2:,.0f} MB, above the {limit // 1024 ** 2} MB "
@@ -70,11 +93,11 @@ class Http:
         return body
 
     def size(self, url: str) -> int | None:
-        req = urllib.request.Request(url, headers={"User-Agent": AGENT}, method="HEAD")
+        req = urllib.request.Request(checked(url), headers={"User-Agent": AGENT}, method="HEAD")
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with _OPENER.open(req, timeout=30) as r:
                 return int(r.headers.get("Content-Length") or 0) or None
-        except (OSError, ValueError):
+        except (OSError, ValueError, RegistryError):
             return None
 
 
@@ -142,11 +165,24 @@ def filings(lei: str, http: Http, name: str = "", sizes: bool = True) -> list[Fi
             a = d.get("attributes", {})
             if not a.get("package_url") or "/ESEF/" not in a["package_url"]:
                 continue
-            out.append(Filing(lei, name or lei, a.get("period_end", ""), a.get("country", ""),
-                              urllib.parse.urljoin(FILINGS, a["package_url"]), a.get("sha256") or "",
+            url_ = urllib.parse.urljoin(FILINGS, a["package_url"])
+            try:                         # the register's answer is data: a package elsewhere is not listed
+                checked(url_)
+            except RegistryError:
+                continue
+            if not PERIOD.fullmatch(a.get("period_end") or "") or not PACKAGE.fullmatch(Path(
+                    urllib.parse.urlsplit(url_).path).name):
+                continue
+            out.append(Filing(lei, name or lei, a.get("period_end", ""), a.get("country", ""), url_,
+                              a.get("sha256") or "",
                               a.get("error_count") or 0, a.get("warning_count") or 0,
                               a.get("inconsistency_count") or 0))
         url = page.get("links", {}).get("next")
+        if url:
+            try:
+                checked(url)
+            except RegistryError:        # a next page elsewhere: stop at the pages already read
+                url = None
     out.sort(key=lambda f: (f.period_end, f.url), reverse=True)
     if sizes:
         for f in out:
@@ -204,8 +240,13 @@ def download(f: Filing, http: Http | None = None, cache: Path = CACHE) -> Downlo
     """Download a report package to the cache (reused when already there and unchanged). A file whose SHA-256 differs
     from the one filings.xbrl.org publishes is not the report it lists (broken or altered): it is refused."""
     http = http or Http()
+    checked(f.url)
+    if not (LEI.fullmatch(f.lei) and PERIOD.fullmatch(f.period_end) and PACKAGE.fullmatch(f.file_name)):
+        raise RegistryError(f"Refused: unexpected LEI, date or file name ({f.lei}, {f.period_end}, {f.file_name}).")
     cache.mkdir(parents=True, exist_ok=True)
     path = cache / f"{f.lei}_{f.period_end}_{f.file_name}"
+    if path.resolve().parent != cache.resolve():
+        raise RegistryError(f"Refused: {path} is outside the cache folder.")
     expected = f.sha256.lower()
     if path.exists():
         body = path.read_bytes()

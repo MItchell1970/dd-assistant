@@ -84,6 +84,35 @@ class SearchTest(unittest.TestCase):
         self.assertEqual(registry.search("W38RGI023J3WT1HWRP32", RecordedHttp()), [])
 
 
+class OnlyTheRegistersTest(unittest.TestCase):
+    """Whatever a register answers is data: the reader asks and downloads only on its two hosts, over https."""
+
+    def test_other_urls_are_refused(self):
+        for url in ("file:///C:/Windows/win.ini", "http://filings.xbrl.org/a.zip", "https://evil.example/a.zip",
+                    "https://filings.xbrl.org.evil.example/a.zip", "https://user@filings.xbrl.org/a.zip"):
+            with self.assertRaisesRegex(registry.RegistryError, "Refused"):
+                registry.Http().get(url)
+        self.assertEqual(registry.checked("https://filings.xbrl.org/a.zip"), "https://filings.xbrl.org/a.zip")
+
+    def test_a_package_or_a_next_page_elsewhere_is_not_followed(self):
+        page = json.loads(fixture(f"filings_{JM}.json"))
+        page["data"][0]["attributes"]["package_url"] = "https://evil.example/x.zip"
+        page["data"][1]["attributes"]["period_end"] = "../../x"
+        page["links"]["next"] = "file:///etc/passwd"
+
+        class Http(RecordedHttp):
+            def get(self, url, limit=None):
+                return json.dumps(page).encode() if url.endswith(f"{JM}/filings") else super().get(url, limit)
+        found = registry.filings(JM, Http(), sizes=False)
+        self.assertEqual([f.year for f in found], [2025, 2024, 2023])   # 2021 and 2022 were spoilt
+        self.assertTrue(all(f.url.startswith("https://filings.xbrl.org/") for f in found))
+
+    def test_the_cache_file_stays_in_the_cache(self):
+        bad = registry.Filing(JM, "x", "../../2025", "PT", "https://filings.xbrl.org/a.zip")
+        with self.assertRaisesRegex(registry.RegistryError, "unexpected LEI, date or file name"):
+            registry.download(bad, RecordedHttp(), Path(tempfile.mkdtemp()))
+
+
 class DownloadTest(unittest.TestCase):
     def setUp(self):
         self.zip = package()
@@ -124,7 +153,7 @@ class DownloadTest(unittest.TestCase):
 
             def __exit__(self, *a):
                 return False
-        with mock.patch("urllib.request.urlopen", return_value=Big(b"x")):
+        with mock.patch.object(registry._OPENER, "open", return_value=Big(b"x")):
             with self.assertRaisesRegex(registry.RegistryError, "above the 300 MB limit"):
                 registry.Http().get("https://filings.xbrl.org/big.zip", limit=registry.MAX_DOWNLOAD)
 
