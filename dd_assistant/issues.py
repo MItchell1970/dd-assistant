@@ -16,6 +16,7 @@ from dataclasses import dataclass, replace
 
 from . import notes as notes_
 from .deal import DealView
+from .extract import PRESUMED_DEBT
 from .input_loader import CompanyData
 from .metrics import Metrics
 from .rules import SEVERITIES, RuleResult, fy
@@ -307,7 +308,10 @@ def key_issues(findings: list[RuleResult], view: DealView, d: CompanyData, m: Me
         out.append(KeyIssue(key, kind, category, "", abs(total), f"balance at {fy(B)}", B, material,
                             "" if material is not False else f"{BELOW} ({materiality.bs_pct:.0%} of revenue)",
                             implications.get(key, default), treatment,
-                            f"Please provide the breakdown, terms and maturity of: {category.lower()}.",
+                            (f"No current borrowings line is presented: is this {money.fmt(abs(total)) if money else ''} "
+                             "the current portion of borrowings (bank loans, commercial paper, bonds due within a "
+                             "year)? Please provide its breakdown, terms and maturity." if category == PRESUMED_DEBT
+                             else f"Please provide the breakdown, terms and maturity of: {category.lower()}."),
                             (ev.request if ev and ev.request else
                              f"Schedule of {category.lower()} with supporting agreements"), source,
                             ev.state if ev else "", ev.note if ev else "", ev.text if ev else ""))

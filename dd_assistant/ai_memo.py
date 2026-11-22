@@ -272,8 +272,10 @@ def _deal_section(a) -> list[str]:
 def _sector_section(a) -> list[str]:
     from .sectors import BENCHMARK_SOURCE
     s = a.sector
-    how = (f"suggested from the data room ({', '.join(a.suggested_from)}) and confirmed by the reviewer"
-           if s.key == a.suggested.key and a.suggested_from else "chosen by the reviewer")
+    how = (f"suggested from what the company declares, its activity or legal name ({', '.join(a.suggested_from)}), "
+           "and confirmed by the reviewer" if s.key == a.suggested.key and a.suggested_from else
+           "to be confirmed by the reviewer: nothing the company declares points to one sector (general thresholds)"
+           if s.key == a.suggested.key else "chosen by the reviewer")
     from .pipeline import PURPOSES
     c = a.country
     out = ["## 6. Context: purpose, country and sector",

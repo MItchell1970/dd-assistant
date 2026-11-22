@@ -44,7 +44,8 @@ FOR_RULE = {
     "R28": (("other_payables", "other_financial"), ()),
 }
 FOR_ITEM = {"Lease liabilities": ("leases",), "Provisions": ("provisions",),
-            "Other financial liabilities": ("other_financial",), "Other financial assets": ("other_financial",)}
+            "Other financial liabilities": ("other_financial",), "Other financial assets": ("other_financial",),
+            "Current financial liabilities (no current borrowings line)": ("borrowings", "other_financial")}
 # once the public report has answered the first question, the request goes one level down
 NEXT_REQUEST = {
     "other_income": "Ledger of the largest components of other income named in the note; the contracts, grant "

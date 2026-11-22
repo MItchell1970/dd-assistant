@@ -102,13 +102,13 @@ def analyse(ext: Extraction, sector: str | sectors.Sector | None = None, country
     view = deal_view(data, m, decisions, analyst, include)
     findings = issues.by_amount(alerts(results))
     checks = reading_checks(data)
+    thresholds = materiality.thresholds(data, m)
+    key = issues.key_issues(findings, view, data, m, materiality, implications, ext.notes, money,
+                            sectors.OPERATING_ITEMS.get(s.key))
     return Analysis(ext, data, m, results, findings, checks, view, s, suggested, words,
                     Money.for_data(data), benchmark_rows(data, m, view, s), dict(decisions or {}), c, c_suggested,
                     c_why, purpose, general_years, dict(include or {}), list(analyst or []), materiality,
-                    materiality.thresholds(data, m),
-                    issues.key_issues(findings, view, data, m, materiality, implications, ext.notes, money,
-                                      sectors.OPERATING_ITEMS.get(s.key)),
-                    esef_quality.assess(ext, data, checks, m))
+                    thresholds, key, esef_quality.assess(ext, data, checks, m, key, thresholds.get("bs")))
 
 
 PURPOSE_EFFECTS = {
@@ -180,7 +180,7 @@ def to_dict(a: Analysis) -> dict:
                     "statutory_tax_rate": a.country.tax_rate if a.country else None,
                     "suggested_from": a.country_why},
         "years": [fy(y) for y in d.years],
-        "sector": {"key": a.sector.key, "name": a.sector.name, "suggested": a.suggested.key,
+        "sector": {"key": a.sector.key, "name": a.sector.name, "suggested": a.suggested.key if a.suggested_from else "to be confirmed",
                    "suggested_from": a.suggested_from,
                    "peers": f"{a.sector.benchmarks['industry']} — {sectors.BENCHMARK_SOURCE}"},
         "reading_checks": [{**c, "Year": fy(c["Year"])} for c in a.checks],

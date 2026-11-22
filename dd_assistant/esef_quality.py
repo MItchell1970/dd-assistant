@@ -6,7 +6,8 @@ Three levels for a report that was read, from the worst:
     Toyota Caetano's FY2025 filing), or there is no published subtotal to check the reading against;
   - 'Notes missing: …': the statements read well, but the report does not tag the notes a first pass leans on
     (borrowings, provisions, leases, related parties, other income, segments) as IFRS text blocks, so the memo
-    cannot quote them from the tags;
+    cannot quote them from the tags; or a material current financial liability is not classified as debt and no
+    note read classifies it (it is listed in net debt, to assess or presumed debt, never left out silently);
   - 'Complete': both of the above are fine.
 A report that could not be read at all (download refused, unsafe .zip, another currency, no statements) is
 'Not analysed', with the reason: a failure is a quality warning, never hidden.
@@ -16,6 +17,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .extract import UNCLASSIFIED_FINANCIAL
 from .rules import fy
 
 COMPLETE, NOTES_MISSING, FAILED, NOT_ANALYSED = ("Complete", "Notes missing", "Reading check failed, do not rely",
@@ -36,11 +38,12 @@ class Quality:
     level: str
     reasons: list[str] = field(default_factory=list)
     notes_found: list[str] = field(default_factory=list)    # topics of TOPICS tagged in the report
+    unclassified: list[str] = field(default_factory=list)   # current financial liabilities no note classifies
 
     @property
     def headline(self) -> str:
         if self.level == NOTES_MISSING:
-            return f"{NOTES_MISSING}: " + ", ".join(t for t in TOPICS if t not in self.notes_found)
+            return f"{NOTES_MISSING}: " + ", ".join([t for t in TOPICS if t not in self.notes_found] + self.unclassified)
         return self.level
 
     @property
@@ -56,8 +59,27 @@ def notes_found(blocks: list[str]) -> list[str]:
     return [t for t, pattern in TOPICS.items() if any(re.search(pattern, b) for b in blocks)]
 
 
-def assess(ext, data, checks: list[dict], metrics) -> Quality | None:
-    """The warning for an analysis read from an ESEF report; None for any other data room."""
+def unclassified(data, key_issues, limit: float | None) -> tuple[list[str], list[str]]:
+    """Material current financial liabilities not classified as debt, that no note read classifies: (what is missing,
+    the reasons). Each is in the net debt bridge (to assess, or presumed debt) with its question for the company."""
+    year = data.bs_years[-1] if getattr(data, "bs_years", None) else data.years[-1]
+    explained = {i.title for i in key_issues or [] if i.evidence_state == "explained"}
+    missing, reasons = [], []
+    for b in data.balance_items:
+        amount = abs(b.values.get(year) or 0)
+        if b.category in UNCLASSIFIED_FINANCIAL and b.kind == "current" and b.category not in explained and amount \
+                and (limit is None or amount >= limit):
+            missing.append(f"classification of {b.label.lower()} ({amount:,.0f} EUR thousands)")
+            reasons.append(f"{b.label} {fy(year)}: {amount:,.0f} (EUR thousands, {b.source}) is a current financial "
+                           "liability not classified as debt, and no note read classifies it: "
+                           + ("included in adjusted net debt as presumed current debt (no current borrowings line)."
+                              if b.include else "listed in net debt to assess, not included."))
+    return missing, reasons
+
+
+def assess(ext, data, checks: list[dict], metrics, key_issues=None, limit: float | None = None) -> Quality | None:
+    """The warning for an analysis read from an ESEF report; None for any other data room. limit: the balance sheet
+    materiality (EUR thousands)."""
     if not ext.esef:
         return None
     reasons = []
@@ -79,13 +101,14 @@ def assess(ext, data, checks: list[dict], metrics) -> Quality | None:
         reasons.append("Same tag, same period, different figures (a mis-tagged line): " + "; ".join(shown)
                        + (f"; and {more} more" if more > 0 else "") + ".")
     found = notes_found(ext.esef.get("blocks", []))
+    missing, why_unclassified = unclassified(data, key_issues, limit)
     if reasons:
-        return Quality(FAILED, reasons, found)
-    if len(found) < len(TOPICS):
-        why = ("The report tags no note as an IFRS text block (block tagging is mandatory from FY2022)."
-               if not ext.esef.get("blocks") else
-               "Notes tagged: " + (", ".join(found) or "none of these") + ".")
-        return Quality(NOTES_MISSING, [why], found)
+        return Quality(FAILED, reasons + why_unclassified, found, missing)
+    if len(found) < len(TOPICS) or missing:
+        why = ([] if len(found) == len(TOPICS) else
+               ["The report tags no note as an IFRS text block (block tagging is mandatory from FY2022)."
+                if not ext.esef.get("blocks") else "Notes tagged: " + (", ".join(found) or "none of these") + "."])
+        return Quality(NOTES_MISSING, why + why_unclassified, found, missing)
     return Quality(COMPLETE, [], found)
 
 

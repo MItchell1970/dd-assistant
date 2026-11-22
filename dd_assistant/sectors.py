@@ -155,7 +155,9 @@ SECTORS: list[Sector] = [
          "Gross profit by business line (new, used, after-sales)")]),
     _s("consumer_retail", "Consumer & retail",
        ["retalho", "lojas", "loja", "retail", "retailer", "store", "stores", "consumidor", "consumer",
-        "e commerce", "ecommerce", "supermercado", "supermercados", "moda", "fashion"],
+        "e commerce", "ecommerce", "supermercado", "supermercados", "moda", "fashion", "distribuicao alimentar",
+        "distribucion alimentaria", "distribution alimentaire", "grande distribution", "food retail", "food retailer",
+        "grocery", "groceries", "supermarkets", "supermarket", "lebensmitteleinzelhandel", "grande distribuzione"],
        {"R08": (5, "sales are mostly cash and card, so any increase in DSO is unusual"),
         "R11": (0.50, "seasonal stock is usually funded with short-term lines")},
        [("Like-for-like", "What is like-for-like growth, excluding store openings and closures?",
@@ -266,7 +268,9 @@ SECTORS: list[Sector] = [
          "Headcount and staff costs by month")]),
     _s("energy", "Energy & utilities",
        ["energia", "energy", "eletricidade", "electricity", "renovaveis", "renewable", "renewables", "solar",
-        "eolica", "wind", "utilities", "utility"],
+        "eolica", "wind", "utilities", "utility", "energia eletrica", "energia electrica", "gas natural", "electricidad",
+        "renovables", "electricite", "energie", "energies renouvelables", "elettricita", "rinnovabili", "strom",
+        "erneuerbare energien"],
        {},
        [("Tariffs", "What share of revenue is regulated or under long-term PPAs, and when do they expire?",
          "PPAs and regulatory decisions"),
@@ -307,24 +311,36 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", t)).strip()
 
 
+TO_CONFIRM = "Sector to be confirmed"
+_DECLARED = re.compile(r"(?im)^(?:[A-Z]+\d+:\s*)?(?:atividade|actividade|activity|principal activities|business description|"
+                       r"nature of (?:the )?business|objeto social)\s*\|\s*(?:[A-Z]+\d+:\s*)?(.*[A-Za-z].*)$")
+_CUSTOMERS = re.compile(r"\b(?:a|aos|para|to|for|aux|a los)\s+(?:clientes|customers|clients|instaladores)\b")
+
+
+def declared_activity(text: str) -> str:
+    """What the company declares it does: the ESEF tag of its principal activities ('Nature of business | …') or an
+    'Atividade | …' field of the data room. The first sentence only, without the customers it serves ('… a
+    clientes dos setores automóvel, alimentar')."""
+    out = []
+    for m in _DECLARED.finditer(text or ""):
+        first = re.split(r"[.;:](?:\s|$)", m.group(1), maxsplit=1)[0]
+        out.append(_CUSTOMERS.split(_norm(first))[0].strip())
+    return " ".join(out)
+
+
 def suggest(text: str, company: str = "") -> tuple[Sector, list[str]]:
-    """The sector with the most distinct keywords in the data room (a keyword in the company name counts
-    three times), with the words found; 'General' when nothing matches. Distinct words, not counts, so a
-    customer listing full of 'Automóvel' does not make a distributor a car dealer. The reviewer confirms it."""
-    # what the company says it does ('Atividade | Distribuição B2B de…') weighs like its name; only the first
-    # words, before the customers it serves ('… a clientes dos setores automóvel, alimentar')
-    activity = " ".join(" ".join(_norm(m.group(1)).split()[:8]) for m in re.finditer(
-        r"(?im)(?:atividade|actividade|activity|activities|business description|nature of (?:the )?business|"
-        r"objeto social)\s*\|\s*(?:[A-Z]+\d+:\s*)?(.*)$", text))
-    body, name = f" {_norm(text)} ", f" {_norm(company)} {_norm(activity)} "
-    best, best_score, best_words = GENERAL, 0, []
-    for s in SECTORS[1:]:
-        score, words = 0, []
-        for k in s.keywords:
-            n = (f" {k} " in body) + 3 * (f" {k} " in name)
-            if n:
-                score += n
-                words.append(k)
-        if score > best_score:
-            best, best_score, best_words = s, score, words
-    return best, best_words
+    """The sector from objective sources only: what the company declares it does (declared_activity) and its legal
+    name, never words found elsewhere in the data room. Longer expressions first ('distribuição alimentar' is food
+    retail, not wholesale distribution); the sector with more distinct keywords than any other is suggested, with
+    the words found. Nothing found, or a tie between sectors: 'General' with no words, shown as TO_CONFIRM — the
+    reviewer chooses, and the general thresholds apply meanwhile."""
+    probe = f" {_norm(company)} {declared_activity(text)} "
+    found: dict[str, list[str]] = {}
+    for k, s in sorted(((k, s) for s in SECTORS[1:] for k in s.keywords), key=lambda x: -len(x[0].split())):
+        if f" {k} " in probe:
+            found.setdefault(s.key, []).append(k)
+            probe = probe.replace(f" {k} ", " # ")
+    ranked = sorted(found.items(), key=lambda x: -len(x[1]))
+    if not ranked or (len(ranked) > 1 and len(ranked[0][1]) == len(ranked[1][1])):
+        return GENERAL, []
+    return SECTOR_BY_KEY[ranked[0][0]], ranked[0][1]

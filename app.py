@@ -626,8 +626,9 @@ with (st.sidebar.expander("Settings of this analysis (fixed in the demo)") if DE
                               format_func=lambda k: sectors.SECTOR_BY_KEY[k].name,
                               help="Calibrates a few thresholds, sets the peer benchmarks and adds the sector's "
                                    "questions to the request list.")
-    st.caption(f"Suggested from the file: {', '.join(words)}." if words and sector_key == suggested.key else
-               "Chosen by you." if sector_key != suggested.key else "No sector keyword found: choose one.")
+    st.caption(f"Suggested from what the company declares (activity, legal name): {', '.join(words)}." if words and sector_key == suggested.key else
+               "Chosen by you." if sector_key != suggested.key else "Sector to be confirmed: nothing the company declares (its activity, its legal name) points to one "
+               "sector. General thresholds until you choose.")
     sector_effect = st.empty()
     st.divider()
     if DEMO:

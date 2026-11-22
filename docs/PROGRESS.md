@@ -327,4 +327,29 @@ A secção 6b referida na mensagem do Bernardo não estava no ficheiro; as 10 li
 
 **Pesquisa pelo nome antigo:** "EDP Energias de Portugal" não encontra a EDP (o nome legal é "EDP, S.A." desde 2022); "EDP, S.A." e o LEI encontram. Fica em GAPS.
 
-**Próximo passo exato:** revisão do Bernardo; depois, a peça B.
+### Revisão da peça A (22 de novembro de 2026, pedidos do Bernardo antes do push)
+
+Só regras gerais, nada ajustado a uma empresa. Commit local, sem push.
+
+1. **EDP reconferida com o leitor novo.** Corri o pacote FY2025 com o leitor de antes da peça A (commit `6c21aa7`, num worktree temporário) e com o atual: todas as linhas, reading checks, EBITDA (reportado e ajustado), net debt (reportada e ajustada), NWC, achados e itens de balanço iguais. Depois das mudanças 2 e 3: net debt ajustada igual (€18,284m: a EDP tem linha de dívida corrente); aviso *Complete* → *Notes missing* (outros passivos financeiros correntes de €1,141m, nenhuma nota lida os classifica); setor sugerido Energy, agora a partir da atividade declarada.
+2. **Passivos financeiros correntes por classificar** (`extract._presume_current_debt`, `esef_quality.unclassified`). Regra: se a empresa tem financiamentos mas nenhuma linha de dívida corrente, os passivos financeiros correntes não classificados como dívida passam a "Current financial liabilities (no current borrowings line)", entram na net debt ajustada (visão prudente do comprador) com montante, fonte e a pergunta "No current borrowings line is presented: is this €X the current portion of borrowings…?". Com linha de dívida corrente, ficam "to assess", como antes. Em qualquer caso, um passivo destes material (acima da materialidade de balanço) que nenhuma nota classifique baixa o aviso ESEF para *Notes missing*. **Schneider: net debt ajustada €11,435m → €14,294m** (+€2,859m); NWC −€1,102m → €1,757m (a dívida sai do fundo de maneio).
+3. **Setor por fonte objetiva** (`sectors.suggest`, `sectors.declared_activity`). Nem o ESEF nem a GLEIF têm código NACE. A sugestão passou a usar só o que a empresa declara: a etiqueta ESEF das atividades principais ou um campo "Atividade |" do data room (primeira frase, sem os clientes servidos) e a denominação legal; nunca palavras soltas do resto do data room. Expressões mais longas primeiro ("distribuição alimentar" é retalho alimentar, não distribuição grossista). Sugere-se o setor com mais palavras distintas do que qualquer outro; empate ou nada → **"Sector to be confirmed"** (limites gerais até o revisor escolher), na app, na linha de comandos, no JSON e no material do memo. Dicionário: palavras de energia em espanhol, francês, italiano e alemão e expressões de retalho alimentar nas seis línguas.
+
+| Empresa | Setor antes | Setor agora | De onde vem |
+|---|---|---|---|
+| Jerónimo Martins | Industrial distribution (errado) | Consumer & retail | atividade declarada: "distribuição alimentar" |
+| Schneider Electric | General (sem palavra) | Sector to be confirmed | o objeto declarado não aponta para um setor |
+| Iberdrola | Industrial distribution (errado) | Energy & utilities | atividade declarada: "electricidad", "renovables" |
+| TAP | Transport | Transport | denominação legal: "Transportes" |
+| Toyota Caetano | Automotive | Automotive | denominação legal: "Toyota" |
+| Corticeira Amorim | Materials | Materials | denominação legal: "Corticeira" |
+| EDP (extra) | Energy | Energy | atividade declarada: "energia elétrica", "gás natural" |
+| Duriva, Velmora | Distribution | Distribution | "Atividade \| Distribuição B2B…" |
+
+**TAP, Toyota e Amorim não mudam:** comparei o motor de antes (6c21aa7) e o de agora, na análise direta e na da demo (com notas e três anos): setor, EBITDA, net debt ajustada, NWC, reading checks, achados, key issues e Diligence Gap (40, 35, 21) idênticos.
+
+**Testes novos:** `UnclassifiedFinancialLiabilitiesTest` (4, em `tests/test_esef_quality.py`: o pacote sintético com a dívida corrente etiquetada como outros passivos financeiros dá a mesma net debt ajustada, a pergunta, *Notes missing*; a Amorim fica "to assess") e 4 em `tests/test_sectors.py` (as seis empresas e a EDP, palavras fora da declaração não contam, empate). **Suite completa uma vez: 347 testes, 346 OK**; a falha era o site com o número antigo de testes (340), regenerado; o `test_site` passou a seguir.
+
+**`docs/examples/esef_coverage.md`** regenerado com descargas novas (`--fresh`): coluna do setor sugerido e da net debt ajustada, secção da revisão. Os tempos de descarga desta vez foram ~1 s por pacote (o servidor já os tinha em cache), contra 7–8 s na primeira corrida.
+
+**Próximo passo exato:** revisão do Bernardo e aprovação do push; depois, a peça B.

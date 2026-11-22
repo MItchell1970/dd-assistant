@@ -270,9 +270,13 @@ def _print(a: Analysis) -> None:
     m, v, L = a.money, a.view, a.view.pl_years[-1]
     B = v.bs_years[-1]
     print(f"{a.ext.company} · read with: {a.ext.method}")
-    how = f"suggested from: {', '.join(a.suggested_from)}" if a.sector is a.suggested and a.suggested_from else \
-        "chosen" if a.sector is not a.suggested else "no keyword found"
-    print(f"Sector: {a.sector.name} ({how}; change with --sector, list with --sectors)")
+    if a.sector is a.suggested and not a.suggested_from:
+        print("Sector: to be confirmed — nothing the company declares (activity, legal name) points to one sector; "
+              "general thresholds meanwhile (choose with --sector, list with --sectors)")
+    else:
+        how = f"suggested from what the company declares: {', '.join(a.suggested_from)}" \
+            if a.sector is a.suggested else "chosen"
+        print(f"Sector: {a.sector.name} ({how}; change with --sector, list with --sectors)")
     print(f"Country: {a.country.name + ' — ' + a.country.framework if a.country else 'not set'}"
           + (f" (from {a.country_why})" if a.country and a.country is a.country_suggested and a.country_why else "")
           + f" · Purpose: {PURPOSES[a.purpose]}")

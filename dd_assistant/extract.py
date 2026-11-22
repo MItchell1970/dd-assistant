@@ -479,6 +479,10 @@ RESIDUALS = {"oanc": ("tot_anc", ["aft"]), "oac": ("tot_ac", ["inv", "cli", "cai
              "opnc": ("tot_pnc", ["fin_lp"]), "opc": ("tot_pc", ["forn", "fin_cp"])}
 
 MATERIAL_OTHER = 0.10   # an 'other' current line above this share of revenue is listed in net debt to assess
+# a company with borrowings but no current borrowings line: its current financial liabilities not classified as debt
+# are presumed to be the current debt (prudent buyer's view), included until a note shows otherwise
+PRESUMED_DEBT = "Current financial liabilities (no current borrowings line)"
+UNCLASSIFIED_FINANCIAL = ("Other financial liabilities", PRESUMED_DEBT)
 
 
 def _unclassified(values: dict, items: list, nature: str) -> dict:
@@ -885,6 +889,20 @@ def _classify(norm: str, side: str) -> tuple[str, str, bool | str] | None:
     return None
 
 
+def _presume_current_debt(data: CompanyData) -> None:
+    """Borrowings in the balance sheet but no current borrowings line (Schneider Electric tags its short-term debt as
+    other current financial liabilities): the current financial liabilities not classified as debt are presumed to
+    be that debt and included in adjusted net debt, shown with the question for the company. With a current
+    borrowings line, they stay to assess, as before."""
+    has_debt = any(v for v in data.lines.get("fin_lp", {}).values())
+    has_current = any(v for v in data.lines.get("fin_cp", {}).values())
+    if not has_debt or has_current:
+        return
+    for b in data.balance_items:
+        if b.category == "Other financial liabilities" and b.kind == "current" and any(b.values.values()):
+            b.category, b.include = PRESUMED_DEBT, True
+
+
 def _balance_item(category, nature, include, label, kind, values, source, derived) -> BalanceItem:
     other = "opc" if nature == "debt" else "oac"
     # inside the 'other' line when it is derived from a total: its own section, or the grand total (any section)
@@ -1093,6 +1111,7 @@ def extract_excel(file: str | BinaryIO, name: str = "") -> Extraction:
             else:
                 unmapped.append({"Statement": STATEMENTS[st], "Line in the file": r.label, "Source": r.source,
                                  **{f"FY{str(y)[2:]}": v for y, v in sorted(scaled(r.values).items())}})
+    _presume_current_debt(data)
     # dividends paid (payments, not dividends received): candidates for the leakage register of a locked box
     for r in all_rows.get("cf", []):
         if not re.search(r"dividend|gewinnausschuttung", r.norm):
@@ -1337,6 +1356,7 @@ def _from_pdf(p: _PdfStatements, name: str) -> Extraction:
         else:
             unmapped.append({"Statement": "Balance sheet", "Line in the file": b.label_in_document,
                              "Source": f"{name} p.{b.page}", **{f"FY{str(y)[2:]}": v for y, v in vals(b.values).items()}})
+    _presume_current_debt(data)
     data.clients = [Named(c.name, vals(c.values)) for c in p.customers]
     data.clients_source = f"{name} p.{p.customers[0].page}" if p.customers else ""
     data.other_clients = vals(p.other_customers)

@@ -17,7 +17,7 @@ from dd_assistant import esef, esef_quality
 from dd_assistant.ai_memo import build_material
 from dd_assistant.databook import write_databook
 from dd_assistant.dataroom import read_data_room
-from dd_assistant.extract import ExtractionError
+from dd_assistant.extract import PRESUMED_DEBT, ExtractionError
 from dd_assistant.pipeline import analyse
 from tests.test_esef import _fact, package
 
@@ -88,6 +88,54 @@ class WhereItShowsTest(unittest.TestCase):
         ws = load_workbook(path)["Read Me"]
         rows = {ws.cell(r, 1).value: ws.cell(r, 2).value for r in range(1, 30)}
         self.assertTrue(rows["ESEF data quality"].startswith("Notes missing: segments."))
+
+
+def renamed(package_bytes: bytes, old: str, new: str) -> bytes:
+    """The same package with one IFRS concept tagged as another, in the report and the presentation."""
+    src = zipfile.ZipFile(io.BytesIO(package_bytes))
+    return zipped({n: src.read(n).replace(old.encode(), new.encode()) for n in src.namelist()})
+
+
+class UnclassifiedFinancialLiabilitiesTest(unittest.TestCase):
+    """Short-term debt tagged as 'other current financial liabilities' (Schneider Electric, FY2025) is never left out
+    in silence: with no current borrowings line it is presumed debt and included, with its question; the warning
+    says no note classifies it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = analysed(with_blocks(BLOCKS))
+        moved = renamed(package(edit=with_blocks(BLOCKS)), "ShorttermBorrowings", "OtherCurrentFinancialLiabilities")
+        cls.a = analyse(read_data_room([("acme-2025-12-31.zip", moved)]))
+
+    def test_presumed_current_debt_is_included(self):
+        items = [b for b in self.a.data.balance_items if b.kind == "current" and b.nature == "debt"
+                 and b.category == PRESUMED_DEBT]
+        self.assertEqual([(b.values[2025], b.include, b.source) for b in items],
+                         [(600, True, "ifrs-full:OtherCurrentFinancialLiabilities")])
+        self.assertIsNone(self.a.data.v("fin_cp", 2025))
+        # the same adjusted net debt as when the line is tagged as borrowings: nothing is lost
+        self.assertEqual(self.a.view.net_debt_adjusted[2025], self.base.view.net_debt_adjusted[2025])
+
+    def test_it_comes_with_a_question_and_its_source(self):
+        issue = next(i for i in self.a.issues if i.title == PRESUMED_DEBT)
+        self.assertEqual((issue.kind, issue.amount, issue.source),
+                         ("Net debt item", 600, "ifrs-full:OtherCurrentFinancialLiabilities"))
+        self.assertIn("No current borrowings line is presented", issue.question)
+
+    def test_the_warning_drops_to_notes_missing(self):
+        q = self.a.quality
+        self.assertEqual(q.level, "Notes missing")
+        self.assertEqual(q.headline, "Notes missing: classification of other financial liabilities (600 EUR thousands)")
+        self.assertIn("presumed current debt", q.reasons[0])
+        self.assertEqual(self.base.quality.level, "Complete")
+
+    def test_with_a_current_borrowings_line_they_stay_to_assess(self):
+        """Corticeira Amorim FY2025: bank debt on its own line; its other financial liabilities stay to assess."""
+        ext = read_data_room([("Corticeira_Amorim_2025_published.xlsx",
+                               Path("data/Corticeira_Amorim_2025_published.xlsx").read_bytes())])
+        current = [(b.category, b.include) for b in ext.data.balance_items
+                   if b.kind == "current" and b.category.endswith("financial liabilities")]
+        self.assertEqual(current, [("Other financial liabilities", False)])
 
 
 def zipped(members: dict[str, bytes]) -> bytes:
