@@ -1,6 +1,9 @@
 # Publishes the static site (site/) on GitHub Pages at every push to main.
 # The pages are built and committed on the author's PC (python scripts/build_site.py); here the downloads and
 # images are only copied next to them (standard library, no engine), then the folder is published.
+# Two jobs, as in GitHub's Pages template: the deploy starts only when the build job has finished, so the artifact
+# is complete and listed when deploy-pages looks for it (run 45046121240 failed with "0 artifacts" one second after
+# a successful upload in the same job).
 name: Publish the static site
 
 on:
@@ -15,21 +18,26 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Copy the downloads and images next to the pages
         run: python3 scripts/build_site.py --assets
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v3   # v3 keeps site/.nojekyll (v4 leaves hidden files out)
         with:
           path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
