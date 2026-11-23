@@ -9,9 +9,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-SOURCE = ("Hypothesis of this project, per task (no public study gives minutes per task for a first-pass financial "
-          "due diligence); low end, one experienced associate in Excel; to be reviewed by Bernardo. Fixed before the "
-          "agent's run: docs/examples/duriva-messy/manual_estimate.md.")
+# Public references for the whole of the data preparation (checked on 23 November 2026). Both are statements by
+# companies that sell QoE tools, not independent studies; neither splits the time by task.
+PUBLIC = [
+    ("8 to 15 hours of data preparation per engagement", "Middle Market Growth (ACG), article by QoEAgent",
+     "https://middlemarketgrowth.org/qoeagent-ai-qoe-data-problem/", 8 * 60, 15 * 60),
+    ("8 to 12 hours per deal for data cleanup and account mapping", "F4 Fund, profile of the start-up Blitsy",
+     "https://f4.fund/startups/blitsy-c4a996", 8 * 60, 12 * 60),
+]
+SOURCE = ("The total is within the public ranges for this work: 8 to 15 hours of data preparation per engagement "
+          "(Middle Market Growth, article by QoEAgent) and 8 to 12 hours per deal (F4 Fund, profile of Blitsy); both "
+          "come from sellers of QoE tools. The split by task is this project's estimate (no public source gives "
+          "minutes per task), low end, one experienced associate in Excel, to be reviewed by Bernardo; fixed before "
+          "the agent's run: docs/examples/duriva-messy/manual_estimate.md.")
 
 
 @dataclass(frozen=True)
@@ -64,5 +74,17 @@ class AgentTime:
         return sum(self.steps.values())
 
     def text(self) -> str:
-        review = "not yet timed" if self.review_minutes is None else f"{self.review_minutes:.0f} min"
-        return f"agent {self.seconds:.1f} s + reviewer {review}"
+        """Never the agent's seconds alone: always with the human review, timed or still to be timed."""
+        if self.review_minutes is None:
+            return f"Agent: {self.seconds:.1f} s + human review (to be timed)"
+        total = self.seconds / 60 + self.review_minutes
+        return (f"Agent: {self.seconds:.1f} s + human review {self.review_minutes:.0f} min = {total:.0f} min in total")
+
+
+def comparison(agent: AgentTime) -> str:
+    """The one line that compares the two: 'Manual (estimated): 620 min · Agent: 1.2 s + human review (to be timed)'."""
+    return f"Manual (estimated): {manual_minutes():.0f} min · {agent.text()}"
+
+
+def within_public_range() -> bool:
+    return all(low <= manual_minutes() <= high for *_, low, high in PUBLIC)

@@ -24,3 +24,14 @@ challenged; Bernardo reviews them against his Transaction Services experience. T
 **What the agent's time includes** (measured, not estimated): the clock of the pipeline from the files to the
 databook, plus the reviewer's time to decide the Low accounts and read the Medium ones and the proof of cash
 differences. The reviewer's time is timed by a person; until it is, it is shown as "not yet timed", never assumed.
+
+## Public references (added on 23 November 2026, after the run; the table above is unchanged)
+
+- "8 to 15 hours" of data preparation per engagement — [Middle Market Growth, article by QoEAgent](https://middlemarketgrowth.org/qoeagent-ai-qoe-data-problem/).
+- "8 to 12 hours per deal" for data cleanup and account mapping — [F4 Fund, profile of the start-up Blitsy](https://f4.fund/startups/blitsy-c4a996).
+
+Both are statements by companies that sell QoE tools, not independent studies, and neither splits the time by task.
+The 620 minutes (10.3 hours) above are within both ranges; the split by task is this project's estimate.
+
+**How the comparison is shown:** never the agent's seconds alone. "Manual (estimated): 620 min · Agent: 1.8 s + human
+review (to be timed)"; once the review is timed, the total.

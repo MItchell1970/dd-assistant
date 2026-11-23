@@ -22,7 +22,7 @@ from dd_assistant import deal_layer as dl  # noqa: E402
 from dd_assistant.databook import control_results, recalculate, write_databook  # noqa: E402
 from dd_assistant.dataroom import files_in, read_data_room  # noqa: E402
 from dd_assistant.pipeline import analyse  # noqa: E402
-from dd_assistant.timing import MANUAL, SOURCE, AgentTime, manual_minutes  # noqa: E402
+from dd_assistant.timing import MANUAL, PUBLIC, SOURCE, AgentTime, comparison, manual_minutes  # noqa: E402
 
 ROOM = ROOT / "data" / "Duriva_messy_data_room"
 OUT = ROOT / "docs" / "examples" / "duriva-messy"
@@ -59,10 +59,15 @@ def run() -> None:
         lines.append(f"| {t.name} | {t.count:g} {t.units} × {t.minutes_per_unit:g} min | {t.minutes:.0f} | "
                      f"{t.agent_step} | {steps.get(t.agent_step, 0):.2f} |")
     lines += [f"| **Total** | | **{manual_minutes():.0f} min ({manual_minutes() / 60:.1f} h)** | | "
-              f"**{agent.seconds:.1f} s** |", "",
-              f"**Agent:** {agent.text()}. The agent's seconds per step are shared where one step does several tasks "
-              "(the proof of cash does tasks 5 to 7). The reviewer's time — deciding the two Low accounts and reading "
-              "the Medium one, the three differences and the findings — is timed by a person and is not assumed here.",
+              f"**{agent.seconds:.1f} s + human review (to be timed)** |", "",
+              f"**{comparison(agent)}.** The agent's seconds per step are shared where one step does several tasks "
+              "(the proof of cash does tasks 5 to 7). The human review — deciding the two Low accounts and reading "
+              "the Medium one, the three differences and the findings — is timed by a person and is not assumed here; "
+              "once timed, the total is shown.", "",
+              "**Public references** (for the whole of the work, not by task; both from sellers of QoE tools): "
+              + "; ".join(f"{what} ([{who}]({url}))" for what, who, url, *_ in PUBLIC)
+              + f". The {manual_minutes():.0f} minutes ({manual_minutes() / 60:.1f} h) are within both ranges; the "
+                "split by task is this project's estimate.",
               "", f"**Databook:** {path.name}, " + (f"recalculated by Excel: {ok} of {len(controls)} totals equal the "
                                                     "Python values." if recalculated else "not recalculated here.")]
     (OUT / "timing.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -87,7 +92,7 @@ def run() -> None:
             why = next((doc for rid, _, doc in before.blocked if rid == r.rule.id), "")
             rows.append(f"| {r.rule.id} · {r.rule.name} | {b} | {n} | {why} |")
     (OUT / "coverage.md").write_text("\n".join(rows) + "\n", encoding="utf-8")
-    print(f"timing: {manual_minutes():.0f} min manual vs {agent.text()}; coverage {before.text} -> {after.text}; "
+    print(f"timing: {comparison(agent)}; coverage {before.text} -> {after.text}; "
           f"databook {ok} of {len(controls)} controls OK")
 
 

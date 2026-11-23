@@ -54,6 +54,21 @@ class LedgerDatabookTest(unittest.TestCase):
 
 
 class TimingTest(unittest.TestCase):
+    def test_never_the_agent_s_seconds_alone(self):
+        from dd_assistant.timing import AgentTime, comparison
+        self.assertEqual(comparison(AgentTime({"a": 1.0, "b": 0.2}, None)),
+                         "Manual (estimated): 620 min · Agent: 1.2 s + human review (to be timed)")
+        self.assertEqual(comparison(AgentTime({"a": 1.2}, 45)),
+                         "Manual (estimated): 620 min · Agent: 1.2 s + human review 45 min = 45 min in total")
+
+    def test_the_total_is_within_the_public_ranges(self):
+        from dd_assistant.timing import PUBLIC, within_public_range
+        self.assertTrue(within_public_range())
+        self.assertEqual([(low, high) for *_, low, high in PUBLIC], [(480, 900), (480, 720)])
+        text = ESTIMATE.read_text(encoding="utf-8")
+        self.assertIn("middlemarketgrowth.org/qoeagent-ai-qoe-data-problem/", text)
+        self.assertIn("f4.fund/startups/blitsy-c4a996", text)
+
     def test_the_estimate_in_the_code_is_the_one_fixed_before_the_run(self):
         text = ESTIMATE.read_text(encoding="utf-8")
         self.assertIn("**620 minutes ≈ 10.3 hours**", text)

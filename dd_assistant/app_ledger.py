@@ -14,7 +14,7 @@ import streamlit as st
 
 from .ledger_room import LedgerRoom
 from .mapping import EXCLUDE, LABEL
-from .timing import MANUAL, SOURCE, AgentTime, manual_minutes
+from .timing import MANUAL, PUBLIC, SOURCE, AgentTime, comparison, manual_minutes
 
 LINES = ["vendas", "cmv", "fse", "pess", "orend", "own", "imp", "ogast", "da", "juros", "irc", "aft", "oanc", "inv",
          "cli", "oac", "caixa", "cp", "fin_lp", "opnc", "fin_cp", "forn", "opc"]
@@ -124,18 +124,22 @@ def time_tab(room: LedgerRoom, analysis_seconds: float) -> None:
                              help="Deciding the Low accounts, reading the Medium ones, the differences and findings.")
     agent = AgentTime(steps, review)
     manual = manual_minutes()
+    st.markdown(f"**{html.escape(comparison(agent))}**")
     _kpis([("Manual (estimated)", f"{manual:.0f} min", f"{manual / 60:.1f} hours; fixed before the agent's run"),
-           ("Agent (measured)", f"{agent.seconds:.1f} s", "reading, mapping, tie, proof of cash, analysis"),
-           ("Reviewer", "not yet timed" if review is None else f"{review:.0f} min", "timed by a person, never assumed")])
+           ("Agent + human review", f"{agent.seconds:.1f} s + review" if review is None else
+            f"{agent.seconds / 60 + review:.0f} min",
+            "the agent's measured seconds and the review, timed by a person: never the seconds alone"),
+           ("Human review", "to be timed" if review is None else f"{review:.0f} min", "timed by a person, never assumed")])
     st.caption(SOURCE)
+    st.caption("Public references: " + " · ".join(f"[{what}]({url}) ({who})" for what, who, url, *_ in PUBLIC))
     rows = [{"Task": t.name, "Units": f"{t.count:g} {t.units} × {t.minutes_per_unit:g} min",
              "Manual (min)": round(t.minutes), "Agent step": t.agent_step,
              "Agent (s)": round(steps.get(t.agent_step, 0.0), 2)} for t in MANUAL]
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
     agent_min = agent.seconds / 60 + (review or 0)
     rows = [("Manual (estimated)", manual, f"{manual:.0f} min ({manual / 60:.1f} h)"),
-            ("Agent + reviewer" if review is not None else "Agent (reviewer not yet timed)", agent_min,
-             f"{agent.seconds:.1f} s" + (f" + {review:.0f} min" if review is not None else ""))]
+            ("Agent + human review", agent_min, f"{agent.seconds:.1f} s + human review (to be timed)"
+             if review is None else f"{agent.seconds:.1f} s + {review:.0f} min = {agent_min:.0f} min")]
     top = max(manual, agent_min) or 1
     st.markdown("<div class='dd-section'>Manual estimated vs agent</div>" + "".join(
         f"<div style='display:grid;grid-template-columns:260px 1fr;gap:12px;align-items:center;margin:6px 0'>"
